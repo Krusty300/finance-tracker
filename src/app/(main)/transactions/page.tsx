@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { Transaction } from '@/lib/types';
 import { TransactionForm } from '@/components/forms/TransactionForm';
 import { EditTransactionForm } from '@/components/forms/EditTransactionForm';
@@ -18,9 +19,11 @@ import { toast } from 'sonner';
 import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
 import { DeleteConfirmDialog } from '@/components/dialogs/DeleteConfirmDialog';
 import { ExportDialog } from '@/components/dialogs/ExportDialog';
+import { AdvancedFilters } from '@/components/filters/AdvancedFilters';
 import { useCategories } from '@/hooks/useCategories';
 
 export default function TransactionsPage() {
+  const searchParams = useSearchParams();
   const { transactions, addTransaction, deleteTransaction, updateTransaction } = useTransactions();
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState<'all' | 'income' | 'expense'>('all');
@@ -28,25 +31,90 @@ export default function TransactionsPage() {
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [transactionToDelete, setTransactionToDelete] = useState<string | null>(null);
+  const [bulkDeleteIds, setBulkDeleteIds] = useState<string[]>([]);
+  const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false);
   const [dateRange, setDateRange] = useState<{ start: string; end: string }>({
     start: '',
     end: '',
   });
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const [useEnhancedTable, setUseEnhancedTable] = useState(true);
   const [exportDialogOpen, setExportDialogOpen] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [templateData, setTemplateData] = useState<Partial<Transaction> | null>(null);
   const { categories } = useCategories();
+
+  // Handle URL parameters from template navigation
+  useEffect(() => {
+    const amount = searchParams.get('amount');
+    const type = searchParams.get('type') as 'income' | 'expense' | null;
+    const category = searchParams.get('category');
+    const description = searchParams.get('description');
+    const account = searchParams.get('account');
+    const tags = searchParams.get('tags');
+
+    if (amount || type || category || description || account || tags) {
+      const templateDataToSet = {
+        amount: amount ? parseFloat(amount) : undefined,
+        type: type || undefined,
+        category: category || undefined,
+        description: description || undefined,
+        account: account || undefined,
+        tags: tags ? tags.split(',').map(tag => tag.trim()).filter(Boolean) : undefined,
+      };
+      console.log('TransactionsPage: Setting templateData', templateDataToSet);
+      setTemplateData(templateDataToSet);
+
+      // Pre-fill the form fields
+      if (type) setFilterType(type);
+      if (category) setFilterCategory(category);
+      if (description) setSearchTerm(description);
+
+      // Clear URL params after a short delay to ensure form processes them first
+      setTimeout(() => {
+        const newUrl = window.location.pathname;
+        window.history.replaceState({}, '', newUrl);
+      }, 500);
+    }
+  }, [searchParams]);
+
+  // Combined filters object for AdvancedFilters
+  const filters = {
+    searchTerm,
+    type: filterType,
+    category: filterCategory,
+    dateRange: dateRange,
+    amountRange: { min: '', max: '' }
+  };
+
+  const handleFiltersChange = (newFilters: any) => {
+    setSearchTerm(newFilters.searchTerm || searchTerm);
+    setFilterType(newFilters.type || filterType);
+    setFilterCategory(newFilters.category || filterCategory);
+    setDateRange(newFilters.dateRange || dateRange);
+  };
 
   const handleAddTransaction = (data: Omit<Transaction, 'id'>) => {
     try {
       addTransaction(data);
       toast.success('Transaction added successfully!');
+      // Clear template data after successful submission
+      setTemplateData(null);
     } catch (error) {
       console.error('Failed to add transaction:', error);
       toast.error('Failed to add transaction. Please try again.');
     }
   };
+
+  // Clear template data when component unmounts or after 5 minutes
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setTemplateData(null);
+    }, 5 * 60 * 1000); // 5 minutes
+
+    return () => clearTimeout(timer);
+  }, []);
 
   const handleEditTransaction = (transaction: Transaction) => {
     setEditingTransaction(transaction);
@@ -98,6 +166,24 @@ export default function TransactionsPage() {
     return `${amount} • ${date}`;
   };
 
+  const getBulkDeleteDetails = (ids: string[]) => {
+    const totalIncome = ids.reduce((sum, id) => {
+      const transaction = transactions.find(t => t.id === id);
+      return transaction?.type === 'income' ? sum + transaction.amount : sum;
+    }, 0);
+    
+    const totalExpense = ids.reduce((sum, id) => {
+      const transaction = transactions.find(t => t.id === id);
+      return transaction?.type === 'expense' ? sum + transaction.amount : sum;
+    }, 0);
+
+    const details = [];
+    if (totalIncome > 0) details.push(`Income: +$${totalIncome.toFixed(2)}`);
+    if (totalExpense > 0) details.push(`Expenses: -$${totalExpense.toFixed(2)}`);
+    
+    return details.join(' • ');
+  };
+
   const filteredTransactions = transactions.filter(transaction => {
     const matchesSearch = !searchTerm || 
       transaction.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -137,11 +223,18 @@ export default function TransactionsPage() {
   };
 
   const handleBulkDelete = (ids: string[]) => {
+    setBulkDeleteIds(ids);
+    setBulkDeleteDialogOpen(true);
+  };
+
+  const handleConfirmBulkDelete = () => {
     try {
-      ids.forEach(id => {
+      bulkDeleteIds.forEach(id => {
         deleteTransaction(id);
       });
-      toast.success(`${ids.length} transactions deleted successfully!`);
+      toast.success(`${bulkDeleteIds.length} transactions deleted successfully!`);
+      setBulkDeleteIds([]);
+      setBulkDeleteDialogOpen(false);
     } catch (error) {
       console.error('Failed to delete transactions:', error);
       toast.error('Failed to delete some transactions. Please try again.');
@@ -175,140 +268,27 @@ export default function TransactionsPage() {
             Manage your income and expenses
           </p>
         </div>
-        <TransactionForm onSubmit={handleAddTransaction} />
+        <TransactionForm 
+          onSubmit={handleAddTransaction} 
+          initialData={templateData || undefined}
+          onDialogClose={() => setTemplateData(null)}
+        />
+        {/* Debug: Show templateData */}
+        {templateData && (
+          <div className="fixed top-4 right-4 bg-yellow-100 p-2 rounded text-xs">
+            Debug templateData: {JSON.stringify(templateData)}
+          </div>
+        )}
       </div>
 
-      {/*  Filters */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle className="flex items-center">
-              <Filter className="mr-2 h-5 w-5" />
-              Filters
-              {hasActiveFilters && (
-                <Badge variant="secondary" className="ml-2">
-                  Active
-                </Badge>
-              )}
-            </CardTitle>
-            <div className="flex gap-2">
-              {hasActiveFilters && (
-                <Button variant="outline" size="sm" onClick={clearAllFilters}>
-                  <X className="mr-1 h-4 w-4" />
-                  Clear
-                </Button>
-              )}
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setShowAdvanced(!showAdvanced)}
-              >
-                <Calendar className="mr-1 h-4 w-4" />
-                {showAdvanced ? 'Simple' : 'Advanced'}
-              </Button>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {/* Basic Filters */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div className="relative">
-              <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search transactions..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
-              />
-            </div>
-            
-            <Select value={filterType} onValueChange={(value: any) => setFilterType(value)}>
-              <SelectTrigger>
-                <SelectValue placeholder="Filter by type" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Types</SelectItem>
-                <SelectItem value="income">Income</SelectItem>
-                <SelectItem value="expense">Expense</SelectItem>
-              </SelectContent>
-            </Select>
-
-            <Select value={filterCategory} onValueChange={setFilterCategory}>
-              <SelectTrigger>
-                <SelectValue placeholder="Filter by category" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Categories</SelectItem>
-                {categories
-                  .filter(cat => cat.type === 'expense')
-                  .map((category) => (
-                    <SelectItem key={category.id} value={category.id}>
-                      {category.name}
-                    </SelectItem>
-                  ))}
-              </SelectContent>
-            </Select>
-
-            <Button onClick={exportTransactions} variant="outline">
-              <Download className="mr-2 h-4 w-4" />
-              Export
-            </Button>
-          </div>
-
-          {/* Advanced Filters */}
-          {showAdvanced && (
-            <div className="border-t pt-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="text-sm font-medium mb-2">Date Range</label>
-                  <div className="grid grid-cols-2 gap-2">
-                    <Input
-                      type="date"
-                      placeholder="Start date"
-                      value={dateRange.start}
-                      onChange={(e) => setDateRange(prev => ({ ...prev, start: e.target.value }))}
-                    />
-                    <Input
-                      type="date"
-                      placeholder="End date"
-                      value={dateRange.end}
-                      onChange={(e) => setDateRange(prev => ({ ...prev, end: e.target.value }))}
-                    />
-                  </div>
-                </div>
-                
-                <div className="flex items-end">
-                  <Button
-                    variant="outline"
-                    onClick={() => {
-                      const today = new Date();
-                      const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
-                      setDateRange({
-                        start: firstDay.toISOString().split('T')[0],
-                        end: today.toISOString().split('T')[0],
-                      });
-                      toast.success('Set to current month');
-                    }}
-                  >
-                    <Calendar className="mr-2 h-4 w-4" />
-                    This Month
-                  </Button>
-                </div>
-              </div>
-
-              {/* Filter Summary */}
-              <div className="mt-4 p-3 bg-muted rounded-lg">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium">Filter Results</span>
-                  <span className="text-sm text-muted-foreground">
-                    {filteredTransactions.length} of {transactions.length} transactions
-                  </span>
-                </div>
-              </div>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+      {/* Advanced Filters */}
+      <AdvancedFilters
+        filters={filters}
+        onFiltersChange={handleFiltersChange}
+        categories={categories}
+        isOpen={showAdvancedFilters}
+        onToggle={() => setShowAdvancedFilters(!showAdvancedFilters)}
+      />
 
       {/* Summary Stats */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -433,6 +413,16 @@ export default function TransactionsPage() {
         description="Are you sure you want to delete this transaction? This action cannot be undone."
         itemName={transactionToDelete ? getTransactionDescription(transactionToDelete) : undefined}
         itemDetails={transactionToDelete ? getTransactionDetails(transactionToDelete) : undefined}
+      />
+
+      {/* Bulk Delete Confirmation Dialog */}
+      <DeleteConfirmDialog
+        open={bulkDeleteDialogOpen}
+        onOpenChange={setBulkDeleteDialogOpen}
+        onConfirm={handleConfirmBulkDelete}
+        title={`Delete ${bulkDeleteIds.length} Transaction${bulkDeleteIds.length > 1 ? 's' : ''}`}
+        description={`Are you sure you want to delete ${bulkDeleteIds.length} transaction${bulkDeleteIds.length > 1 ? 's' : ''}? This action cannot be undone.`}
+        itemDetails={bulkDeleteIds.length > 0 ? getBulkDeleteDetails(bulkDeleteIds) : undefined}
       />
 
       {/* Export Dialog */}

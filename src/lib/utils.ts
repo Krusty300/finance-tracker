@@ -31,6 +31,14 @@ export function getMonthEnd(date: Date): Date {
   return new Date(date.getFullYear(), date.getMonth() + 1, 0)
 }
 
+export function getYearStart(date: Date): Date {
+  return new Date(date.getFullYear(), 0, 1)
+}
+
+export function getYearEnd(date: Date): Date {
+  return new Date(date.getFullYear(), 11, 31)
+}
+
 export function calculatePercentage(value: number, total: number): number {
   if (total === 0) return 0
   return Math.round((value / total) * 100)

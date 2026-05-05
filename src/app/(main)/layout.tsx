@@ -2,6 +2,10 @@
 
 import { useState, useEffect } from 'react';
 import { Sidebar } from '@/components/layout/Sidebar';
+import { GlobalSearch } from '@/components/search/GlobalSearch';
+import { BreadcrumbNavigation } from '@/components/navigation/BreadcrumbNavigation';
+import { FloatingActionButton } from '@/components/navigation/FloatingActionButton';
+import { ThemeToggle } from '@/components/theme/ThemeToggle';
 import { Button } from '@/components/ui/button';
 import { Menu } from 'lucide-react';
 
@@ -49,21 +53,37 @@ export default function MainLayout({
         onToggle={toggleSidebar} 
       />
       <main className="flex-1 overflow-auto transition-all duration-300 relative">
+        {/* Global Search */}
+        <GlobalSearch />
+        
         {/* Floating toggle button for collapsed sidebar */}
         {isSidebarCollapsed && (
           <Button
             variant="outline"
             size="sm"
             onClick={toggleSidebar}
-            className="fixed top-4 left-4 z-10 h-8 w-8 p-0 shadow-md"
+            className="fixed top-4 left-4 z-50 h-8 w-8 p-0 shadow-md bg-background border-border"
             title="Toggle Sidebar (Ctrl/Cmd + B)"
           >
             <Menu className="h-4 w-4" />
           </Button>
         )}
+        
+        {/* Breadcrumb Navigation */}
+        <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm border-b p-4">
+          <div className="flex items-center justify-between">
+            <BreadcrumbNavigation />
+            <ThemeToggle />
+          </div>
+        </div>
+        
+        {/* Main Content */}
         <div className="container mx-auto p-6">
           {children}
         </div>
+        
+        {/* Floating Action Button for mobile */}
+        <FloatingActionButton />
       </main>
     </div>
   );

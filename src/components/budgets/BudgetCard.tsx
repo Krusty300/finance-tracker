@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Budget } from '@/lib/types';
 import { formatCurrency } from '@/lib/utils';
 import { Edit, Trash2, AlertCircle, TrendingUp, TrendingDown } from 'lucide-react';
+import { useCategories } from '@/hooks/useCategories';
 
 interface BudgetCardProps {
   budget: Budget;
@@ -25,8 +26,13 @@ export function BudgetCard({
   onEdit, 
   onDelete 
 }: BudgetCardProps) {
+  const { categories } = useCategories();
   const isOverBudget = percentageUsed > 100;
   const isNearLimit = percentageUsed >= 80 && percentageUsed <= 100;
+
+  // Map category ID to name
+  const category = categories.find(c => c.id === budget.category);
+  const categoryName = category?.name || budget.category;
   
   const getStatusColor = () => {
     if (isOverBudget) return 'destructive';
@@ -50,7 +56,7 @@ export function BudgetCard({
     <Card className="relative">
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
-          <CardTitle className="text-lg">{budget.category}</CardTitle>
+          <CardTitle className="text-lg">{categoryName}</CardTitle>
           <div className="flex items-center gap-2">
             <Badge variant={getStatusColor()} className="flex items-center gap-1">
               {getStatusIcon()}

@@ -72,15 +72,62 @@ export function useDashboardStats() {
           return acc;
         }, [] as Array<{ category: string; amount: number; percentage: number }>);
 
+      // Map category IDs to names
+      const categoryBreakdown = expensesByCategory.map(item => {
+        const category = categories.find(c => c.id === item.category);
+        return {
+          category: category ? category.name : item.category, // Fallback to original if category not found
+          amount: item.amount,
+          percentage: 0, // Will be calculated below
+        };
+      });
+
       // Calculate percentages for category breakdown
-      const totalExpenses = expensesByCategory.reduce((sum, item) => sum + item.amount, 0);
-      const categoryBreakdown = expensesByCategory.map(item => ({
-        ...item,
-        percentage: totalExpenses > 0 ? Math.round((item.amount / totalExpenses) * 100) : 0,
-      }));
+      const totalExpenses = categoryBreakdown.reduce((sum, item) => sum + item.amount, 0);
+      categoryBreakdown.forEach(item => {
+        item.percentage = totalExpenses > 0 ? Math.round((item.amount / totalExpenses) * 100) : 0;
+      });
 
       // Sort category breakdown by amount (descending)
       categoryBreakdown.sort((a, b) => b.amount - a.amount);
+
+      // Calculate budget breakdown
+      const budgetBreakdown = budgets.map(budget => {
+        const spent = currentMonthTransactions
+          .filter(t => t.category === budget.category && t.type === 'expense')
+          .reduce((sum, t) => sum + t.amount, 0);
+        
+        const remaining = budget.amount - spent;
+        const percentageUsed = budget.amount > 0 ? (spent / budget.amount) * 100 : 0;
+        
+        // Get category name for display
+        const category = categories.find(c => c.id === budget.category);
+        const categoryName = category?.name || budget.category;
+        
+        return {
+          category: categoryName,
+          budget: budget.amount,
+          spent,
+          remaining,
+          percentageUsed,
+          status: percentageUsed > 100 ? 'over-budget' : 
+                  percentageUsed >= 80 ? 'near-limit' : 'on-track' as 'on-track' | 'near-limit' | 'over-budget'
+        };
+      });
+
+      const totalBudget = budgets.reduce((sum, budget) => sum + budget.amount, 0);
+      const totalSpent = budgetBreakdown.reduce((sum, item) => sum + item.spent, 0);
+      const overBudgetCount = budgetBreakdown.filter(item => item.status === 'over-budget').length;
+      
+      // Determine overall budget health
+      let budgetHealth: 'healthy' | 'warning' | 'critical';
+      if (overBudgetCount > 0) {
+        budgetHealth = 'critical';
+      } else if (budgetBreakdown.filter(item => item.status === 'near-limit').length > 0) {
+        budgetHealth = 'warning';
+      } else {
+        budgetHealth = 'healthy';
+      }
 
       // Calculate monthly trend for the last 6 months
       const monthlyTrend = [];
@@ -117,6 +164,10 @@ export function useDashboardStats() {
         recentTransactions,
         categoryBreakdown,
         monthlyTrend,
+        budgetBreakdown,
+        totalBudget,
+        totalSpent,
+        budgetHealth,
       };
 
       setStats(dashboardStats);
@@ -126,7 +177,7 @@ export function useDashboardStats() {
     } finally {
       setLoading(false);
     }
-  }, [transactions, getTotalBalance]);
+  }, [transactions, getTotalBalance, budgets]);
 
   useEffect(() => {
     calculateStats();

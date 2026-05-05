@@ -1,4 +1,4 @@
-import { Transaction, Category, Budget, Account } from './types';
+import { Transaction, Category, Budget, Account, TransactionTemplate, RecycleBinItem } from './types';
 import { 
   transactionSchema, 
   categorySchema, 
@@ -11,6 +11,8 @@ const STORAGE_KEYS = {
   CATEGORIES: 'finance-tracker-categories',
   BUDGETS: 'finance-tracker-budgets',
   ACCOUNTS: 'finance-tracker-accounts',
+  TEMPLATES: 'finance-tracker-templates',
+  RECYCLE_BIN: 'finance-tracker-recycle-bin',
 } as const;
 
 class LocalStorageDB {
@@ -37,9 +39,41 @@ class LocalStorageDB {
       if (!data) return [];
       
       const transactions = JSON.parse(data);
-      return transactions.filter((t: any) => transactionSchema.safeParse(t).success);
+      return transactions
+        .filter((t: any) => transactionSchema.safeParse(t).success)
+        .filter((t: any) => !t.deletedAt); // Filter out soft-deleted transactions
     } catch (error) {
       console.error('Error reading transactions:', error);
+      return [];
+    }
+  }
+
+  // Get all transactions including deleted ones (for recycle bin)
+  getAllTransactions(): Transaction[] {
+    try {
+      const data = localStorage.getItem(STORAGE_KEYS.TRANSACTIONS);
+      if (!data) return [];
+      
+      const transactions = JSON.parse(data);
+      return transactions.filter((t: any) => transactionSchema.safeParse(t).success);
+    } catch (error) {
+      console.error('Error reading all transactions:', error);
+      return [];
+    }
+  }
+
+  // Get only deleted transactions (for recycle bin)
+  getDeletedTransactions(): Transaction[] {
+    try {
+      const data = localStorage.getItem(STORAGE_KEYS.TRANSACTIONS);
+      if (!data) return [];
+      
+      const transactions = JSON.parse(data);
+      return transactions
+        .filter((t: any) => transactionSchema.safeParse(t).success)
+        .filter((t: any) => t.deletedAt); // Only return deleted transactions
+    } catch (error) {
+      console.error('Error reading deleted transactions:', error);
       return [];
     }
   }
@@ -50,7 +84,7 @@ class LocalStorageDB {
       id: crypto.randomUUID(),
     };
 
-    const transactions = this.getTransactions();
+    const transactions = this.getAllTransactions();
     transactions.push(newTransaction);
     localStorage.setItem(STORAGE_KEYS.TRANSACTIONS, JSON.stringify(transactions));
     this.broadcastChange();
@@ -59,25 +93,21 @@ class LocalStorageDB {
   }
 
   updateTransaction(id: string, updates: Partial<Transaction>): Transaction | null {
-    const transactions = this.getTransactions();
+    const transactions = this.getAllTransactions();
     const index = transactions.findIndex(t => t.id === id);
     
     if (index === -1) return null;
-
-    const updatedTransaction = { ...transactions[index], ...updates };
-    const validated = transactionSchema.safeParse(updatedTransaction);
     
-    if (!validated.success) return null;
-
-    transactions[index] = validated.data;
+    const updatedTransaction = { ...transactions[index], ...updates };
+    transactions[index] = updatedTransaction;
     localStorage.setItem(STORAGE_KEYS.TRANSACTIONS, JSON.stringify(transactions));
     this.broadcastChange();
     
-    return validated.data;
+    return updatedTransaction;
   }
 
   deleteTransaction(id: string): boolean {
-    const transactions = this.getTransactions();
+    const transactions = this.getAllTransactions();
     const filteredTransactions = transactions.filter(t => t.id !== id);
     
     if (filteredTransactions.length === transactions.length) return false;
@@ -328,6 +358,155 @@ class LocalStorageDB {
     return true;
   }
 
+  // Transaction Templates
+  getTemplates(): TransactionTemplate[] {
+    try {
+      const data = localStorage.getItem(STORAGE_KEYS.TEMPLATES);
+      if (!data) return [];
+      
+      const templates = JSON.parse(data);
+      return templates;
+    } catch (error) {
+      console.error('Error reading templates:', error);
+      return [];
+    }
+  }
+
+  addTemplate(template: Omit<TransactionTemplate, 'id' | 'usageCount'>): TransactionTemplate {
+    const newTemplate: TransactionTemplate = {
+      ...template,
+      id: crypto.randomUUID(),
+      usageCount: 0,
+    };
+
+    const templates = this.getTemplates();
+    templates.push(newTemplate);
+    localStorage.setItem(STORAGE_KEYS.TEMPLATES, JSON.stringify(templates));
+    
+return newTemplate;
+}
+
+updateTemplate(id: string, updates: Partial<TransactionTemplate>): TransactionTemplate | null {
+const templates = this.getTemplates();
+const index = templates.findIndex(t => t.id === id);
+    
+if (index === -1) return null;
+
+const updatedTemplate = { ...templates[index], ...updates };
+templates[index] = updatedTemplate;
+localStorage.setItem(STORAGE_KEYS.TEMPLATES, JSON.stringify(templates));
+this.broadcastChange();
+    
+return updatedTemplate;
+}
+
+deleteTemplate(id: string): boolean {
+const templates = this.getTemplates();
+const filteredTemplates = templates.filter(t => t.id !== id);
+    
+    if (filteredTemplates.length === templates.length) return false;
+
+    localStorage.setItem(STORAGE_KEYS.TEMPLATES, JSON.stringify(filteredTemplates));
+    this.broadcastChange();
+    
+    return true;
+  }
+
+  incrementTemplateUsage(id: string): TransactionTemplate | null {
+    return this.updateTemplate(id, { 
+      usageCount: (this.getTemplates().find(t => t.id === id)?.usageCount || 0) + 1,
+      lastUsed: new Date().toISOString()
+    });
+  }
+
+  // Enhanced transaction methods for recurring transactions
+  generateRecurringTransactions(): Transaction[] {
+    const transactions = this.getTransactions();
+    const today = new Date();
+    const newTransactions: Transaction[] = [];
+
+    transactions.forEach(transaction => {
+      if (transaction.isRecurring && transaction.recurringRule) {
+        const rule = transaction.recurringRule;
+        const nextDate = new Date(rule.nextDate);
+
+        // Generate transactions up to 30 days in advance
+        while (nextDate <= new Date(today.getTime() + 30 * 24 * 60 * 60 * 1000)) {
+          // Check if we should generate this occurrence
+          if (rule.count && rule.lastGenerated) {
+            const generatedCount = transactions.filter(t => 
+              t.templateId === transaction.id && 
+              new Date(t.date) <= nextDate
+            ).length;
+            
+            if (generatedCount >= rule.count) break;
+          }
+
+          // Check end date
+          if (rule.endDate && nextDate > new Date(rule.endDate)) break;
+
+          // Check if this transaction already exists
+          const exists = transactions.some(t => 
+            t.templateId === transaction.id && 
+            new Date(t.date).toDateString() === nextDate.toDateString()
+          );
+
+          if (!exists) {
+            const recurringTransaction: Transaction = {
+              ...transaction,
+              id: crypto.randomUUID(),
+              date: nextDate.toISOString().split('T')[0],
+              templateId: transaction.id,
+              isRecurring: false, // Generated transactions are not recurring themselves
+            };
+
+            newTransactions.push(recurringTransaction);
+          }
+
+          // Calculate next occurrence
+          this.calculateNextOccurrence(nextDate, rule);
+          nextDate.setTime(nextDate.getTime() + 24 * 60 * 60 * 1000); // Move to next day
+        }
+      }
+    });
+
+    // Add new transactions to storage
+    if (newTransactions.length > 0) {
+      const allTransactions = [...transactions, ...newTransactions];
+      localStorage.setItem(STORAGE_KEYS.TRANSACTIONS, JSON.stringify(allTransactions));
+      this.broadcastChange();
+    }
+
+    return newTransactions;
+  }
+
+  private calculateNextOccurrence(currentDate: Date, rule: any): Date {
+    const next = new Date(currentDate);
+    
+    switch (rule.frequency) {
+      case 'daily':
+        next.setDate(next.getDate() + rule.interval);
+        break;
+      case 'weekly':
+        next.setDate(next.getDate() + (7 * rule.interval));
+        break;
+      case 'biweekly':
+        next.setDate(next.getDate() + (14 * rule.interval));
+        break;
+      case 'monthly':
+        next.setMonth(next.getMonth() + rule.interval);
+        break;
+      case 'quarterly':
+        next.setMonth(next.getMonth() + (3 * rule.interval));
+        break;
+      case 'yearly':
+        next.setFullYear(next.getFullYear() + rule.interval);
+        break;
+    }
+    
+    return next;
+  }
+
   // Export/Import functionality
   exportData() {
     return {
@@ -335,6 +514,7 @@ class LocalStorageDB {
       categories: this.getCategories(),
       budgets: this.getBudgets(),
       accounts: this.getAccounts(),
+      templates: this.getTemplates(),
       exportDate: new Date().toISOString(),
     };
   }
@@ -373,6 +553,160 @@ class LocalStorageDB {
       return true;
     } catch (error) {
       console.error('Error importing data:', error);
+      return false;
+    }
+  }
+
+  // Recycle Bin Methods
+  getRecycleBinItems(): RecycleBinItem[] {
+    try {
+      const items = localStorage.getItem(STORAGE_KEYS.RECYCLE_BIN);
+      return items ? JSON.parse(items) : [];
+    } catch (error) {
+      console.error('Error getting recycle bin items:', error);
+      return [];
+    }
+  }
+
+  addToRecycleBin(item: Omit<RecycleBinItem, 'id' | 'deletedAt'>): RecycleBinItem {
+    try {
+      const recycleBinItem: RecycleBinItem = {
+        ...item,
+        id: crypto.randomUUID(),
+        deletedAt: new Date().toISOString(),
+      };
+
+      const items = this.getRecycleBinItems();
+      items.push(recycleBinItem);
+      localStorage.setItem(STORAGE_KEYS.RECYCLE_BIN, JSON.stringify(items));
+      this.broadcastChange();
+      return recycleBinItem;
+    } catch (error) {
+      console.error('Error adding to recycle bin:', error);
+      throw error;
+    }
+  }
+
+  restoreFromRecycleBin(id: string): boolean {
+    try {
+      const items = this.getRecycleBinItems();
+      const itemIndex = items.findIndex(item => item.id === id);
+      
+      if (itemIndex === -1) return false;
+
+      const item = items[itemIndex];
+      
+      // Restore the original item based on its type
+      switch (item.type) {
+        case 'transaction':
+          this.restoreTransaction(item.originalId);
+          break;
+        case 'category':
+          this.addCategory(item.data);
+          break;
+        case 'budget':
+          this.addBudget(item.data);
+          break;
+        case 'account':
+          this.addAccount(item.data);
+          break;
+        case 'template':
+          this.addTemplate(item.data);
+          break;
+        default:
+          console.warn('Unknown item type:', item.type);
+          return false;
+      }
+
+      // Remove from recycle bin
+      items.splice(itemIndex, 1);
+      localStorage.setItem(STORAGE_KEYS.RECYCLE_BIN, JSON.stringify(items));
+      this.broadcastChange();
+      return true;
+    } catch (error) {
+      console.error('Error restoring from recycle bin:', error);
+      return false;
+    }
+  }
+
+  permanentDeleteFromRecycleBin(id: string): boolean {
+    try {
+      const items = this.getRecycleBinItems();
+      const itemIndex = items.findIndex(item => item.id === id);
+      
+      if (itemIndex === -1) return false;
+
+      items.splice(itemIndex, 1);
+      localStorage.setItem(STORAGE_KEYS.RECYCLE_BIN, JSON.stringify(items));
+      this.broadcastChange();
+      return true;
+    } catch (error) {
+      console.error('Error permanently deleting from recycle bin:', error);
+      return false;
+    }
+  }
+
+  emptyRecycleBin(): boolean {
+    try {
+      localStorage.setItem(STORAGE_KEYS.RECYCLE_BIN, JSON.stringify([]));
+      this.broadcastChange();
+      return true;
+    } catch (error) {
+      console.error('Error emptying recycle bin:', error);
+      return false;
+    }
+  }
+
+  // Soft delete methods for transactions
+  softDeleteTransaction(id: string): boolean {
+    try {
+      const transactions = this.getAllTransactions();
+      const transaction = transactions.find(t => t.id === id);
+      if (!transaction) return false;
+
+      // Add to recycle bin
+      this.addToRecycleBin({
+        type: 'transaction',
+        originalId: id,
+        data: transaction,
+        deletedBy: 'user',
+      });
+
+      // Update transaction with deletedAt timestamp
+      const updatedTransaction = { ...transaction, deletedAt: new Date().toISOString() };
+      this.updateTransaction(id, updatedTransaction);
+      return true;
+    } catch (error) {
+      console.error('Error soft deleting transaction:', error);
+      return false;
+    }
+  }
+
+  restoreTransaction(id: string): boolean {
+    try {
+      const transactions = this.getAllTransactions();
+      const transaction = transactions.find(t => t.id === id);
+      if (!transaction || !transaction.deletedAt) return false;
+
+      // Remove deletedAt timestamp
+      const restoredTransaction = { ...transaction, deletedAt: undefined };
+      this.updateTransaction(id, restoredTransaction);
+      
+      // Remove from recycle bin
+      const items = this.getRecycleBinItems();
+      const itemIndex = items.findIndex(item => 
+        item.type === 'transaction' && item.originalId === id
+      );
+      
+      if (itemIndex !== -1) {
+        items.splice(itemIndex, 1);
+        localStorage.setItem(STORAGE_KEYS.RECYCLE_BIN, JSON.stringify(items));
+      }
+      
+      this.broadcastChange();
+      return true;
+    } catch (error) {
+      console.error('Error restoring transaction:', error);
       return false;
     }
   }

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -23,9 +23,11 @@ type FormData = z.infer<typeof formSchema>;
 interface TransactionFormProps {
   onSubmit: (data: Omit<FormData, 'tags'>) => void;
   trigger?: React.ReactNode;
+  initialData?: Partial<FormData>;
+  onDialogClose?: () => void;
 }
 
-export function TransactionForm({ onSubmit, trigger }: TransactionFormProps) {
+export function TransactionForm({ onSubmit, trigger, initialData, onDialogClose }: TransactionFormProps) {
   const [open, setOpen] = useState(false);
   const { categories } = useCategories();
   const { accounts } = useAccounts();
@@ -33,24 +35,70 @@ export function TransactionForm({ onSubmit, trigger }: TransactionFormProps) {
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      amount: 0,
-      type: 'expense',
-      category: '',
-      date: new Date().toISOString().split('T')[0],
-      description: '',
-      account: '',
-      tags: [],
+      amount: initialData?.amount || 0,
+      type: initialData?.type || 'expense',
+      category: initialData?.category || '',
+      date: initialData?.date || new Date().toISOString().split('T')[0],
+      description: initialData?.description || '',
+      account: initialData?.account || '',
+      tags: initialData?.tags || [],
     },
   });
 
   const transactionType = form.watch('type');
   const filteredCategories = categories.filter(cat => cat.type === transactionType);
 
+  // Auto-open dialog when initialData is provided and set form values
+  useEffect(() => {
+    if (initialData) {
+      console.log('TransactionForm: Setting initialData', initialData);
+      setOpen(true);
+      
+      // Small delay to ensure form is fully initialized
+      const timer = setTimeout(() => {
+        // Use setValue instead of reset for better control
+        if (initialData.amount !== undefined) {
+          console.log('Setting amount to:', initialData.amount);
+          form.setValue('amount', initialData.amount);
+        }
+        if (initialData.type !== undefined) {
+          console.log('Setting type to:', initialData.type);
+          form.setValue('type', initialData.type);
+        }
+        if (initialData.category !== undefined) {
+          console.log('Setting category to:', initialData.category);
+          form.setValue('category', initialData.category);
+        }
+        if (initialData.date !== undefined) {
+          console.log('Setting date to:', initialData.date);
+          form.setValue('date', initialData.date);
+        }
+        if (initialData.description !== undefined) {
+          console.log('Setting description to:', initialData.description);
+          form.setValue('description', initialData.description);
+        }
+        if (initialData.account !== undefined) {
+          console.log('Setting account to:', initialData.account);
+          form.setValue('account', initialData.account);
+        }
+        if (initialData.tags !== undefined) {
+          console.log('Setting tags to:', initialData.tags);
+          form.setValue('tags', initialData.tags);
+        }
+      }, 100);
+
+      return () => clearTimeout(timer);
+    }
+  }, [initialData, form]);
+
   const handleSubmit = (data: FormData) => {
     try {
       onSubmit(data);
-      form.reset();
-      setOpen(false);
+      // Delay form reset to allow parent to clear template data first
+      setTimeout(() => {
+        form.reset();
+        setOpen(false);
+      }, 100);
     } catch (error) {
       console.error('Error submitting transaction:', error);
     }
@@ -64,7 +112,12 @@ export function TransactionForm({ onSubmit, trigger }: TransactionFormProps) {
   );
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={(newOpen) => {
+      setOpen(newOpen);
+      if (!newOpen && onDialogClose) {
+        onDialogClose();
+      }
+    }}>
       <DialogTrigger asChild>
         {trigger || defaultTrigger}
       </DialogTrigger>

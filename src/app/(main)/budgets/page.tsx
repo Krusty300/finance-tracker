@@ -13,6 +13,8 @@ import { BudgetForm } from '@/components/forms/BudgetForm';
 import { BudgetCard } from '@/components/budgets/BudgetCard';
 import { BudgetSummary } from '@/components/budgets/BudgetSummary';
 import { DeleteBudgetDialog } from '@/components/dialogs/DeleteBudgetDialog';
+import { BudgetComparisonChart } from '@/components/charts/BudgetComparisonChart';
+import { BudgetTrendChart } from '@/components/charts/BudgetTrendChart';
 import { Budget } from '@/lib/types';
 import { Plus, PiggyBank, TrendingUp, AlertCircle, Target } from 'lucide-react';
 import { toast } from 'sonner';
@@ -128,6 +130,40 @@ export default function BudgetsPage() {
     setShowDeleteDialog(true);
   };
 
+  // Generate trend data for the last 6 months
+  const generateTrendData = () => {
+    const trendData = [];
+    const now = new Date();
+    
+    for (let i = 5; i >= 0; i--) {
+      const trendDate = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const trendStart = new Date(trendDate.getFullYear(), trendDate.getMonth(), 1);
+      const trendEnd = new Date(trendDate.getFullYear(), trendDate.getMonth() + 1, 0);
+      
+      // Get transactions for this month
+      const monthTransactions = transactions.filter(t => {
+        const transactionDate = new Date(t.date);
+        return transactionDate >= trendStart && transactionDate <= trendEnd;
+      });
+
+      // Calculate total budget and spent for this month
+      const monthBudget = budgets.reduce((sum, budget) => sum + budget.amount, 0);
+      const monthSpent = monthTransactions
+        .filter(t => t.type === 'expense')
+        .reduce((sum, t) => sum + t.amount, 0);
+
+      trendData.push({
+        month: trendDate.toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
+        budget: monthBudget,
+        spent: monthSpent,
+        variance: monthSpent - monthBudget,
+        percentageUsed: monthBudget > 0 ? (monthSpent / monthBudget) * 100 : 0
+      });
+    }
+    
+    return trendData;
+  };
+
   if (budgetsLoading) {
     return (
       <div className="space-y-6">
@@ -217,9 +253,10 @@ export default function BudgetsPage() {
           />
 
           <Tabs defaultValue="overview" className="space-y-4">
-            <TabsList>
+            <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger value="overview">Overview</TabsTrigger>
               <TabsTrigger value="detailed">Detailed View</TabsTrigger>
+              <TabsTrigger value="analytics">Analytics</TabsTrigger>
             </TabsList>
 
             <TabsContent value="overview" className="space-y-4">
@@ -251,6 +288,35 @@ export default function BudgetsPage() {
                     onDelete={() => openDeleteDialog(budget)}
                   />
                 ))}
+              </div>
+            </TabsContent>
+
+            <TabsContent value="analytics" className="space-y-6">
+              <div className="grid gap-6">
+                <BudgetComparisonChart
+                  data={budgetAnalytics.budgetsWithSpending.map(({ budget, spent, remaining, percentageUsed }) => {
+                    // Map category ID to name for display
+                    const category = categories.find(c => c.id === budget.category);
+                    const categoryName = category?.name || budget.category;
+                    
+                    return {
+                      category: categoryName,
+                      budget: budget.amount,
+                      spent,
+                      remaining,
+                      percentageUsed,
+                      status: percentageUsed > 100 ? 'over-budget' : percentageUsed >= 80 ? 'near-limit' : 'on-track'
+                    };
+                  })}
+                  title="Budget vs Spending Analysis"
+                  showComparison={true}
+                />
+
+                <BudgetTrendChart
+                  data={generateTrendData()}
+                  title="Budget Performance Trends"
+                  showProjection={true}
+                />
               </div>
             </TabsContent>
           </Tabs>

@@ -6,6 +6,8 @@ import { DashboardCards } from '@/components/dashboard/DashboardCards';
 import { SpendingChart } from '@/components/dashboard/SpendingChart';
 import { MonthlyTrendChart } from '@/components/dashboard/MonthlyTrendChart';
 import { RecentTransactions } from '@/components/dashboard/RecentTransactions';
+import { BudgetCards } from '@/components/dashboard/BudgetCards';
+import { BudgetAlerts } from '@/components/dashboard/BudgetAlerts';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { seedSampleData } from '@/lib/seedData';
@@ -160,6 +162,21 @@ export default function DashboardPage() {
       <ErrorBoundary>
         <RecentTransactions transactions={stats.recentTransactions} />
       </ErrorBoundary>
+
+      {/* Budget Tracking Section */}
+      {stats.budgetBreakdown && stats.budgetBreakdown.length > 0 && (
+        <>
+          {/* Budget Alerts */}
+          <ErrorBoundary>
+            <BudgetAlerts stats={stats} />
+          </ErrorBoundary>
+
+          {/* Budget Cards */}
+          <ErrorBoundary>
+            <BudgetCards stats={stats} />
+          </ErrorBoundary>
+        </>
+      )}
     </div>
   );
 }

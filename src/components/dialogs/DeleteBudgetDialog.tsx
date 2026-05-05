@@ -11,6 +11,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Budget } from '@/lib/types';
 import { formatCurrency } from '@/lib/utils';
+import { useCategories } from '@/hooks/useCategories';
 import { AlertTriangle } from 'lucide-react';
 
 interface DeleteBudgetDialogProps {
@@ -26,7 +27,13 @@ export function DeleteBudgetDialog({
   budget,
   onConfirm,
 }: DeleteBudgetDialogProps) {
+  const { categories } = useCategories();
+  
   if (!budget) return null;
+
+  // Map category ID to name
+  const category = categories.find(c => c.id === budget.category);
+  const categoryName = category?.name || budget.category;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -37,7 +44,7 @@ export function DeleteBudgetDialog({
             <DialogTitle>Delete Budget</DialogTitle>
           </div>
           <DialogDescription>
-            Are you sure you want to delete the budget for "{budget.category}"? 
+            Are you sure you want to delete the budget for "{categoryName}"? 
             This action cannot be undone.
           </DialogDescription>
         </DialogHeader>
@@ -46,7 +53,7 @@ export function DeleteBudgetDialog({
           <div className="bg-muted/50 rounded-lg p-4 space-y-2">
             <div className="flex justify-between text-sm">
               <span className="text-muted-foreground">Category</span>
-              <span className="font-medium">{budget.category}</span>
+              <span className="font-medium">{categoryName}</span>
             </div>
             <div className="flex justify-between text-sm">
               <span className="text-muted-foreground">Budget Amount</span>
