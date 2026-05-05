@@ -1,12 +1,15 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Transaction } from '@/lib/types';
 import { useCategories } from '@/hooks/useCategories';
 import { useAccounts } from '@/hooks/useAccounts';
+import { useTransactions } from '@/hooks/useTransactions';
 import { formatDate, formatCurrency } from '@/lib/utils';
-import { ArrowUpRight, ArrowDownRight } from 'lucide-react';
+import { ArrowUpRight, ArrowDownRight, Plus } from 'lucide-react';
 
 interface RecentTransactionsProps {
   transactions: Transaction[];
@@ -15,6 +18,31 @@ interface RecentTransactionsProps {
 export function RecentTransactions({ transactions }: RecentTransactionsProps) {
   const { categories } = useCategories();
   const { accounts } = useAccounts();
+  const { addTransaction } = useTransactions();
+  const [localTransactions, setLocalTransactions] = useState(transactions);
+
+  // Real-time updates when transactions prop changes
+  useEffect(() => {
+    setLocalTransactions(transactions);
+  }, [transactions]);
+
+  // Listen for storage changes to update in real-time
+  useEffect(() => {
+    const handleStorageChange = () => {
+      // This will trigger re-render when transactions are added elsewhere
+      setLocalTransactions(prev => [...prev]);
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+    };
+  }, []);
+
+  const handleAddTransaction = () => {
+    // Navigate to transactions page or open add dialog
+    window.location.href = '/transactions?action=add';
+  };
 
   const getCategoryInfo = (categoryId: string) => {
     return categories.find(cat => cat.id === categoryId);
@@ -25,15 +53,27 @@ export function RecentTransactions({ transactions }: RecentTransactionsProps) {
     return accounts.find(acc => acc.id === accountId);
   };
 
-  if (transactions.length === 0) {
+  if (localTransactions.length === 0) {
     return (
       <Card>
         <CardHeader>
           <CardTitle>Recent Transactions</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="flex items-center justify-center h-64">
-            <p className="text-muted-foreground">No recent transactions</p>
+          <div className="flex flex-col items-center justify-center h-64 space-y-4">
+            <p className="text-muted-foreground text-center">
+              No recent transactions
+            </p>
+            <p className="text-sm text-muted-foreground text-center">
+              Start tracking your finances by adding your first transaction
+            </p>
+            <Button 
+              onClick={handleAddTransaction}
+              className="flex items-center gap-2"
+            >
+              <Plus className="h-4 w-4" />
+              Add Transaction
+            </Button>
           </div>
         </CardContent>
       </Card>
@@ -47,7 +87,7 @@ export function RecentTransactions({ transactions }: RecentTransactionsProps) {
       </CardHeader>
       <CardContent>
         <div className="space-y-4">
-          {transactions.slice(0, 5).map((transaction) => {
+          {localTransactions.slice(0, 5).map((transaction) => {
             const category = getCategoryInfo(transaction.category);
             const account = getAccountInfo(transaction.account);
             const isIncome = transaction.type === 'income';

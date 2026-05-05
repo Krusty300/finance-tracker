@@ -3,7 +3,7 @@
 import { useState, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAccounts } from '@/hooks/useAccounts';
@@ -16,13 +16,13 @@ import { DeleteAccountDialog } from '@/components/dialogs/DeleteAccountDialog';
 import { AccountDetailsDialog } from '@/components/dialogs/AccountDetailsDialog';
 import { AccountDashboard } from '@/components/accounts/AccountDashboard';
 import { DragDropAccounts } from '@/components/accounts/DragDropAccounts';
-import { QuickAccountSwitcher } from '@/components/accounts/QuickAccountSwitcher';
 import { AccountTemplates } from '@/components/accounts/AccountTemplates';
 import { AccountBalanceWaterfall } from '@/components/charts/AccountBalanceWaterfall';
 import { AccountBalanceTrend } from '@/components/charts/AccountBalanceTrend';
 import { AccountTypeDistribution as AccountTypeDistChart } from '@/components/charts/AccountTypeDistribution';
 import { TransactionHeatMap } from '@/components/charts/TransactionHeatMap';
 import { AccountComparison } from '@/components/charts/AccountComparison';
+import { AccountAnalytics } from '@/components/accounts/AccountAnalytics';
 import { Account } from '@/lib/types';
 import { Plus, Wallet, CreditCard, Smartphone, TrendingUp, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
@@ -158,6 +158,11 @@ export default function AccountsPage() {
     setShowDetailsDialog(true);
   };
 
+  // Simple account selection handler
+  const handleAccountSelect = (account: Account) => {
+    setSelectedAccount(account);
+  };
+
   
   if (accountsLoading) {
     return (
@@ -213,21 +218,15 @@ export default function AccountsPage() {
             Manage your bank accounts, credit cards, and wallets
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <QuickAccountSwitcher
-            accounts={accounts}
-            transactions={transactions}
-            selectedAccount={selectedAccount}
-            onAccountSelect={setSelectedAccount}
-            onAccountView={viewAccountDetails}
-            onAccountEdit={openEditDialog}
-            showAddButton={true}
-            onAddAccount={() => setShowCreateDialog(true)}
-          />
-          <Button onClick={() => setShowCreateDialog(true)}>
-            <Plus className="mr-2 h-4 w-4" />
-            Add Account
-          </Button>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+                        
+                        
+            <Button onClick={() => setShowCreateDialog(true)}>
+              <Plus className="mr-2 h-4 w-4" />
+              Add Account
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -263,58 +262,47 @@ export default function AccountsPage() {
           <Tabs defaultValue="dashboard" className="space-y-4">
             <TabsList>
               <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
-              <TabsTrigger value="overview">Overview</TabsTrigger>
-              <TabsTrigger value="detailed">Detailed View</TabsTrigger>
+              <TabsTrigger value="detailed-view">Detailed View</TabsTrigger>
               <TabsTrigger value="distribution">Distribution</TabsTrigger>
-              <TabsTrigger value="templates">Templates</TabsTrigger>
               <TabsTrigger value="analytics">Analytics</TabsTrigger>
             </TabsList>
 
             <TabsContent value="dashboard" className="space-y-4">
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {accountAnalytics.accountsWithTransactions.map(({ account, recentTransactions }) => (
-                  <AccountCard
-                    key={account.id}
-                    account={account}
-                    recentTransactions={recentTransactions}
-                    onEdit={() => openEditDialog(account)}
-                    onDelete={() => openDeleteDialog(account)}
-                    onViewTransactions={() => viewAccountTransactions(account)}
-                    onViewDetails={() => viewAccountDetails(account)}
-                  />
-                ))}
+                {accountAnalytics.accountsWithTransactions.map(({ account, recentTransactions }, index) => {
+                                    
+                  return (
+                    <AccountCard
+                      key={account.id}
+                      account={account}
+                      recentTransactions={recentTransactions}
+                      onEdit={() => openEditDialog(account)}
+                      onDelete={() => openDeleteDialog(account)}
+                      onViewTransactions={() => viewAccountTransactions(account)}
+                      onViewDetails={() => viewAccountDetails(account)}
+                    />
+                  );
+                })}
               </div>
             </TabsContent>
 
-            <TabsContent value="overview" className="space-y-4">
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {accountAnalytics.accountsWithTransactions.map(({ account, recentTransactions }) => (
-                  <AccountCard
-                    key={account.id}
-                    account={account}
-                    recentTransactions={recentTransactions}
-                    onEdit={() => openEditDialog(account)}
-                    onDelete={() => openDeleteDialog(account)}
-                    onViewTransactions={() => viewAccountTransactions(account)}
-                    onViewDetails={() => viewAccountDetails(account)}
-                  />
-                ))}
-              </div>
-            </TabsContent>
-
-            <TabsContent value="detailed" className="space-y-4">
+            
+            <TabsContent value="detailed-view" className="space-y-4">
               <div className="space-y-4">
-                {accountAnalytics.accountsWithTransactions.map(({ account, recentTransactions }) => (
-                  <AccountCard
-                    key={account.id}
-                    account={account}
-                    recentTransactions={recentTransactions}
-                    onEdit={() => openEditDialog(account)}
-                    onDelete={() => openDeleteDialog(account)}
-                    onViewTransactions={() => viewAccountTransactions(account)}
-                    onViewDetails={() => viewAccountDetails(account)}
-                  />
-                ))}
+                {accountAnalytics.accountsWithTransactions.map(({ account, recentTransactions }, index) => {
+                                    
+                  return (
+                    <AccountCard
+                      key={account.id}
+                      account={account}
+                      recentTransactions={recentTransactions}
+                      onEdit={() => openEditDialog(account)}
+                      onDelete={() => openDeleteDialog(account)}
+                      onViewTransactions={() => viewAccountTransactions(account)}
+                      onViewDetails={() => viewAccountDetails(account)}
+                    />
+                  );
+                })}
               </div>
             </TabsContent>
 
@@ -322,62 +310,16 @@ export default function AccountsPage() {
               <AccountTypeDistribution accountTypeDistribution={accountAnalytics.accountTypeDistribution} />
             </TabsContent>
 
-            <TabsContent value="dashboard" className="space-y-6">
-              <AccountDashboard 
-                accounts={accounts} 
-                transactions={transactions}
-                selectedAccount={selectedAccount}
-                onAccountSelect={setSelectedAccount}
-              />
-            </TabsContent>
-
-            <TabsContent value="overview" className="space-y-4">
-              <DragDropAccounts
-                accounts={accounts}
-                onReorder={(reorderedAccounts) => {
-                  // Handle reordering - this would update the accounts in state
-                  console.log('Accounts reordered:', reorderedAccounts);
-                }}
-                onAccountEdit={openEditDialog}
-                onAccountDelete={openDeleteDialog}
-                onAccountView={viewAccountDetails}
-                selectedAccounts={[]}
-                onSelectionChange={() => {}}
-              />
-            </TabsContent>
-
-            <TabsContent value="detailed" className="space-y-4">
-              <div className="space-y-4">
-                <div className="text-center py-8">
-                  <div className="text-6xl mb-4">📊</div>
-                  <h3 className="text-lg font-semibold mb-2">Detailed Account Analysis</h3>
-                  <p className="text-muted-foreground mb-4">
-                    Advanced account analytics and detailed views
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    Use the Dashboard tab for detailed account analytics and the Overview tab for account management.
-                  </p>
-                </div>
-              </div>
-            </TabsContent>
-
-            <TabsContent value="templates" className="space-y-4">
-              <AccountTemplates
-                onUseTemplate={(template) => {
-                  // Create account from template
-                  const newAccount: Omit<Account, 'id'> = {
-                    name: template.name,
-                    type: template.accountType,
-                    balance: template.defaultBalance,
-                    currency: template.currency
-                  };
-                  addAccount(newAccount);
-                }}
-                onCreateAccount={addAccount}
-              />
-            </TabsContent>
-
+            
+            
             <TabsContent value="analytics" className="space-y-6">
+              {/* Individual Account Analytics */}
+              {accounts.slice(0, 3).map((account) => (
+                <div key={account.id} className="space-y-4">
+                  <AccountAnalytics account={account} transactions={transactions} />
+                </div>
+              ))}
+              
               {/* Account Type Distribution with Drill-down */}
               <AccountTypeDistChart accounts={accounts} transactions={transactions} />
               
@@ -456,6 +398,9 @@ export default function AccountsPage() {
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
             <DialogTitle>Add New Account</DialogTitle>
+            <DialogDescription>
+              Create a new account to track your financial transactions and balances.
+            </DialogDescription>
           </DialogHeader>
           <AccountForm
             onSubmit={handleCreateAccount}
@@ -469,6 +414,9 @@ export default function AccountsPage() {
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
             <DialogTitle>Edit Account</DialogTitle>
+            <DialogDescription>
+              Update the account details and settings.
+            </DialogDescription>
           </DialogHeader>
           <AccountForm
             account={selectedAccount || undefined}

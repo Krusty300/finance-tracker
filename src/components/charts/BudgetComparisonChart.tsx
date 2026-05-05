@@ -263,7 +263,7 @@ export function BudgetComparisonChart({
         </div>
       </CardHeader>
       <CardContent>
-        <div className="h-80">
+        <div className="h-[320px] w-full">
           <ResponsiveContainer width="100%" height="100%">
             {renderChart()}
           </ResponsiveContainer>
@@ -325,6 +325,7 @@ export function BudgetComparisonChart({
           <h4 className="text-sm font-medium mb-2">Category Breakdown</h4>
           <div className="space-y-2">
             {data
+              .filter(item => item && item.percentageUsed !== undefined && item.percentageUsed !== null)
               .sort((a, b) => b.percentageUsed - a.percentageUsed)
               .slice(0, 5)
               .map((item) => (

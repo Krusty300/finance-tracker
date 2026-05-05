@@ -3,7 +3,7 @@
 import { useState, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useBudgets } from '@/hooks/useBudgets';
@@ -328,6 +328,9 @@ export default function BudgetsPage() {
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
             <DialogTitle>Create New Budget</DialogTitle>
+            <DialogDescription>
+              Set a spending limit for a specific category to track your expenses.
+            </DialogDescription>
           </DialogHeader>
           <BudgetForm
             onSubmit={handleCreateBudget}
@@ -341,6 +344,9 @@ export default function BudgetsPage() {
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
             <DialogTitle>Edit Budget</DialogTitle>
+            <DialogDescription>
+              Modify the budget settings for this category.
+            </DialogDescription>
           </DialogHeader>
           <BudgetForm
             budget={selectedBudget || undefined}

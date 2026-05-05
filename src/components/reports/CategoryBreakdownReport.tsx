@@ -5,6 +5,7 @@ import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { DashboardStats } from '@/lib/types';
 import { formatCurrency } from '@/lib/utils';
+import { useCategories } from '@/hooks/useCategories';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
 import { TrendingUp, PieChart as PieChartIcon, BarChart3 } from 'lucide-react';
 
@@ -18,6 +19,8 @@ const COLORS = [
 ];
 
 export function CategoryBreakdownReport({ categoryBreakdown }: CategoryBreakdownReportProps) {
+  const { categories } = useCategories();
+  
   if (!categoryBreakdown || categoryBreakdown.length === 0) {
     return (
       <Card>
@@ -43,9 +46,10 @@ export function CategoryBreakdownReport({ categoryBreakdown }: CategoryBreakdown
   const CustomTooltip = ({ active, payload }: any) => {
     if (active && payload && payload.length) {
       const data = payload[0].payload;
+      const categoryName = categories.find(cat => cat.id === data.category)?.name || data.category;
       return (
         <div className="bg-background border rounded-lg p-3 shadow-lg">
-          <p className="font-medium">{data.category}</p>
+          <p className="font-medium">{categoryName}</p>
           <p className="text-sm">Amount: {formatCurrency(data.amount)}</p>
           <p className="text-sm">Percentage: {data.percentage}%</p>
         </div>
@@ -100,7 +104,9 @@ export function CategoryBreakdownReport({ categoryBreakdown }: CategoryBreakdown
             </div>
             <div className="text-center p-4 bg-muted/50 rounded-lg">
               <p className="text-sm text-muted-foreground">Top Category</p>
-              <p className="text-2xl font-bold">{categoryBreakdown[0]?.category || 'N/A'}</p>
+              <p className="text-2xl font-bold">
+                {categories.find(cat => cat.id === categoryBreakdown[0]?.category)?.name || categoryBreakdown[0]?.category || 'N/A'}
+              </p>
             </div>
           </div>
 
@@ -108,7 +114,7 @@ export function CategoryBreakdownReport({ categoryBreakdown }: CategoryBreakdown
           <div className="grid gap-6 md:grid-cols-2">
             <div>
               <h3 className="text-lg font-semibold mb-4">Distribution</h3>
-              <ResponsiveContainer width="100%" height={300}>
+              <ResponsiveContainer width="100%" height={300} minWidth={300} minHeight={300}>
                 <PieChart>
                   <Pie
                     data={categoryBreakdown}
@@ -132,7 +138,7 @@ export function CategoryBreakdownReport({ categoryBreakdown }: CategoryBreakdown
             {/* Bar Chart */}
             <div>
               <h3 className="text-lg font-semibold mb-4">Comparison</h3>
-              <ResponsiveContainer width="100%" height={300}>
+              <ResponsiveContainer width="100%" height={300} minWidth={300} minHeight={300}>
                 <BarChart data={categoryBreakdown} layout="horizontal">
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis type="number" tickFormatter={(value) => `$${value}`} />
@@ -152,7 +158,9 @@ export function CategoryBreakdownReport({ categoryBreakdown }: CategoryBreakdown
           <div>
             <h3 className="text-lg font-semibold mb-4">Detailed Breakdown</h3>
             <div className="space-y-3">
-              {categoryBreakdown.map((category, index) => (
+              {categoryBreakdown.map((category, index) => {
+                const categoryName = categories.find(cat => cat.id === category.category)?.name || category.category;
+                return (
                 <div key={category.category} className="flex items-center justify-between p-3 bg-muted/30 rounded-lg">
                   <div className="flex items-center gap-3">
                     <div 
@@ -160,7 +168,7 @@ export function CategoryBreakdownReport({ categoryBreakdown }: CategoryBreakdown
                       style={{ backgroundColor: COLORS[index % COLORS.length] }}
                     />
                     <div>
-                      <p className="font-medium">{category.category}</p>
+                      <p className="font-medium">{categoryName}</p>
                       <p className="text-sm text-muted-foreground">
                         {formatCurrency(category.amount)} ({category.percentage}%)
                       </p>
@@ -173,7 +181,8 @@ export function CategoryBreakdownReport({ categoryBreakdown }: CategoryBreakdown
                     </Badge>
                   </div>
                 </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         </CardContent>

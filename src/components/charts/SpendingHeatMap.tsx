@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { Calendar, TrendingUp, TrendingDown } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
+import { useCategories } from '@/hooks/useCategories';
 
 interface SpendingData {
   date: string;
@@ -28,7 +29,8 @@ export function SpendingHeatMap({
   title = "Spending Patterns", 
   period = 'month' 
 }: SpendingHeatMapProps) {
-  const { heatmapData, maxValue, categories, insights } = useMemo(() => {
+  const { categories } = useCategories();
+  const { heatmapData, maxValue, insights, categories: uniqueCategories } = useMemo(() => {
     // Process data for heatmap
     const processedData = data.map(item => ({
       ...item,
@@ -49,11 +51,11 @@ export function SpendingHeatMap({
       
       daysOfWeek.forEach(day => {
         heatmap[day] = {};
-        uniqueCategories.forEach(category => {
+        uniqueCategories.forEach(categoryId => {
           const dayData = processedData.filter(d => 
-            d.dayName === day && d.category === category
+            d.dayName === day && d.category === categoryId
           );
-          heatmap[day][category] = dayData.reduce((sum, d) => sum + d.amount, 0);
+          heatmap[day][categoryId] = dayData.reduce((sum, d) => sum + d.amount, 0);
         });
       });
     } else if (period === 'month') {
@@ -62,22 +64,22 @@ export function SpendingHeatMap({
       
       for (let day = 1; day <= daysInMonth; day++) {
         heatmap[`Day ${day}`] = {};
-        uniqueCategories.forEach(category => {
+        uniqueCategories.forEach(categoryId => {
           const dayData = processedData.filter(d => 
-            d.dayOfMonth === day && d.category === category
+            d.dayOfMonth === day && d.category === categoryId
           );
-          heatmap[`Day ${day}`][category] = dayData.reduce((sum, d) => sum + d.amount, 0);
+          heatmap[`Day ${day}`][categoryId] = dayData.reduce((sum, d) => sum + d.amount, 0);
         });
       }
     } else {
       // Quarter view: Weeks x Categories
       for (let week = 1; week <= 13; week++) {
         heatmap[`Week ${week}`] = {};
-        uniqueCategories.forEach(category => {
+        uniqueCategories.forEach(categoryId => {
           const weekData = processedData.filter(d => 
-            d.weekOfMonth === week && d.category === category
+            d.weekOfMonth === week && d.category === categoryId
           );
-          heatmap[`Week ${week}`][category] = weekData.reduce((sum, d) => sum + d.amount, 0);
+          heatmap[`Week ${week}`][categoryId] = weekData.reduce((sum, d) => sum + d.amount, 0);
         });
       }
     }
@@ -92,10 +94,10 @@ export function SpendingHeatMap({
     // Calculate insights
     const totalSpending = data.reduce((sum, d) => sum + d.amount, 0);
     const avgDailySpending = totalSpending / (period === 'week' ? 7 : period === 'month' ? 30 : 91);
-    const topCategory = uniqueCategories.reduce((top, cat) => {
-      const catTotal = data.filter(d => d.category === cat).reduce((sum, d) => sum + d.amount, 0);
+    const topCategory = uniqueCategories.reduce((top, catId) => {
+      const catTotal = data.filter(d => d.category === catId).reduce((sum, d) => sum + d.amount, 0);
       const topTotal = data.filter(d => d.category === top).reduce((sum, d) => sum + d.amount, 0);
-      return catTotal > topTotal ? cat : top;
+      return catTotal > topTotal ? catId : top;
     }, uniqueCategories[0]);
 
     return {
@@ -105,7 +107,7 @@ export function SpendingHeatMap({
       insights: {
         totalSpending,
         avgDailySpending,
-        topCategory,
+        topCategory: topCategory,
         topCategoryAmount: data.filter(d => d.category === topCategory).reduce((sum, d) => sum + d.amount, 0),
         categoryCount: uniqueCategories.length
       }
@@ -130,7 +132,7 @@ export function SpendingHeatMap({
   };
 
   const rows = Object.keys(heatmapData);
-  const cols = categories;
+  const cols = categories.filter(cat => uniqueCategories.includes(cat.id));
 
   return (
     <Card>
@@ -161,8 +163,8 @@ export function SpendingHeatMap({
                   {period === 'week' ? 'Day' : period === 'month' ? 'Date' : 'Week'}
                 </th>
                 {cols.map(category => (
-                  <th key={category} className="text-center p-2 text-xs font-medium min-w-20">
-                    <div>{category}</div>
+                  <th key={category.id} className="text-center p-2 text-xs font-medium min-w-20">
+                    <div>{category.name}</div>
                   </th>
                 ))}
               </tr>
@@ -174,10 +176,10 @@ export function SpendingHeatMap({
                     {row}
                   </td>
                   {cols.map(category => {
-                    const value = heatmapData[row][category] || 0;
+                    const value = heatmapData[row][category.id] || 0;
                     return (
                       <td 
-                        key={category}
+                        key={category.id}
                         className={`text-center p-2 border-t ${getHeatmapColor(value)}`}
                       >
                         <div className={`text-xs font-medium ${getTextColor(value)}`}>
@@ -251,7 +253,7 @@ export function SpendingHeatMap({
               Top Category
             </div>
             <div className="text-lg font-bold text-orange-700 dark:text-orange-300 truncate">
-              {insights.topCategory}
+              {categories.find(cat => cat.id === insights.topCategory)?.name || insights.topCategory}
             </div>
             <div className="text-xs text-orange-600 dark:text-orange-400">
               {formatCurrency(insights.topCategoryAmount)}
@@ -265,7 +267,7 @@ export function SpendingHeatMap({
           <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
             {categories.map(category => {
               const categoryTotal = data
-                .filter(d => d.category === category)
+                .filter(d => d.category === category.id)
                 .reduce((sum, d) => sum + d.amount, 0);
               const percentage = insights.totalSpending > 0 
                 ? (categoryTotal / insights.totalSpending * 100) 
@@ -273,10 +275,10 @@ export function SpendingHeatMap({
               
               return (
                 <div 
-                  key={category}
+                  key={category.id}
                   className="flex items-center justify-between p-2 rounded bg-muted/50"
                 >
-                  <span className="text-sm font-medium truncate">{category}</span>
+                  <span className="text-sm font-medium truncate">{category.name}</span>
                   <div className="text-right">
                     <div className="text-sm font-medium">
                       {formatCurrency(categoryTotal)}

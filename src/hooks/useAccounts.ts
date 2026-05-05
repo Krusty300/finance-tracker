@@ -1,10 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Account } from '@/lib/types';
 import { db } from '@/lib/db';
+import { useRealtimeAccounts } from './useRealtime';
 
 export function useAccounts() {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [loading, setLoading] = useState(true);
+  const { notifyAccountChange } = useRealtimeAccounts();
 
   const loadAccounts = useCallback(() => {
     setLoading(true);
@@ -35,6 +37,10 @@ export function useAccounts() {
     try {
       const newAccount = db.addAccount(account);
       setAccounts(prev => [...prev, newAccount]);
+      
+      // Emit real-time event
+      notifyAccountChange('create', newAccount);
+      
       return newAccount;
     } catch (error) {
       console.error('Error adding account:', error);
@@ -49,6 +55,9 @@ export function useAccounts() {
         setAccounts(prev => 
           prev.map(a => a.id === id ? updated : a)
         );
+        
+        // Emit real-time event
+        notifyAccountChange('update', updated);
       }
       return updated;
     } catch (error) {
@@ -59,9 +68,15 @@ export function useAccounts() {
 
   const deleteAccount = useCallback((id: string) => {
     try {
+      const accountToDelete = accounts.find(a => a.id === id);
       const success = db.deleteAccount(id);
       if (success) {
         setAccounts(prev => prev.filter(a => a.id !== id));
+        
+        // Emit real-time event
+        if (accountToDelete) {
+          notifyAccountChange('delete', accountToDelete);
+        }
       }
       return success;
     } catch (error) {

@@ -224,7 +224,7 @@ export function ComparisonChart({
         </div>
       </CardHeader>
       <CardContent>
-        <div className="h-80">
+        <div className="h-[320px] w-full">
           <ResponsiveContainer width="100%" height="100%">
             {renderChart()}
           </ResponsiveContainer>

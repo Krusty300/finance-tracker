@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { 
   Plus, 
   Edit, 
@@ -383,6 +383,12 @@ export function TemplateManager({ onUseTemplate }: TemplateManagerProps) {
             <DialogTitle>
               {showEditDialog ? 'Edit Template' : 'Create New Template'}
             </DialogTitle>
+            <DialogDescription>
+              {showEditDialog 
+                ? 'Modify the template details for quick transaction creation.'
+                : 'Create a new template for frequently used transactions.'
+              }
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div className="flex gap-2">

@@ -17,6 +17,7 @@ import { CashFlowChart } from '@/components/charts/CashFlowChart';
 import { SpendingHeatMap } from '@/components/charts/SpendingHeatMap';
 import { GoalProgressChart } from '@/components/charts/GoalProgressChart';
 import { GoalDialog } from '@/components/dialogs/GoalDialog';
+import { DeleteConfirmDialog } from '@/components/dialogs/DeleteConfirmDialog';
 import { ReportExporter, ExportOptions } from '@/lib/exportUtils';
 import { useGoals } from '@/hooks/useGoals';
 import { FinancialGoal } from '@/lib/types';
@@ -46,6 +47,8 @@ export default function ReportsPage() {
   const [showExportDialog, setShowExportDialog] = useState(false);
   const [showGoalDialog, setShowGoalDialog] = useState(false);
   const [editingGoal, setEditingGoal] = useState<FinancialGoal | null>(null);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [goalToDelete, setGoalToDelete] = useState<FinancialGoal | null>(null);
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
@@ -111,8 +114,8 @@ export default function ReportsPage() {
         break;
       case 'delete':
         if (goal) {
-          deleteGoal(goal.id);
-          toast.success('Goal deleted successfully!');
+          setGoalToDelete(goal);
+          setShowDeleteDialog(true);
         }
         break;
     }
@@ -123,6 +126,14 @@ export default function ReportsPage() {
       updateGoal(editingGoal.id, goalData);
     } else {
       addGoal(goalData);
+    }
+  };
+
+  const handleDeleteGoal = () => {
+    if (goalToDelete) {
+      deleteGoal(goalToDelete.id);
+      toast.success('Goal deleted successfully!');
+      setGoalToDelete(null);
     }
   };
 
@@ -622,6 +633,28 @@ export default function ReportsPage() {
           </Card>
         </div>
       )}
+
+      {/* Goal Dialog */}
+      <GoalDialog
+        open={showGoalDialog}
+        onOpenChange={setShowGoalDialog}
+        goal={editingGoal}
+        onSave={handleSaveGoal}
+      />
+
+      {/* Delete Confirmation Dialog */}
+      <DeleteConfirmDialog
+        open={showDeleteDialog}
+        onOpenChange={setShowDeleteDialog}
+        onConfirm={handleDeleteGoal}
+        title="Delete Financial Goal"
+        description="Are you sure you want to delete this financial goal? This action cannot be undone."
+        itemName={goalToDelete?.name}
+        itemDetails={goalToDelete ? 
+          `Target: ${formatCurrency(goalToDelete.targetAmount)} | Progress: ${formatCurrency(goalToDelete.currentAmount)}` 
+          : undefined
+        }
+      />
     </div>
   );
 }

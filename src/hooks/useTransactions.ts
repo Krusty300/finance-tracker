@@ -2,11 +2,13 @@ import { useState, useEffect, useCallback } from 'react';
 import { Transaction, TransactionSplit, TransactionAttachment, RecurringTransactionRule } from '@/lib/types';
 import { db } from '@/lib/db';
 import { useAccounts } from './useAccounts';
+import { useRealtimeTransactions } from './useRealtime';
 
 export function useTransactions() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const { accounts, updateAccount } = useAccounts();
+  const { notifyTransactionChange } = useRealtimeTransactions();
 
   const loadTransactions = useCallback(() => {
     setLoading(true);
@@ -37,6 +39,9 @@ export function useTransactions() {
     try {
       const newTransaction = db.addTransaction(transaction);
       setTransactions(prev => [...prev, newTransaction]);
+
+      // Emit real-time event
+      notifyTransactionChange('create', newTransaction);
 
       // Update account balance if transaction has an account
       if (transaction.account && accounts.length > 0) {
@@ -70,6 +75,9 @@ export function useTransactions() {
         setTransactions(prev => 
           prev.map(t => t.id === id ? updated : t)
         );
+
+        // Emit real-time event
+        notifyTransactionChange('update', { ...updated, oldTransaction });
 
         // Update account balance if amount, type, or account changed
         const amountChanged = updates.amount !== undefined && updates.amount !== oldTransaction.amount;
@@ -127,6 +135,11 @@ export function useTransactions() {
             : t
           )
         );
+
+        // Emit real-time event
+        if (transactionToDelete) {
+          notifyTransactionChange('delete', transactionToDelete);
+        }
 
         // Update account balance when transaction is deleted
         if (transactionToDelete?.account && accounts.length > 0) {

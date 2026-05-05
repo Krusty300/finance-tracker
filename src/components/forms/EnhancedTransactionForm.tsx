@@ -295,10 +295,7 @@ export function EnhancedTransactionForm({
             <SelectContent>
               {filteredCategories.map((category) => (
                 <SelectItem key={category.id} value={category.name}>
-                  <div className="flex items-center gap-2">
-                    <span>{category.icon}</span>
-                    <span>{category.name}</span>
-                  </div>
+                  <span>{category.name}</span>
                 </SelectItem>
               ))}
             </SelectContent>

@@ -88,7 +88,7 @@ export function AccountBalanceTrend({ account, transactions }: { account: Accoun
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="h-64">
+        <div className="h-[320px] w-full">
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={trendData}>
               <CartesianGrid strokeDasharray="3 3" />

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Command } from 'cmdk';
 import { Badge } from '@/components/ui/badge';
 import { useTransactions } from '@/hooks/useTransactions';
@@ -259,7 +259,12 @@ export function GlobalSearch() {
     <>
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="p-0 overflow-hidden max-w-6xl w-[95vw] max-h-[60vh]">
-          <DialogTitle className="sr-only">Global Search</DialogTitle>
+          <DialogHeader className="sr-only">
+            <DialogTitle>Global Search</DialogTitle>
+            <DialogDescription>
+              Search transactions, categories, accounts, or navigate to different pages
+            </DialogDescription>
+          </DialogHeader>
           <Command className="rounded-lg border shadow-md h-full flex flex-col">
             <div className="flex items-center border-b px-6 py-3">
               <Search className="mr-3 h-5 w-5 shrink-0 opacity-50" />

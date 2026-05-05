@@ -135,6 +135,14 @@ export type DashboardStats = {
   totalBudget: number;
   totalSpent: number;
   budgetHealth: 'healthy' | 'warning' | 'critical';
+  // Additional counts for sidebar badges
+  transactionCount: number;
+  accountCount: number;
+  budgetCount: number;
+  lowBalanceAccounts: number;
+  overdueTransactions: number;
+  activeGoals: number;
+  hasReports: boolean;
 };
 
 // Bank Integration Types

@@ -13,6 +13,7 @@ import { createTransactionSchema } from '@/lib/schema';
 import { useCategories } from '@/hooks/useCategories';
 import { useAccounts } from '@/hooks/useAccounts';
 import { Transaction } from '@/lib/types';
+import { Edit } from 'lucide-react';
 
 const formSchema = createTransactionSchema.extend({
   date: z.string().min(1, 'Date is required'),
@@ -83,7 +84,9 @@ export function EditTransactionForm({ transaction, open, onClose, onSubmit }: Ed
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle>Edit Transaction</DialogTitle>
+          <DialogTitle>
+            Edit Transaction
+          </DialogTitle>
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">

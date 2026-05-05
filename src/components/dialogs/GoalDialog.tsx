@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { useState, useEffect } from 'react';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -27,7 +27,7 @@ export function GoalDialog({ open, onOpenChange, goal, onSave }: GoalDialogProps
   });
 
   // Reset form when dialog opens or goal changes
-  useState(() => {
+  useEffect(() => {
     if (open) {
       if (goal) {
         setFormData({
@@ -49,7 +49,7 @@ export function GoalDialog({ open, onOpenChange, goal, onSave }: GoalDialogProps
         });
       }
     }
-  });
+  }, [open, goal]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -104,6 +104,9 @@ export function GoalDialog({ open, onOpenChange, goal, onSave }: GoalDialogProps
           <DialogTitle>
             {goal ? 'Edit Financial Goal' : 'Add Financial Goal'}
           </DialogTitle>
+          <DialogDescription>
+            Set a financial goal to track your progress towards saving for specific targets.
+          </DialogDescription>
         </DialogHeader>
         
         <form onSubmit={handleSubmit} className="space-y-4">

@@ -36,8 +36,8 @@ export function EnhancedPieChart({
   onDrillDown,
   showDrillDown = true 
 }: EnhancedPieChartProps) {
-  const [selectedSegment, setSelectedSegment] = useState<string | null>(null);
-  const [hoveredSegment, setHoveredSegment] = useState<string | null>(null);
+  const [selectedSegment, setSelectedSegment] = useState<string | undefined>(undefined);
+  const [hoveredSegment, setHoveredSegment] = useState<string | undefined>(undefined);
 
   const chartData = data.map(item => ({
     ...item,
@@ -103,7 +103,7 @@ export function EnhancedPieChart({
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setSelectedSegment(null)}
+              onClick={() => setSelectedSegment(undefined)}
             >
               <ArrowLeft className="h-4 w-4 mr-2" />
               Back
@@ -112,7 +112,7 @@ export function EnhancedPieChart({
         </div>
       </CardHeader>
       <CardContent>
-        <div className="h-80">
+        <div className="h-[320px] w-full">
           <ResponsiveContainer width="100%" height="100%">
             <PieChart>
               <Pie
@@ -126,7 +126,7 @@ export function EnhancedPieChart({
                 dataKey="value"
                 onClick={handleSegmentClick}
                 onMouseEnter={(data) => setHoveredSegment(data.name)}
-                onMouseLeave={() => setHoveredSegment(null)}
+                onMouseLeave={() => setHoveredSegment(undefined)}
               >
                 {chartData.map((entry, index) => (
                   <Cell 
@@ -148,7 +148,7 @@ export function EnhancedPieChart({
         
         {/* Category Details */}
         <div className="mt-4 space-y-2">
-          {data
+          {[...data]
             .sort((a, b) => b.amount - a.amount)
             .map((item, index) => (
               <div 
@@ -157,7 +157,7 @@ export function EnhancedPieChart({
                   hoveredSegment === item.category ? 'bg-muted' : ''
                 } ${selectedSegment && selectedSegment !== item.category ? 'opacity-50' : ''}`}
                 onMouseEnter={() => setHoveredSegment(item.category)}
-                onMouseLeave={() => setHoveredSegment(null)}
+                onMouseLeave={() => setHoveredSegment(undefined)}
                 onClick={() => handleSegmentClick(item)}
                 style={{ cursor: showDrillDown ? 'pointer' : 'default' }}
               >

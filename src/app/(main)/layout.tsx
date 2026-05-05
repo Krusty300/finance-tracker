@@ -6,6 +6,7 @@ import { GlobalSearch } from '@/components/search/GlobalSearch';
 import { BreadcrumbNavigation } from '@/components/navigation/BreadcrumbNavigation';
 import { FloatingActionButton } from '@/components/navigation/FloatingActionButton';
 import { ThemeToggle } from '@/components/theme/ThemeToggle';
+import { NotificationSystem, ToastNotifications } from '@/components/notifications/NotificationSystem';
 import { Button } from '@/components/ui/button';
 import { Menu } from 'lucide-react';
 
@@ -73,7 +74,10 @@ export default function MainLayout({
         <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm border-b p-4">
           <div className="flex items-center justify-between">
             <BreadcrumbNavigation />
-            <ThemeToggle />
+            <div className="flex items-center gap-2">
+              <NotificationSystem />
+              <ThemeToggle />
+            </div>
           </div>
         </div>
         
@@ -85,6 +89,9 @@ export default function MainLayout({
         {/* Floating Action Button for mobile */}
         <FloatingActionButton />
       </main>
+      
+      {/* Toast Notifications */}
+      <ToastNotifications />
     </div>
   );
 }

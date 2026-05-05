@@ -4,13 +4,15 @@ import { useTransactions } from './useTransactions';
 import { useCategories } from './useCategories';
 import { useBudgets } from './useBudgets';
 import { useAccounts } from './useAccounts';
+import { useRealtime } from './useRealtime';
 import { getMonthStart, getMonthEnd } from '@/lib/utils';
 
 export function useDashboardStats() {
   const { transactions } = useTransactions();
   const { categories } = useCategories();
   const { budgets } = useBudgets();
-  const { getTotalBalance } = useAccounts();
+  const { accounts, getTotalBalance } = useAccounts();
+  const { subscribe } = useRealtime();
   
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
@@ -51,9 +53,23 @@ export function useDashboardStats() {
 
       // Get recent transactions (last 10)
       const recentTransactions = transactions
-        .filter(t => t && t.date)
+        .filter(t => t && t.id && t.date) // Ensure transaction has required fields
+        .filter(t => !t.deletedAt) // Exclude soft-deleted transactions
         .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
         .slice(0, 10);
+
+      // Calculate additional stats for sidebar badges
+      const transactionCount = transactions.filter(t => !t.deletedAt).length;
+      const accountCount = accounts.length;
+      const budgetCount = budgets.length;
+      const lowBalanceAccounts = accounts.filter((acc: any) => acc.balance < 100).length;
+      const overdueTransactions = transactions.filter(t => 
+        !t.deletedAt && 
+        t.type === 'expense' && 
+        new Date(t.date) < new Date() // Overdue if date is in the past
+      ).length;
+      const activeGoals = 0; // Could be calculated from goals data
+      const hasReports = currentMonthTransactions.length > 0;
 
       // Calculate category breakdown for expenses
       const expensesByCategory = currentMonthTransactions
@@ -168,6 +184,13 @@ export function useDashboardStats() {
         totalBudget,
         totalSpent,
         budgetHealth,
+        transactionCount,
+        accountCount,
+        budgetCount,
+        lowBalanceAccounts,
+        overdueTransactions,
+        activeGoals,
+        hasReports,
       };
 
       setStats(dashboardStats);
@@ -181,7 +204,36 @@ export function useDashboardStats() {
 
   useEffect(() => {
     calculateStats();
-  }, [calculateStats]);
+
+    // Listen for storage changes to refresh stats in real-time
+    const handleStorageChange = () => {
+      // Small delay to ensure data is written
+      setTimeout(calculateStats, 100);
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+
+    // Listen for real-time events
+    const unsubscribers = [
+      subscribe('transaction', () => {
+        setTimeout(calculateStats, 50);
+      }),
+      subscribe('budget', () => {
+        setTimeout(calculateStats, 50);
+      }),
+      subscribe('account', () => {
+        setTimeout(calculateStats, 50);
+      }),
+      subscribe('category', () => {
+        setTimeout(calculateStats, 50);
+      })
+    ];
+
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      unsubscribers.forEach(unsubscribe => unsubscribe());
+    };
+  }, [calculateStats, subscribe]);
 
   return {
     stats,

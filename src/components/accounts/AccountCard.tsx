@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Account } from '@/lib/types';
 import { formatCurrency } from '@/lib/utils';
-import { Edit, Trash2, CreditCard, Wallet, Smartphone, DollarSign, TrendingUp, TrendingDown, Minus } from 'lucide-react';
+import { Edit, Trash2, TrendingUp, TrendingDown, Minus } from 'lucide-react';
 
 interface AccountCardProps {
   account: Account;
@@ -16,12 +16,6 @@ interface AccountCardProps {
   onViewDetails: () => void;
 }
 
-const accountTypeIcons = {
-  cash: Wallet,
-  bank: DollarSign,
-  credit: CreditCard,
-  mobile: Smartphone,
-};
 
 const accountTypeLabels = {
   cash: 'Cash',
@@ -38,7 +32,6 @@ export function AccountCard({
   onViewTransactions,
   onViewDetails,
 }: AccountCardProps) {
-  const Icon = accountTypeIcons[account.type];
   const isCredit = account.type === 'credit';
   const isPositive = account.balance > 0;
   const isZero = account.balance === 0;
@@ -69,9 +62,6 @@ export function AccountCard({
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className={`p-2 rounded-lg ${isCredit ? 'bg-purple-100 dark:bg-purple-900/20' : 'bg-blue-100 dark:bg-blue-900/20'}`}>
-              <Icon className={`h-5 w-5 ${isCredit ? 'text-purple-600 dark:text-purple-400' : 'text-blue-600 dark:text-blue-400'}`} />
-            </div>
             <div>
               <CardTitle className="text-lg">{account.name}</CardTitle>
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
