@@ -8,7 +8,7 @@ import { FloatingActionButton } from '@/components/navigation/FloatingActionButt
 import { ThemeToggle } from '@/components/theme/ThemeToggle';
 import { NotificationSystem, ToastNotifications } from '@/components/notifications/NotificationSystem';
 import { Button } from '@/components/ui/button';
-import { Menu } from 'lucide-react';
+import { Menu, Eye, EyeOff } from 'lucide-react';
 
 export default function MainLayout({
   children,
@@ -16,6 +16,7 @@ export default function MainLayout({
   children: React.ReactNode;
 }) {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [showSidebarIcons, setShowSidebarIcons] = useState(true);
 
   // Load sidebar state from localStorage on mount
   useEffect(() => {
@@ -23,12 +24,22 @@ export default function MainLayout({
     if (savedState !== null) {
       setIsSidebarCollapsed(JSON.parse(savedState));
     }
+    
+    const savedIconsState = localStorage.getItem('sidebar-show-icons');
+    if (savedIconsState !== null) {
+      setShowSidebarIcons(JSON.parse(savedIconsState));
+    }
   }, []);
 
   // Save sidebar state to localStorage when it changes
   useEffect(() => {
     localStorage.setItem('sidebar-collapsed', JSON.stringify(isSidebarCollapsed));
   }, [isSidebarCollapsed]);
+
+  // Save icons state to localStorage when it changes
+  useEffect(() => {
+    localStorage.setItem('sidebar-show-icons', JSON.stringify(showSidebarIcons));
+  }, [showSidebarIcons]);
 
   // Add keyboard shortcut for toggling sidebar (Ctrl/Cmd + B)
   useEffect(() => {
@@ -47,11 +58,16 @@ export default function MainLayout({
     setIsSidebarCollapsed(!isSidebarCollapsed);
   };
 
+  const toggleIcons = () => {
+    setShowSidebarIcons(!showSidebarIcons);
+  };
+
   return (
     <div className="flex h-screen bg-background">
       <Sidebar 
         isCollapsed={isSidebarCollapsed} 
         onToggle={toggleSidebar} 
+        showIcons={showSidebarIcons}
       />
       <main className="flex-1 overflow-auto transition-all duration-300 relative">
         {/* Global Search */}
@@ -71,10 +87,21 @@ export default function MainLayout({
         )}
         
         {/* Breadcrumb Navigation */}
-        <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm border-b p-4">
+        <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm border-b p-3 sm:p-4">
           <div className="flex items-center justify-between">
-            <BreadcrumbNavigation />
-            <div className="flex items-center gap-2">
+            <div className="min-w-0 flex-1">
+              <BreadcrumbNavigation />
+            </div>
+            <div className="flex items-center gap-1 sm:gap-2 ml-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={toggleIcons}
+                className="h-8 w-8 p-0"
+                title={showSidebarIcons ? "Hide Sidebar Icons" : "Show Sidebar Icons"}
+              >
+                {showSidebarIcons ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+              </Button>
               <NotificationSystem />
               <ThemeToggle />
             </div>
@@ -82,7 +109,7 @@ export default function MainLayout({
         </div>
         
         {/* Main Content */}
-        <div className="container mx-auto p-6">
+        <div className="container mx-auto px-3 sm:px-4 md:px-6 py-4 sm:py-6">
           {children}
         </div>
         

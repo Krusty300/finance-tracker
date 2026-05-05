@@ -131,6 +131,7 @@ export type DashboardStats = {
     remaining: number;
     percentageUsed: number;
     status: 'on-track' | 'near-limit' | 'over-budget';
+    period: string;
   }>;
   totalBudget: number;
   totalSpent: number;

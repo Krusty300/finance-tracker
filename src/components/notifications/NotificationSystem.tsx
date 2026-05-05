@@ -1,16 +1,29 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useNotifications } from '@/hooks/useNotifications';
+import { useNotifications, NotificationCategory, NotificationPriority } from '@/hooks/useNotifications';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
 import { 
   X, 
   CheckCircle, 
   AlertCircle, 
   AlertTriangle, 
   Info,
-  Bell
+  Bell,
+  Filter,
+  Archive,
+  Settings,
+  Trash2,
+  Clock,
+  TrendingUp,
+  CreditCard,
+  Target,
+  PiggyBank,
+  AlertTriangle as AlertIcon,
+  Calendar
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -21,6 +34,23 @@ const notificationIcons = {
   error: AlertCircle,
   warning: AlertTriangle,
   info: Info,
+};
+
+const categoryIcons = {
+  transaction: TrendingUp,
+  budget: Target,
+  account: CreditCard,
+  goal: PiggyBank,
+  system: Settings,
+  reminder: Calendar,
+  alert: AlertIcon,
+};
+
+const priorityColors = {
+  low: 'border-l-gray-300',
+  medium: 'border-l-blue-300',
+  high: 'border-l-orange-300',
+  critical: 'border-l-red-500',
 };
 
 const notificationStyles = {
@@ -34,6 +64,10 @@ export function NotificationSystem() {
   const { notifications, removeNotification, markAsRead, markAllAsRead, clearAll, unreadCount } = useNotifications();
   const [showDropdown, setShowDropdown] = useState(false);
   const [expandedNotifications, setExpandedNotifications] = useState<Set<string>>(new Set());
+  const [selectedCategory, setSelectedCategory] = useState<NotificationCategory | 'all'>('all');
+  const [selectedPriority, setSelectedPriority] = useState<NotificationPriority | 'all'>('all');
+  const [showArchived, setShowArchived] = useState(false);
+  const [showFilters, setShowFilters] = useState(false);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -68,7 +102,20 @@ export function NotificationSystem() {
     setShowDropdown(false);
   };
 
-  const visibleNotifications = notifications.slice(0, 10); // Show max 10 in dropdown
+  const archiveNotification = (id: string) => {
+    // This would need to be implemented in the useNotifications hook
+    removeNotification(id);
+  };
+
+  // Filter notifications
+  const filteredNotifications = notifications.filter(notification => {
+    if (selectedCategory !== 'all' && notification.category !== selectedCategory) return false;
+    if (selectedPriority !== 'all' && notification.priority !== selectedPriority) return false;
+    if (!showArchived && notification.archived) return false;
+    return true;
+  });
+
+  const visibleNotifications = filteredNotifications.slice(0, 10); // Show max 10 in dropdown
 
   return (
     <div className="notification-system relative">
@@ -77,13 +124,13 @@ export function NotificationSystem() {
         variant="ghost"
         size="sm"
         onClick={() => setShowDropdown(!showDropdown)}
-        className="relative p-2 hover:bg-accent"
+        className="relative p-2 hover:bg-accent h-8 w-8 sm:h-8 sm:w-8"
       >
         <Bell className="h-4 w-4" />
         {unreadCount > 0 && (
           <Badge 
             variant="destructive" 
-            className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center text-xs p-0 min-w-[20px]"
+            className="absolute -top-1 -right-1 h-4 w-4 sm:h-5 sm:w-5 flex items-center justify-center text-[10px] sm:text-xs p-0 min-w-[16px] sm:min-w-[20px]"
           >
             {unreadCount > 99 ? '99+' : unreadCount}
           </Badge>
@@ -92,7 +139,7 @@ export function NotificationSystem() {
 
       {/* Notification Dropdown */}
       {showDropdown && (
-        <div className="absolute right-0 top-full mt-2 w-96 bg-background border rounded-lg shadow-lg z-50 max-h-[500px] overflow-hidden">
+        <div className="absolute right-0 top-full mt-2 w-80 sm:w-96 bg-background border rounded-lg shadow-lg z-50 max-h-[400px] sm:max-h-[500px] overflow-hidden">
           {/* Header */}
           <div className="flex items-center justify-between p-4 border-b">
             <h3 className="font-semibold">Notifications</h3>

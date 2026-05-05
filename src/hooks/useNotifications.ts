@@ -1,19 +1,32 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRealtime } from './useRealtime';
 
+export type NotificationCategory = 'transaction' | 'budget' | 'account' | 'goal' | 'system' | 'reminder' | 'alert';
+export type NotificationPriority = 'low' | 'medium' | 'high' | 'critical';
+
 export type Notification = {
   id: string;
   type: 'success' | 'error' | 'warning' | 'info';
+  category: NotificationCategory;
+  priority: NotificationPriority;
   title: string;
   message: string;
   timestamp: number;
   read: boolean;
+  archived: boolean;
   action?: {
     label: string;
     onClick: () => void;
   };
+  actions?: Array<{
+    label: string;
+    onClick: () => void;
+    variant?: 'default' | 'destructive' | 'outline';
+  }>;
   autoHide?: boolean;
   duration?: number;
+  persistent?: boolean;
+  metadata?: Record<string, any>;
 };
 
 export function useNotifications() {
@@ -21,20 +34,31 @@ export function useNotifications() {
   const { subscribe } = useRealtime();
 
   // Add a new notification
-  const addNotification = useCallback((notification: Omit<Notification, 'id' | 'timestamp' | 'read'>) => {
+  const addNotification = useCallback((notification: Omit<Notification, 'id' | 'timestamp' | 'read' | 'archived'>) => {
     const newNotification: Notification = {
       id: crypto.randomUUID(),
       timestamp: Date.now(),
       read: false,
+      archived: false,
       autoHide: true,
-      duration: 5000,
+      duration: notification.type === 'error' ? 8000 : notification.type === 'warning' ? 6000 : 5000,
       ...notification
     };
 
     setNotifications(prev => [newNotification, ...prev]);
 
+    // Save to localStorage for persistence
+    try {
+      const savedNotifications = localStorage.getItem('notifications');
+      const existing = savedNotifications ? JSON.parse(savedNotifications) : [];
+      const updated = [newNotification, ...existing.slice(0, 99)]; // Keep max 100
+      localStorage.setItem('notifications', JSON.stringify(updated));
+    } catch (error) {
+      console.error('Failed to save notification to localStorage:', error);
+    }
+
     // Auto-hide if specified
-    if (newNotification.autoHide && newNotification.duration) {
+    if (newNotification.autoHide && newNotification.duration && !newNotification.persistent) {
       setTimeout(() => {
         removeNotification(newNotification.id);
       }, newNotification.duration);
@@ -80,6 +104,8 @@ export function useNotifications() {
           case 'create':
             addNotification({
               type: 'success',
+              category: 'transaction',
+              priority: 'medium',
               title: 'Transaction Added',
               message: `${data?.description || 'New transaction'} of ${data?.type === 'income' ? '+' : '-'}$${data?.amount?.toFixed(2) || '0.00'}`,
               action: {
@@ -95,6 +121,8 @@ export function useNotifications() {
           case 'update':
             addNotification({
               type: 'info',
+              category: 'transaction',
+              priority: 'low',
               title: 'Transaction Updated',
               message: `${data?.description || 'Transaction'} has been updated`
             });
@@ -103,6 +131,8 @@ export function useNotifications() {
           case 'delete':
             addNotification({
               type: 'warning',
+              category: 'transaction',
+              priority: 'medium',
               title: 'Transaction Deleted',
               message: `${data?.description || 'Transaction'} has been deleted`,
               duration: 3000
@@ -118,6 +148,8 @@ export function useNotifications() {
           case 'create':
             addNotification({
               type: 'success',
+              category: 'budget',
+              priority: 'medium',
               title: 'Budget Created',
               message: `Budget for ${data?.category || 'category'} has been created`
             });
@@ -126,6 +158,8 @@ export function useNotifications() {
           case 'update':
             addNotification({
               type: 'info',
+              category: 'budget',
+              priority: 'low',
               title: 'Budget Updated',
               message: `Budget for ${data?.category || 'category'} has been updated`
             });
@@ -134,6 +168,8 @@ export function useNotifications() {
           case 'delete':
             addNotification({
               type: 'warning',
+              category: 'budget',
+              priority: 'medium',
               title: 'Budget Deleted',
               message: `Budget for ${data?.category || 'category'} has been deleted`
             });
@@ -148,6 +184,8 @@ export function useNotifications() {
           case 'create':
             addNotification({
               type: 'success',
+              category: 'account',
+              priority: 'medium',
               title: 'Account Added',
               message: `${data?.name || 'New account'} has been added`
             });
@@ -156,6 +194,8 @@ export function useNotifications() {
           case 'update':
             addNotification({
               type: 'info',
+              category: 'account',
+              priority: 'low',
               title: 'Account Updated',
               message: `${data?.name || 'Account'} has been updated`
             });
@@ -164,6 +204,8 @@ export function useNotifications() {
           case 'delete':
             addNotification({
               type: 'warning',
+              category: 'account',
+              priority: 'medium',
               title: 'Account Deleted',
               message: `${data?.name || 'Account'} has been deleted`
             });
@@ -202,9 +244,12 @@ export function useBudgetAlerts() {
         if (data.percentageUsed > 100) {
           addNotification({
             type: 'error',
+            category: 'alert',
+            priority: 'critical',
             title: 'Budget Exceeded!',
             message: `${data.category} budget is ${data.percentageUsed.toFixed(0)}% used (${data.spent > data.budget ? '$' + (data.spent - data.budget).toFixed(2) + ' over' : 'at limit'})`,
             autoHide: false,
+            persistent: true,
             action: {
               label: 'View Budget',
               onClick: () => {
@@ -215,6 +260,8 @@ export function useBudgetAlerts() {
         } else if (data.percentageUsed >= 80) {
           addNotification({
             type: 'warning',
+            category: 'alert',
+            priority: 'high',
             title: 'Budget Warning',
             message: `${data.category} budget is ${data.percentageUsed.toFixed(0)}% used`,
             duration: 8000
@@ -241,9 +288,12 @@ export function useAccountAlerts() {
         if (data.balance < 100 && data.balance >= 0) {
           addNotification({
             type: 'warning',
+            category: 'alert',
+            priority: 'high',
             title: 'Low Balance',
             message: `${data.name} has a low balance of $${data.balance.toFixed(2)}`,
             autoHide: false,
+            persistent: true,
             action: {
               label: 'View Account',
               onClick: () => {
@@ -257,9 +307,12 @@ export function useAccountAlerts() {
         if (data.balance < 0) {
           addNotification({
             type: 'error',
+            category: 'alert',
+            priority: 'critical',
             title: 'Negative Balance',
             message: `${data.name} has a negative balance of $${Math.abs(data.balance).toFixed(2)}`,
             autoHide: false,
+            persistent: true,
             action: {
               label: 'View Account',
               onClick: () => {

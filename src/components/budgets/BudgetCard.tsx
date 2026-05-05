@@ -6,8 +6,9 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Budget } from '@/lib/types';
 import { formatCurrency } from '@/lib/utils';
-import { Edit, Trash2, AlertCircle, TrendingUp, TrendingDown } from 'lucide-react';
+import { Edit, Trash2, AlertCircle, TrendingUp, TrendingDown, Calendar } from 'lucide-react';
 import { useCategories } from '@/hooks/useCategories';
+import { getPeriodDisplayText } from '@/utils/period-aware-calculations';
 
 interface BudgetCardProps {
   budget: Budget;
@@ -52,11 +53,18 @@ export function BudgetCard({
     return <TrendingUp className="h-3 w-3" />;
   };
 
+  
   return (
     <Card className="relative">
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
-          <CardTitle className="text-lg">{categoryName}</CardTitle>
+          <div className="space-y-1">
+            <CardTitle className="text-lg">{categoryName}</CardTitle>
+            <div className="flex items-center gap-1 text-sm text-muted-foreground">
+              <Calendar className="h-3 w-3" />
+              <span>{getPeriodDisplayText(budget)}</span>
+            </div>
+          </div>
           <div className="flex items-center gap-2">
             <Badge variant={getStatusColor()} className="flex items-center gap-1">
               {getStatusIcon()}

@@ -24,6 +24,7 @@ import { TransactionHeatMap } from '@/components/charts/TransactionHeatMap';
 import { AccountComparison } from '@/components/charts/AccountComparison';
 import { AccountAnalytics } from '@/components/accounts/AccountAnalytics';
 import { Account } from '@/lib/types';
+import { AccountErrorBoundary, AccountErrorFallback } from '@/components/error/AccountErrorBoundary';
 import { Plus, Wallet, CreditCard, Smartphone, TrendingUp, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
@@ -42,7 +43,9 @@ export default function AccountsPage() {
 
   // Calculate account analytics
   const accountAnalytics = useMemo(() => {
-    if (!accounts || !transactions) {
+    // Validate inputs
+    if (!Array.isArray(accounts) || !Array.isArray(transactions)) {
+      console.warn('Invalid data for account analytics:', { accounts, transactions });
       return {
         accountTypeDistribution: {},
         lowBalanceAccounts: 0,
@@ -52,37 +55,50 @@ export default function AccountsPage() {
       };
     }
 
-    // Get current month transactions
+    // Get current month transactions with validation
     const currentMonth = new Date().getMonth();
     const currentYear = new Date().getFullYear();
     const currentMonthTransactions = transactions.filter(t => {
+      if (!t || !t.date) return false;
       const transactionDate = new Date(t.date);
+      if (isNaN(transactionDate.getTime())) return false;
       return transactionDate.getMonth() === currentMonth && 
              transactionDate.getFullYear() === currentYear;
     });
 
-    // Calculate account type distribution
+    // Calculate account type distribution with validation
     const accountTypeDistribution = accounts.reduce((acc, account) => {
+      if (!account || !account.type) return acc;
       acc[account.type] = (acc[account.type] || 0) + 1;
       return acc;
     }, {} as Record<string, number>);
 
-    // Calculate account health metrics
+    // Calculate account health metrics with validation
     const lowBalanceAccounts = accounts.filter(acc => 
-      acc.type !== 'credit' && acc.balance > 0 && acc.balance < 100
+      acc && acc.type !== 'credit' && typeof acc.balance === 'number' && acc.balance > 0 && acc.balance < 100
     ).length;
 
     const overdrawnAccounts = accounts.filter(acc => 
-      acc.type !== 'credit' && acc.balance < 0
+      acc && acc.type !== 'credit' && typeof acc.balance === 'number' && acc.balance < 0
     ).length;
 
     const creditDebtAccounts = accounts.filter(acc => 
-      acc.type === 'credit' && acc.balance > 0
+      acc && acc.type === 'credit' && typeof acc.balance === 'number' && acc.balance > 0
     ).length;
 
-    // Calculate recent transactions per account
+    // Calculate recent transactions per account with validation
     const accountsWithTransactions = accounts.map(account => {
-      const recentCount = currentMonthTransactions.filter(t => t.account === account.name).length;
+      if (!account || !account.name) {
+        return {
+          account: account || { id: 'invalid', name: 'Invalid', type: 'bank', balance: 0, currency: 'USD' },
+          recentTransactions: 0,
+        };
+      }
+      
+      const recentCount = currentMonthTransactions.filter(t => 
+        t && t.account === account.name
+      ).length;
+      
       return {
         account,
         recentTransactions: recentCount,
@@ -210,23 +226,19 @@ export default function AccountsPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="space-y-4 sm:space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold">Accounts</h1>
-          <p className="text-muted-foreground">
+          <h1 className="text-2xl sm:text-3xl font-bold">Accounts</h1>
+          <p className="text-sm sm:text-base text-muted-foreground">
             Manage your bank accounts, credit cards, and wallets
           </p>
         </div>
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-                        
-                        
-            <Button onClick={() => setShowCreateDialog(true)}>
-              <Plus className="mr-2 h-4 w-4" />
-              Add Account
-            </Button>
-          </div>
+        <div className="flex items-center gap-2">
+          <Button onClick={() => setShowCreateDialog(true)} className="w-full sm:w-auto">
+            <Plus className="mr-2 h-4 w-4" />
+            Add Account
+          </Button>
         </div>
       </div>
 
@@ -248,27 +260,29 @@ export default function AccountsPage() {
             </Button>
           </div>
         </Card>
-      ) : (
-        <>
-          <AccountSummary
-            accounts={accounts}
-            totalBalance={totalBalance}
-            accountTypeDistribution={accountAnalytics.accountTypeDistribution}
-            lowBalanceAccounts={accountAnalytics.lowBalanceAccounts}
-            overdrawnAccounts={accountAnalytics.overdrawnAccounts}
-            creditDebtAccounts={accountAnalytics.creditDebtAccounts}
-          />
+        ) : (
+          <>
+            <AccountErrorBoundary fallback={AccountErrorFallback}>
+              <AccountSummary
+                accounts={accounts}
+                totalBalance={totalBalance}
+                accountTypeDistribution={accountAnalytics.accountTypeDistribution}
+                lowBalanceAccounts={accountAnalytics.lowBalanceAccounts}
+                overdrawnAccounts={accountAnalytics.overdrawnAccounts}
+                creditDebtAccounts={accountAnalytics.creditDebtAccounts}
+              />
+            </AccountErrorBoundary>
 
-          <Tabs defaultValue="dashboard" className="space-y-4">
-            <TabsList>
-              <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
-              <TabsTrigger value="detailed-view">Detailed View</TabsTrigger>
-              <TabsTrigger value="distribution">Distribution</TabsTrigger>
-              <TabsTrigger value="analytics">Analytics</TabsTrigger>
-            </TabsList>
+            <Tabs defaultValue="dashboard" className="space-y-4">
+              <TabsList>
+                <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
+                <TabsTrigger value="detailed-view">Detailed View</TabsTrigger>
+                <TabsTrigger value="distribution">Distribution</TabsTrigger>
+                <TabsTrigger value="analytics">Analytics</TabsTrigger>
+              </TabsList>
 
             <TabsContent value="dashboard" className="space-y-4">
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              <div className="grid gap-4 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
                 {accountAnalytics.accountsWithTransactions.map(({ account, recentTransactions }, index) => {
                                     
                   return (

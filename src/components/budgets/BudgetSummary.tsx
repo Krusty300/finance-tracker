@@ -22,9 +22,16 @@ export function BudgetSummary({
   overBudgetCount,
   nearLimitCount,
 }: BudgetSummaryProps) {
-  const totalRemaining = totalBudget - totalSpent;
-  const overallPercentage = totalBudget > 0 ? (totalSpent / totalBudget) * 100 : 0;
-  const isOverallOverBudget = totalSpent > totalBudget;
+  // Guard against invalid data
+  const safeTotalSpent = Number(totalSpent) || 0;
+  const safeTotalBudget = Number(totalBudget) || 0;
+  const safeOverBudgetCount = Number(overBudgetCount) || 0;
+  const safeNearLimitCount = Number(nearLimitCount) || 0;
+  const safeBudgetsLength = Array.isArray(budgets) ? budgets.length : 0;
+
+  const totalRemaining = safeTotalBudget - safeTotalSpent;
+  const overallPercentage = safeTotalBudget > 0 ? (safeTotalSpent / safeTotalBudget) * 100 : 0;
+  const isOverallOverBudget = safeTotalSpent > safeTotalBudget;
 
   const getOverallStatus = () => {
     if (isOverallOverBudget) {
@@ -58,9 +65,9 @@ export function BudgetSummary({
           <Wallet className="h-4 w-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold">{formatCurrency(totalBudget)}</div>
+          <div className="text-2xl font-bold">{formatCurrency(safeTotalBudget)}</div>
           <p className="text-xs text-muted-foreground">
-            {budgets.length} budget{budgets.length !== 1 ? 's' : ''}
+            {safeBudgetsLength} budget{safeBudgetsLength !== 1 ? 's' : ''}
           </p>
         </CardContent>
       </Card>
@@ -72,7 +79,7 @@ export function BudgetSummary({
         </CardHeader>
         <CardContent>
           <div className={`text-2xl font-bold ${isOverallOverBudget ? 'text-destructive' : ''}`}>
-            {formatCurrency(totalSpent)}
+            {formatCurrency(safeTotalSpent)}
           </div>
           <p className="text-xs text-muted-foreground">
             {overallPercentage.toFixed(1)}% of budget
@@ -107,10 +114,10 @@ export function BudgetSummary({
             </Badge>
           </div>
           <p className="text-xs text-muted-foreground mt-2">
-            {overBudgetCount > 0 && `${overBudgetCount} over budget`}
-            {overBudgetCount > 0 && nearLimitCount > 0 && ' • '}
-            {nearLimitCount > 0 && `${nearLimitCount} near limit`}
-            {overBudgetCount === 0 && nearLimitCount === 0 && 'All budgets on track'}
+            {safeOverBudgetCount > 0 && `${safeOverBudgetCount} over budget`}
+            {safeOverBudgetCount > 0 && safeNearLimitCount > 0 && ' • '}
+            {safeNearLimitCount > 0 && `${safeNearLimitCount} near limit`}
+            {safeOverBudgetCount === 0 && safeNearLimitCount === 0 && 'All budgets on track'}
           </p>
         </CardContent>
       </Card>

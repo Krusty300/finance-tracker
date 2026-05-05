@@ -32,9 +32,15 @@ export function AccountCard({
   onViewTransactions,
   onViewDetails,
 }: AccountCardProps) {
+  // Validate account data
+  if (!account) {
+    console.warn('Invalid account data provided to AccountCard');
+    return null;
+  }
+
   const isCredit = account.type === 'credit';
-  const isPositive = account.balance > 0;
-  const isZero = account.balance === 0;
+  const isPositive = typeof account.balance === 'number' && account.balance > 0;
+  const isZero = typeof account.balance === 'number' && account.balance === 0;
 
   const getBalanceColor = () => {
     if (isCredit) {
@@ -110,7 +116,7 @@ export function AccountCard({
             </span>
             <span className={`text-2xl font-bold ${getBalanceColor()}`}>
               {isCredit && isPositive ? '-' : ''}
-              {formatCurrency(Math.abs(account.balance))}
+              {formatCurrency(Math.abs(typeof account.balance === 'number' ? account.balance : 0))}
             </span>
           </div>
           
@@ -125,18 +131,18 @@ export function AccountCard({
         {isCredit && isPositive && (
           <div className="flex items-center gap-2 text-sm text-orange-600 bg-orange-50 dark:bg-orange-950/20 p-2 rounded">
             <TrendingUp className="h-4 w-4" />
-            <span>Credit card debt of {formatCurrency(account.balance)}</span>
+            <span>Credit card debt of {formatCurrency(typeof account.balance === 'number' ? account.balance : 0)}</span>
           </div>
         )}
 
-        {!isCredit && account.balance < 0 && (
+        {!isCredit && typeof account.balance === 'number' && account.balance < 0 && (
           <div className="flex items-center gap-2 text-sm text-red-600 bg-red-50 dark:bg-red-950/20 p-2 rounded">
             <TrendingDown className="h-4 w-4" />
             <span>Account overdrawn by {formatCurrency(Math.abs(account.balance))}</span>
           </div>
         )}
 
-        {!isCredit && account.balance > 0 && account.balance < 100 && (
+        {!isCredit && typeof account.balance === 'number' && account.balance > 0 && account.balance < 100 && (
           <div className="flex items-center gap-2 text-sm text-yellow-600 bg-yellow-50 dark:bg-yellow-950/20 p-2 rounded">
             <Minus className="h-4 w-4" />
             <span>Low balance warning</span>

@@ -144,59 +144,133 @@ export default function SettingsPage() {
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = '.json,.csv';
+    
     input.onchange = async (e) => {
       const file = (e.target as HTMLInputElement).files?.[0];
       if (!file) return;
 
+      // Validate file size (max 10MB)
+      if (file.size > 10 * 1024 * 1024) {
+        toast.error('File too large. Maximum size is 10MB.');
+        return;
+      }
+
       try {
         const text = await file.text();
-        let data;
-
-        if (file.name.endsWith('.json')) {
-          data = JSON.parse(text);
-        } else if (file.name.endsWith('.csv')) {
-          // Simple CSV parsing
-          const lines = text.split('\n');
-          const headers = lines[0].split(',');
-          const transactions = lines.slice(1).map(line => {
-            const values = line.split(',');
-            return {
-              id: crypto.randomUUID(),
-              date: values[0]?.replace(/"/g, ''),
-              description: values[1]?.replace(/"/g, ''),
-              category: values[2]?.replace(/"/g, ''),
-              amount: parseFloat(values[3]?.replace(/"/g, '') || '0'),
-              type: values[4]?.replace(/"/g, '') as 'income' | 'expense',
-              account: values[5]?.replace(/"/g, '') || undefined,
-              tags: values[6]?.replace(/"/g, '')?.split(';').filter(Boolean) || []
-            };
-          });
-          data = { transactions };
+        
+        // Validate file content is not empty
+        if (!text.trim()) {
+          toast.error('File is empty.');
+          return;
         }
 
-        // Import data using db methods
-        if (data.transactions) {
-          data.transactions.forEach((transaction: any) => {
+        let data;
+
+        if (file.name.endsWith('.csv')) {
+          // Validate CSV structure
+          const lines = text.split('\n').filter(line => line.trim());
+          if (lines.length < 2) {
+            toast.error('CSV file must have at least a header and one data row.');
+            return;
+          }
+
+          const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
+          const requiredHeaders = ['date', 'description', 'amount'];
+          const missingHeaders = requiredHeaders.filter(h => !headers.includes(h));
+          
+          if (missingHeaders.length > 0) {
+            toast.error(`CSV missing required headers: ${missingHeaders.join(', ')}`);
+            return;
+          }
+          
+          data = {
+            transactions: lines.slice(1).map((line, index) => {
+              const values = line.split(',').map(v => v.trim().replace(/"/g, ''));
+              
+              // Validate required fields
+              if (!values[0] || !values[1] || !values[3]) {
+                throw new Error(`Row ${index + 2}: Missing required fields`);
+              }
+              
+              const amount = parseFloat(values[3]);
+              if (isNaN(amount)) {
+                throw new Error(`Row ${index + 2}: Invalid amount format`);
+              }
+              
+              const type = values[4]?.toLowerCase();
+              if (type && !['income', 'expense'].includes(type)) {
+                throw new Error(`Row ${index + 2}: Type must be 'income' or 'expense'`);
+              }
+              
+              return {
+                date: values[0],
+                description: values[1],
+                category: values[2] || 'Uncategorized',
+                amount: amount,
+                type: (type as 'income' | 'expense') || 'expense',
+                account: values[5] || undefined,
+                tags: values[6] ? values[6].split(';').filter(Boolean) : []
+              };
+            })
+          };
+        } else {
+          // Validate JSON structure
+          try {
+            data = JSON.parse(text);
+          } catch (parseError) {
+            toast.error('Invalid JSON format.');
+            return;
+          }
+          
+          // Validate data structure
+          if (!data || typeof data !== 'object') {
+            toast.error('Invalid data structure.');
+            return;
+          }
+        }
+
+        let importCount = 0;
+        let errorCount = 0;
+
+        // Import data with validation
+        if (data.transactions && Array.isArray(data.transactions)) {
+          data.transactions.forEach((transaction: any, index: number) => {
             try {
+              // Validate transaction structure
+              if (!transaction.date || !transaction.description || typeof transaction.amount !== 'number') {
+                throw new Error(`Transaction ${index + 1}: Missing required fields`);
+              }
+              
               db.addTransaction(transaction);
+              importCount++;
             } catch (error) {
-              console.error('Error importing transaction:', error);
+              console.error(`Error importing transaction ${index + 1}:`, error);
+              errorCount++;
             }
           });
         }
 
-        toast.success('Data imported successfully!');
+        if (errorCount > 0) {
+          toast.warning(`Import completed with ${errorCount} errors. ${importCount} transactions imported successfully.`);
+        } else {
+          toast.success(`Successfully imported ${importCount} transactions!`);
+        }
       } catch (error) {
         console.error('Import error:', error);
-        toast.error('Import failed. Please check your file format.');
+        toast.error(`Import failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
       }
     };
     input.click();
   };
 
   const handleThemeChange = (newTheme: string) => {
-    setTheme(newTheme as 'light' | 'dark' | 'system');
-    setSelectedTheme(newTheme);
+    if (!['light', 'dark', 'system'].includes(newTheme)) {
+      console.warn('Invalid theme value:', newTheme);
+      return;
+    }
+    const themeValue = newTheme as 'light' | 'dark' | 'system';
+    setTheme(themeValue);
+    setSelectedTheme(themeValue);
   };
 
   const handleClearCache = () => {
@@ -393,10 +467,10 @@ export default function SettingsPage() {
             </div>
             
             <div className="flex items-center space-x-2">
-              <Checkbox 
-                id="includeDeleted" 
+              <Checkbox
+                id="includeDeleted"
                 checked={includeDeleted}
-                onCheckedChange={setIncludeDeleted}
+                onCheckedChange={(checked: boolean | 'indeterminate') => setIncludeDeleted(checked === true)}
               />
               <Label htmlFor="includeDeleted">Include deleted items</Label>
             </div>

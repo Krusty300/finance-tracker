@@ -53,8 +53,15 @@ export class ReportExporter {
   }
 
   private static generatePDFHTML(stats: DashboardStats, options: ExportOptions): string {
-    const monthlySavings = stats.monthlyIncome - stats.monthlyExpenses;
-    const savingsRate = stats.monthlyIncome > 0 ? (monthlySavings / stats.monthlyIncome) * 100 : 0;
+    // Validate stats data
+    if (!stats || typeof stats !== 'object') {
+      throw new Error('Invalid stats data provided for export');
+    }
+
+    const monthlyIncome = typeof stats.monthlyIncome === 'number' ? stats.monthlyIncome : 0;
+    const monthlyExpenses = typeof stats.monthlyExpenses === 'number' ? stats.monthlyExpenses : 0;
+    const monthlySavings = monthlyIncome - monthlyExpenses;
+    const savingsRate = monthlyIncome > 0 ? (monthlySavings / monthlyIncome) * 100 : 0;
     
     return `
 <!DOCTYPE html>

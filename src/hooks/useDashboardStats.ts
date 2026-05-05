@@ -6,6 +6,7 @@ import { useBudgets } from './useBudgets';
 import { useAccounts } from './useAccounts';
 import { useRealtime } from './useRealtime';
 import { getMonthStart, getMonthEnd } from '@/lib/utils';
+import { calculatePeriodSpending, getPeriodDisplayText } from '@/utils/period-aware-calculations';
 
 export function useDashboardStats() {
   const { transactions } = useTransactions();
@@ -22,27 +23,30 @@ export function useDashboardStats() {
     
     try {
       if (!transactions || !Array.isArray(transactions)) {
-        throw new Error('Invalid transactions data');
+        console.warn('Invalid transactions data:', transactions);
+        setStats(null);
+        return;
       }
 
       const now = new Date();
       const monthStart = getMonthStart(now);
       const monthEnd = getMonthEnd(now);
       
-      // Filter transactions for current month
+      // Filter transactions for current month with validation
       const currentMonthTransactions = transactions.filter(t => {
         if (!t || !t.date) return false;
         const transactionDate = new Date(t.date);
+        if (isNaN(transactionDate.getTime())) return false;
         return transactionDate >= monthStart && transactionDate <= monthEnd;
       });
 
-      // Calculate monthly income and expenses
+      // Calculate monthly income and expenses with validation
       const monthlyIncome = currentMonthTransactions
-        .filter(t => t.type === 'income')
+        .filter(t => t.type === 'income' && typeof t.amount === 'number' && !isNaN(t.amount))
         .reduce((sum, t) => sum + t.amount, 0);
 
       const monthlyExpenses = currentMonthTransactions
-        .filter(t => t.type === 'expense')
+        .filter(t => t.type === 'expense' && typeof t.amount === 'number' && !isNaN(t.amount))
         .reduce((sum, t) => sum + t.amount, 0);
 
       // Calculate total balance from accounts
@@ -107,11 +111,9 @@ export function useDashboardStats() {
       // Sort category breakdown by amount (descending)
       categoryBreakdown.sort((a, b) => b.amount - a.amount);
 
-      // Calculate budget breakdown
+      // Calculate budget breakdown with period-aware spending
       const budgetBreakdown = budgets.map(budget => {
-        const spent = currentMonthTransactions
-          .filter(t => t.category === budget.category && t.type === 'expense')
-          .reduce((sum, t) => sum + t.amount, 0);
+        const spent = calculatePeriodSpending(budget, transactions);
         
         const remaining = budget.amount - spent;
         const percentageUsed = budget.amount > 0 ? (spent / budget.amount) * 100 : 0;
@@ -127,7 +129,8 @@ export function useDashboardStats() {
           remaining,
           percentageUsed,
           status: percentageUsed > 100 ? 'over-budget' : 
-                  percentageUsed >= 80 ? 'near-limit' : 'on-track' as 'on-track' | 'near-limit' | 'over-budget'
+                  percentageUsed >= 80 ? 'near-limit' : 'on-track' as 'on-track' | 'near-limit' | 'over-budget',
+          period: getPeriodDisplayText(budget)
         };
       });
 

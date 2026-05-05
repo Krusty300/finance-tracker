@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -19,25 +19,18 @@ export function RecentTransactions({ transactions }: RecentTransactionsProps) {
   const { categories } = useCategories();
   const { accounts } = useAccounts();
   const { addTransaction } = useTransactions();
-  const [localTransactions, setLocalTransactions] = useState(transactions);
 
-  // Real-time updates when transactions prop changes
-  useEffect(() => {
-    setLocalTransactions(transactions);
+  // Validate transactions data and memoize to prevent re-renders
+  const safeTransactions = useMemo(() => {
+    return Array.isArray(transactions) ? transactions.filter(t => 
+      t && 
+      t.id && 
+      t.date && 
+      typeof t.amount === 'number' && 
+      !isNaN(t.amount) &&
+      ['income', 'expense'].includes(t.type)
+    ) : [];
   }, [transactions]);
-
-  // Listen for storage changes to update in real-time
-  useEffect(() => {
-    const handleStorageChange = () => {
-      // This will trigger re-render when transactions are added elsewhere
-      setLocalTransactions(prev => [...prev]);
-    };
-
-    window.addEventListener('storage', handleStorageChange);
-    return () => {
-      window.removeEventListener('storage', handleStorageChange);
-    };
-  }, []);
 
   const handleAddTransaction = () => {
     // Navigate to transactions page or open add dialog
@@ -53,7 +46,7 @@ export function RecentTransactions({ transactions }: RecentTransactionsProps) {
     return accounts.find(acc => acc.id === accountId);
   };
 
-  if (localTransactions.length === 0) {
+  if (safeTransactions.length === 0) {
     return (
       <Card>
         <CardHeader>
@@ -87,7 +80,7 @@ export function RecentTransactions({ transactions }: RecentTransactionsProps) {
       </CardHeader>
       <CardContent>
         <div className="space-y-4">
-          {localTransactions.slice(0, 5).map((transaction) => {
+          {safeTransactions.slice(0, 5).map((transaction: Transaction) => {
             const category = getCategoryInfo(transaction.category);
             const account = getAccountInfo(transaction.account);
             const isIncome = transaction.type === 'income';

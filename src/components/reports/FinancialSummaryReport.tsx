@@ -12,8 +12,32 @@ interface FinancialSummaryReportProps {
 }
 
 export function FinancialSummaryReport({ stats }: FinancialSummaryReportProps) {
-  const monthlySavings = stats.monthlyIncome - stats.monthlyExpenses;
-  const savingsRate = stats.monthlyIncome > 0 ? (monthlySavings / stats.monthlyIncome) * 100 : 0;
+  // Validate stats data
+  if (!stats || typeof stats !== 'object') {
+    console.warn('Invalid stats data provided to FinancialSummaryReport:', stats);
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Target className="h-5 w-5" />
+            Financial Health Score
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-center h-64 text-muted-foreground">
+            No financial data available
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  const monthlyIncome = typeof stats.monthlyIncome === 'number' ? stats.monthlyIncome : 0;
+  const monthlyExpenses = typeof stats.monthlyExpenses === 'number' ? stats.monthlyExpenses : 0;
+  const netWorth = typeof stats.netWorth === 'number' ? stats.netWorth : 0;
+  
+  const monthlySavings = monthlyIncome - monthlyExpenses;
+  const savingsRate = monthlyIncome > 0 ? (monthlySavings / monthlyIncome) * 100 : 0;
   
   // Financial health indicators
   const getFinancialHealthScore = () => {
@@ -36,10 +60,10 @@ export function FinancialSummaryReport({ stats }: FinancialSummaryReportProps) {
     }
 
     // Income vs expenses (30% weight)
-    if (stats.monthlyIncome > stats.monthlyExpenses * 1.5) {
+    if (monthlyIncome > monthlyExpenses * 1.5) {
       score += 30;
       factors.push({ label: 'Strong income position', color: 'text-green-600' });
-    } else if (stats.monthlyIncome > stats.monthlyExpenses) {
+    } else if (monthlyIncome > monthlyExpenses) {
       score += 20;
       factors.push({ label: 'Positive cash flow', color: 'text-blue-600' });
     } else {
@@ -48,10 +72,10 @@ export function FinancialSummaryReport({ stats }: FinancialSummaryReportProps) {
     }
 
     // Net worth (30% weight)
-    if (stats.netWorth > 10000) {
+    if (netWorth > 10000) {
       score += 30;
       factors.push({ label: 'Strong net worth', color: 'text-green-600' });
-    } else if (stats.netWorth > 0) {
+    } else if (netWorth > 0) {
       score += 20;
       factors.push({ label: 'Positive net worth', color: 'text-blue-600' });
     } else {

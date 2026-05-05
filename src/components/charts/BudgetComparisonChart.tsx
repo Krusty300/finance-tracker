@@ -43,6 +43,7 @@ interface BudgetData {
   remaining: number;
   percentageUsed: number;
   status: 'on-track' | 'near-limit' | 'over-budget';
+  period?: string;
 }
 
 interface BudgetComparisonChartProps {
@@ -226,7 +227,15 @@ export function BudgetComparisonChart({
     <Card>
       <CardHeader>
         <div className="flex items-center justify-between">
-          <CardTitle>{title}</CardTitle>
+          <div className="space-y-1">
+            <CardTitle>{title}</CardTitle>
+            {data.length > 0 && data[0].period && (
+              <div className="text-sm text-muted-foreground flex items-center gap-1">
+                <Calendar className="h-3 w-3" />
+                <span>{data[0].period}</span>
+              </div>
+            )}
+          </div>
           <div className="flex gap-2">
             <Select value={selectedChart} onValueChange={(value: any) => setSelectedChart(value)}>
               <SelectTrigger className="w-32">

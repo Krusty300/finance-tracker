@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useBudgets } from '@/hooks/useBudgets';
+import { useBudgetSync } from '@/hooks/useBudgetSync';
 import { useTransactions } from '@/hooks/useTransactions';
 import { useCategories } from '@/hooks/useCategories';
 import { BudgetForm } from '@/components/forms/BudgetForm';
@@ -16,11 +16,13 @@ import { DeleteBudgetDialog } from '@/components/dialogs/DeleteBudgetDialog';
 import { BudgetComparisonChart } from '@/components/charts/BudgetComparisonChart';
 import { BudgetTrendChart } from '@/components/charts/BudgetTrendChart';
 import { Budget } from '@/lib/types';
+import { BudgetErrorBoundary, BudgetErrorFallback } from '@/components/error/BudgetErrorBoundary';
 import { Plus, PiggyBank, TrendingUp, AlertCircle, Target } from 'lucide-react';
 import { toast } from 'sonner';
+import { calculatePeriodSpending, getPeriodDisplayText } from '@/utils/period-aware-calculations';
 
 export default function BudgetsPage() {
-  const { budgets, loading: budgetsLoading, addBudget, updateBudget, deleteBudget } = useBudgets();
+  const { budgets, loading, addBudget, updateBudget, deleteBudget, lastUpdate } = useBudgetSync();
   const { transactions } = useTransactions();
   const { categories } = useCategories();
 
@@ -31,7 +33,9 @@ export default function BudgetsPage() {
 
   // Calculate budget analytics
   const budgetAnalytics = useMemo(() => {
-    if (!transactions || !budgets) {
+    // Validate inputs
+    if (!Array.isArray(transactions) || !Array.isArray(budgets)) {
+      console.warn('Invalid data for budget analytics:', { transactions, budgets });
       return {
         budgetsWithSpending: [],
         totalBudget: 0,
@@ -40,6 +44,18 @@ export default function BudgetsPage() {
         nearLimitCount: 0,
       };
     }
+
+    // Debug: Check for duplicate budget IDs
+    const budgetIds = budgets.map(b => b.id);
+    const uniqueIds = new Set(budgetIds);
+    if (budgetIds.length !== uniqueIds.size) {
+      console.warn('Duplicate budget IDs detected:', budgetIds);
+    }
+
+    // Remove duplicate budgets by ID
+    const uniqueBudgets = budgets.filter((budget, index, self) => 
+      index === self.findIndex((b) => b.id === budget.id)
+    );
 
     const currentMonth = new Date().getMonth();
     const currentYear = new Date().getFullYear();
@@ -51,10 +67,19 @@ export default function BudgetsPage() {
              transactionDate.getFullYear() === currentYear;
     });
 
-    const budgetsWithSpending = budgets.map(budget => {
-      const spent = currentMonthTransactions
-        .filter(t => t.category === budget.category && t.type === 'expense')
-        .reduce((sum, t) => sum + t.amount, 0);
+    const budgetsWithSpending = uniqueBudgets.map(budget => {
+      // Validate budget structure
+      if (!budget || typeof budget.amount !== 'number' || budget.amount < 0) {
+        console.warn('Invalid budget structure:', budget);
+        return {
+          budget: budget || { id: 'invalid', category: 'Invalid', amount: 0, period: 'monthly' },
+          spent: 0,
+          remaining: 0,
+          percentageUsed: 0,
+        };
+      }
+      
+      const spent = calculatePeriodSpending(budget, transactions);
       
       const remaining = budget.amount - spent;
       const percentageUsed = budget.amount > 0 ? (spent / budget.amount) * 100 : 0;
@@ -67,7 +92,7 @@ export default function BudgetsPage() {
       };
     });
 
-    const totalBudget = budgets.reduce((sum, b) => sum + b.amount, 0);
+    const totalBudget = uniqueBudgets.reduce((sum, b) => sum + b.amount, 0);
     const totalSpent = budgetsWithSpending.reduce((sum, b) => sum + b.spent, 0);
     const overBudgetCount = budgetsWithSpending.filter(b => b.percentageUsed > 100).length;
     const nearLimitCount = budgetsWithSpending.filter(b => b.percentageUsed >= 80 && b.percentageUsed <= 100).length;
@@ -164,7 +189,7 @@ export default function BudgetsPage() {
     return trendData;
   };
 
-  if (budgetsLoading) {
+  if (loading) {
     return (
       <div className="space-y-6">
         <div>
@@ -210,15 +235,15 @@ export default function BudgetsPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="space-y-4 sm:space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold">Budgets</h1>
-          <p className="text-muted-foreground">
+          <h1 className="text-2xl sm:text-3xl font-bold">Budgets</h1>
+          <p className="text-sm sm:text-base text-muted-foreground">
             Set and track your monthly budgets
           </p>
         </div>
-        <Button onClick={() => setShowCreateDialog(true)}>
+        <Button onClick={() => setShowCreateDialog(true)} className="w-full sm:w-auto">
           <Plus className="mr-2 h-4 w-4" />
           Create Budget
         </Button>
@@ -230,13 +255,9 @@ export default function BudgetsPage() {
             <div className="mx-auto w-12 h-12 bg-muted rounded-full flex items-center justify-center">
               <PiggyBank className="h-6 w-6 text-muted-foreground" />
             </div>
-            <div>
-              <h3 className="text-lg font-semibold">No budgets yet</h3>
-              <p className="text-muted-foreground">
-                Create your first budget to start tracking your spending
-              </p>
-            </div>
-            <Button onClick={() => setShowCreateDialog(true)}>
+            <h3 className="text-lg font-semibold">No budgets yet</h3>
+            <p className="text-muted-foreground">Create your first budget to get started</p>
+            <Button onClick={() => setShowCreateDialog(true)} className="mt-4">
               <Plus className="mr-2 h-4 w-4" />
               Create Budget
             </Button>
@@ -244,42 +265,44 @@ export default function BudgetsPage() {
         </Card>
       ) : (
         <>
-          <BudgetSummary
-            budgets={budgets}
-            totalSpent={budgetAnalytics.totalSpent}
-            totalBudget={budgetAnalytics.totalBudget}
-            overBudgetCount={budgetAnalytics.overBudgetCount}
-            nearLimitCount={budgetAnalytics.nearLimitCount}
-          />
+          <BudgetErrorBoundary fallback={BudgetErrorFallback}>
+            <BudgetSummary
+              budgets={budgets}
+              totalSpent={budgetAnalytics.totalSpent}
+              totalBudget={budgetAnalytics.totalBudget}
+              overBudgetCount={budgetAnalytics.overBudgetCount}
+              nearLimitCount={budgetAnalytics.nearLimitCount}
+            />
+          </BudgetErrorBoundary>
 
           <Tabs defaultValue="overview" className="space-y-4">
-            <TabsList className="grid w-full grid-cols-3">
-              <TabsTrigger value="overview">Overview</TabsTrigger>
-              <TabsTrigger value="detailed">Detailed View</TabsTrigger>
-              <TabsTrigger value="analytics">Analytics</TabsTrigger>
-            </TabsList>
+                <TabsList className="grid w-full grid-cols-3">
+                  <TabsTrigger value="overview">Overview</TabsTrigger>
+                  <TabsTrigger value="detailed">Detailed View</TabsTrigger>
+                  <TabsTrigger value="analytics">Analytics</TabsTrigger>
+                </TabsList>
 
-            <TabsContent value="overview" className="space-y-4">
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {budgetAnalytics.budgetsWithSpending.map(({ budget, spent, remaining, percentageUsed }) => (
-                  <BudgetCard
-                    key={budget.id}
-                    budget={budget}
-                    spent={spent}
-                    remaining={remaining}
-                    percentageUsed={percentageUsed}
-                    onEdit={() => openEditDialog(budget)}
-                    onDelete={() => openDeleteDialog(budget)}
-                  />
-                ))}
-              </div>
-            </TabsContent>
+                <TabsContent value="overview" className="space-y-4">
+                  <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                    {budgetAnalytics.budgetsWithSpending.map(({ budget, spent, remaining, percentageUsed }, index) => (
+                      <BudgetCard
+                        key={`overview-${budget.id}-${index}`}
+                        budget={budget}
+                        spent={spent}
+                        remaining={remaining}
+                        percentageUsed={percentageUsed}
+                        onEdit={() => openEditDialog(budget)}
+                        onDelete={() => openDeleteDialog(budget)}
+                      />
+                    ))}
+                  </div>
+                </TabsContent>
 
-            <TabsContent value="detailed" className="space-y-4">
+                <TabsContent value="detailed" className="space-y-4">
               <div className="space-y-4">
-                {budgetAnalytics.budgetsWithSpending.map(({ budget, spent, remaining, percentageUsed }) => (
+                {budgetAnalytics.budgetsWithSpending.map(({ budget, spent, remaining, percentageUsed }, index) => (
                   <BudgetCard
-                    key={budget.id}
+                    key={`detailed-${budget.id}-${index}`}
                     budget={budget}
                     spent={spent}
                     remaining={remaining}
@@ -305,7 +328,8 @@ export default function BudgetsPage() {
                       spent,
                       remaining,
                       percentageUsed,
-                      status: percentageUsed > 100 ? 'over-budget' : percentageUsed >= 80 ? 'near-limit' : 'on-track'
+                      status: percentageUsed > 100 ? 'over-budget' : percentageUsed >= 80 ? 'near-limit' : 'on-track',
+                      period: getPeriodDisplayText(budget)
                     };
                   })}
                   title="Budget vs Spending Analysis"

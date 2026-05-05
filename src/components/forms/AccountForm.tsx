@@ -8,16 +8,25 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { PopupSelector, SelectorOption } from '@/components/ui/popup-selector';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Account } from '@/lib/types';
 import { CreditCard, Wallet, Smartphone, DollarSign } from 'lucide-react';
 
 const accountSchema = z.object({
-  name: z.string().min(1, 'Account name is required').max(50, 'Name too long'),
+  name: z.string()
+    .min(1, 'Account name is required')
+    .max(50, 'Name too long (max 50 characters)')
+    .regex(/^[a-zA-Z0-9\s\-_]+$/, 'Name can only contain letters, numbers, spaces, hyphens, and underscores'),
   type: z.enum(['cash', 'bank', 'credit', 'mobile']),
-  balance: z.number(),
-  currency: z.string().min(1, 'Currency is required').max(3, 'Invalid currency'),
+  balance: z.number()
+    .min(-999999999, 'Balance too low')
+    .max(999999999, 'Balance too high'),
+  currency: z.string()
+    .min(1, 'Currency is required')
+    .max(3, 'Invalid currency (max 3 characters)')
+    .regex(/^[A-Z]{3}$/, 'Currency must be 3 uppercase letters'),
 });
 
 type AccountFormData = z.infer<typeof accountSchema>;
@@ -28,11 +37,11 @@ interface AccountFormProps {
   onCancel: () => void;
 }
 
-const accountTypes = [
-  { value: 'cash', label: 'Cash', icon: Wallet, description: 'Physical cash and wallets' },
-  { value: 'bank', label: 'Bank Account', icon: DollarSign, description: 'Checking and savings accounts' },
-  { value: 'credit', label: 'Credit Card', icon: CreditCard, description: 'Credit and debit cards' },
-  { value: 'mobile', label: 'Mobile Wallet', icon: Smartphone, description: 'Digital payment apps' },
+const accountTypes: SelectorOption<'cash' | 'bank' | 'credit' | 'mobile'>[] = [
+  { value: 'cash', label: 'Cash', description: 'Physical cash and wallets' },
+  { value: 'bank', label: 'Bank Account', description: 'Checking and savings accounts' },
+  { value: 'credit', label: 'Credit Card', description: 'Credit and debit cards' },
+  { value: 'mobile', label: 'Mobile Wallet', description: 'Digital payment apps' },
 ];
 
 const currencies = [
@@ -107,29 +116,14 @@ export function AccountForm({ account, onSubmit, onCancel }: AccountFormProps) {
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Account Type</FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select account type" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {accountTypes.map((type) => {
-                        const Icon = type.icon;
-                        return (
-                          <SelectItem key={type.value} value={type.value}>
-                            <div className="flex items-center gap-2">
-                              <Icon className="h-4 w-4" />
-                              <div>
-                                <div className="font-medium">{type.label}</div>
-                                <div className="text-xs text-muted-foreground">{type.description}</div>
-                              </div>
-                            </div>
-                          </SelectItem>
-                        );
-                      })}
-                    </SelectContent>
-                  </Select>
+                  <FormControl>
+                    <PopupSelector<'cash' | 'bank' | 'credit' | 'mobile'>
+                      value={field.value}
+                      onValueChange={field.onChange}
+                      options={accountTypes}
+                      placeholder="Select account type"
+                    />
+                  </FormControl>
                   <FormMessage />
                 </FormItem>
               )}

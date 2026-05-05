@@ -12,7 +12,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { seedSampleData } from '@/lib/seedData';
 import { verifyDataPersistence, verifyLocalStorage } from '@/lib/dataVerification';
-import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
+import { DashboardErrorBoundary, DashboardErrorFallback } from '@/components/error/DashboardErrorBoundary';
 
 export default function DashboardPage() {
   const { stats, loading } = useDashboardStats();
@@ -130,51 +130,51 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       <div>
-        <h1 className="text-3xl font-bold">Dashboard</h1>
-        <p className="text-muted-foreground">
+        <h1 className="text-2xl sm:text-3xl font-bold">Dashboard</h1>
+        <p className="text-sm sm:text-base text-muted-foreground">
           Overview of your financial health
         </p>
       </div>
 
       {/* KPI Cards */}
-      <ErrorBoundary>
+      <DashboardErrorBoundary fallback={DashboardErrorFallback}>
         <DashboardCards
           totalBalance={stats.totalBalance}
           monthlyIncome={stats.monthlyIncome}
           monthlyExpenses={stats.monthlyExpenses}
           netWorth={stats.netWorth}
         />
-      </ErrorBoundary>
+      </DashboardErrorBoundary>
 
       {/* Charts Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <ErrorBoundary>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
+        <DashboardErrorBoundary fallback={DashboardErrorFallback}>
           <SpendingChart data={stats.categoryBreakdown} />
-        </ErrorBoundary>
-        <ErrorBoundary>
+        </DashboardErrorBoundary>
+        <DashboardErrorBoundary fallback={DashboardErrorFallback}>
           <MonthlyTrendChart data={stats.monthlyTrend} />
-        </ErrorBoundary>
+        </DashboardErrorBoundary>
       </div>
 
       {/* Recent Transactions */}
-      <ErrorBoundary>
+      <DashboardErrorBoundary fallback={DashboardErrorFallback}>
         <RecentTransactions transactions={stats.recentTransactions} />
-      </ErrorBoundary>
+      </DashboardErrorBoundary>
 
       {/* Budget Tracking Section */}
       {stats.budgetBreakdown && stats.budgetBreakdown.length > 0 && (
         <>
           {/* Budget Alerts */}
-          <ErrorBoundary>
+          <DashboardErrorBoundary fallback={DashboardErrorFallback}>
             <BudgetAlerts stats={stats} />
-          </ErrorBoundary>
+          </DashboardErrorBoundary>
 
           {/* Budget Cards */}
-          <ErrorBoundary>
+          <DashboardErrorBoundary fallback={DashboardErrorFallback}>
             <BudgetCards stats={stats} />
-          </ErrorBoundary>
+          </DashboardErrorBoundary>
         </>
       )}
     </div>

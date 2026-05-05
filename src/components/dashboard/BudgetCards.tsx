@@ -11,7 +11,8 @@ import {
   TrendingDown,
   Target,
   DollarSign,
-  PieChart
+  PieChart,
+  Calendar
 } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
 import { DashboardStats } from '@/lib/types';
@@ -21,7 +22,28 @@ interface BudgetCardsProps {
 }
 
 export function BudgetCards({ stats }: BudgetCardsProps) {
+  // Validate stats data
+  if (!stats || typeof stats !== 'object') {
+    console.warn('Invalid stats data provided to BudgetCards:', stats);
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Budget Overview</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-center h-32 text-muted-foreground">
+            No budget data available
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
   const { budgetBreakdown, totalBudget, totalSpent, budgetHealth } = stats;
+
+  // Validate numeric values
+  const safeTotalBudget = typeof totalBudget === 'number' && !isNaN(totalBudget) ? totalBudget : 0;
+  const safeTotalSpent = typeof totalSpent === 'number' && !isNaN(totalSpent) ? totalSpent : 0;
 
   const getHealthIcon = () => {
     switch (budgetHealth) {
@@ -59,7 +81,7 @@ export function BudgetCards({ stats }: BudgetCardsProps) {
     }
   };
 
-  const overallPercentage = totalBudget > 0 ? (totalSpent / totalBudget) * 100 : 0;
+  const overallPercentage = safeTotalBudget > 0 ? (safeTotalSpent / safeTotalBudget) * 100 : 0;
 
   return (
     <div className="space-y-6">
@@ -85,19 +107,19 @@ export function BudgetCards({ stats }: BudgetCardsProps) {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="text-center">
               <div className="text-2xl font-bold text-blue-600">
-                {formatCurrency(totalBudget)}
+                {formatCurrency(safeTotalBudget)}
               </div>
               <div className="text-sm text-muted-foreground">Total Budget</div>
             </div>
             <div className="text-center">
               <div className={`text-2xl font-bold ${getStatusColor(budgetHealth)}`}>
-                {formatCurrency(totalSpent)}
+                {formatCurrency(safeTotalSpent)}
               </div>
               <div className="text-sm text-muted-foreground">Total Spent</div>
             </div>
             <div className="text-center">
               <div className={`text-2xl font-bold ${getStatusColor(budgetHealth)}`}>
-                {formatCurrency(totalBudget - totalSpent)}
+                {formatCurrency(safeTotalBudget - safeTotalSpent)}
               </div>
               <div className="text-sm text-muted-foreground">Remaining</div>
             </div>
@@ -124,7 +146,13 @@ export function BudgetCards({ stats }: BudgetCardsProps) {
           <Card key={budget.category} className="hover:shadow-md transition-shadow">
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
-                <CardTitle className="text-base">{budget.category}</CardTitle>
+                <div className="space-y-1">
+                  <CardTitle className="text-base">{budget.category}</CardTitle>
+                  <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                    <Calendar className="h-3 w-3" />
+                    <span>{budget.period}</span>
+                  </div>
+                </div>
                 {getStatusIcon(budget.status)}
               </div>
             </CardHeader>

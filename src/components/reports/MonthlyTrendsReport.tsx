@@ -23,7 +23,7 @@ interface MonthlyTrendsReportProps {
 }
 
 export function MonthlyTrendsReport({ monthlyTrend }: MonthlyTrendsReportProps) {
-  if (!monthlyTrend || monthlyTrend.length === 0) {
+  if (!monthlyTrend || !Array.isArray(monthlyTrend) || monthlyTrend.length === 0) {
     return (
       <Card>
         <CardHeader>
@@ -41,9 +41,36 @@ export function MonthlyTrendsReport({ monthlyTrend }: MonthlyTrendsReportProps) 
     );
   }
 
-  // Calculate trend indicators
-  const currentMonth = monthlyTrend[monthlyTrend.length - 1];
-  const previousMonth = monthlyTrend[monthlyTrend.length - 2];
+  // Validate trend data structure
+  const validTrendData = monthlyTrend.filter(month => 
+    month && 
+    typeof month.income === 'number' && 
+    typeof month.expenses === 'number' &&
+    !isNaN(month.income) && 
+    !isNaN(month.expenses)
+  );
+
+  if (validTrendData.length < 2) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Calendar className="h-5 w-5" />
+            Monthly Trends
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-center h-64 text-muted-foreground">
+            Insufficient data for trend analysis
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // Calculate trend indicators using validated data
+  const currentMonth = validTrendData[validTrendData.length - 1];
+  const previousMonth = validTrendData[validTrendData.length - 2];
   
   const incomeTrend = currentMonth.income - previousMonth.income;
   const expenseTrend = currentMonth.expenses - previousMonth.expenses;

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -8,6 +8,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { PopupSelector, SelectorOption } from '@/components/ui/popup-selector';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useCategories } from '@/hooks/useCategories';
@@ -30,7 +32,7 @@ interface BudgetFormProps {
   onCancel: () => void;
 }
 
-const periodOptions = [
+const periodOptions: Array<SelectorOption<'weekly' | 'biweekly' | 'monthly' | 'quarterly' | 'yearly' | 'custom'>> = [
   {
     value: 'weekly',
     label: 'Weekly',
@@ -80,14 +82,33 @@ export function BudgetForm({ budget, onSubmit, onCancel }: BudgetFormProps) {
       category: budget?.category || '',
       amount: budget?.amount || 0,
       period: budget?.period || 'monthly',
+      startDate: budget?.startDate || '',
+      endDate: budget?.endDate || '',
     },
   });
+
+  // Update form values when budget prop changes
+  useEffect(() => {
+    if (budget) {
+      form.reset({
+        category: budget.category,
+        amount: budget.amount,
+        period: budget.period,
+        startDate: budget.startDate || '',
+        endDate: budget.endDate || '',
+      });
+      setSelectedPeriod(budget.period);
+    }
+  }, [budget, form]);
 
   const handleSubmit = async (data: BudgetFormData) => {
     setIsSubmitting(true);
     try {
       await onSubmit(data);
-      form.reset();
+      // Only reset form on successful creation, not edit
+      if (!budget) {
+        form.reset();
+      }
     } catch (error) {
       console.error('Error submitting budget:', error);
     } finally {
@@ -111,7 +132,7 @@ export function BudgetForm({ budget, onSubmit, onCancel }: BudgetFormProps) {
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Category</FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <Select value={field.value} onValueChange={field.onChange}>
                     <FormControl>
                       <SelectTrigger>
                         <SelectValue placeholder="Select category" />
@@ -156,32 +177,17 @@ export function BudgetForm({ budget, onSubmit, onCancel }: BudgetFormProps) {
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Period</FormLabel>
-                  <Select onValueChange={(value: 'weekly' | 'biweekly' | 'monthly' | 'quarterly' | 'yearly' | 'custom') => {
-                    field.onChange(value);
-                    setSelectedPeriod(value);
-                  }} defaultValue={field.value}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select period" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {periodOptions.map((option) => {
-                        const Icon = option.icon;
-                        return (
-                          <SelectItem key={option.value} value={option.value}>
-                            <div className="flex items-center gap-3">
-                              <Icon className="h-4 w-4" />
-                              <div>
-                                <div className="font-medium">{option.label}</div>
-                                <div className="text-sm text-muted-foreground">{option.description}</div>
-                              </div>
-                            </div>
-                          </SelectItem>
-                        );
-                      })}
-                    </SelectContent>
-                  </Select>
+                  <FormControl>
+                    <PopupSelector<'weekly' | 'biweekly' | 'monthly' | 'quarterly' | 'yearly' | 'custom'>
+                      value={field.value}
+                      onValueChange={(value) => {
+                        field.onChange(value);
+                        setSelectedPeriod(value);
+                      }}
+                      options={periodOptions}
+                      placeholder="Select period"
+                    />
+                  </FormControl>
                   <FormMessage />
                 </FormItem>
               )}

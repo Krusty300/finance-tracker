@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Checkbox } from '@/components/ui/checkbox';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useDashboardStats } from '@/hooks/useDashboardStats';
+import { useTransactions } from '@/hooks/useTransactions';
 import { MonthlyTrendsReport } from '@/components/reports/MonthlyTrendsReport';
 import { CategoryBreakdownReport } from '@/components/reports/CategoryBreakdownReport';
 import { FinancialSummaryReport } from '@/components/reports/FinancialSummaryReport';
@@ -16,6 +17,7 @@ import { ComparisonChart } from '@/components/charts/ComparisonChart';
 import { CashFlowChart } from '@/components/charts/CashFlowChart';
 import { SpendingHeatMap } from '@/components/charts/SpendingHeatMap';
 import { GoalProgressChart } from '@/components/charts/GoalProgressChart';
+import { ReportErrorBoundary, ReportErrorFallback } from '@/components/error/ReportErrorBoundary';
 import { GoalDialog } from '@/components/dialogs/GoalDialog';
 import { DeleteConfirmDialog } from '@/components/dialogs/DeleteConfirmDialog';
 import { ReportExporter, ExportOptions } from '@/lib/exportUtils';
@@ -39,6 +41,7 @@ import { formatCurrency } from '@/lib/utils';
 
 export default function ReportsPage() {
   const { stats, loading, refreshStats } = useDashboardStats();
+  const { transactions } = useTransactions();
   const { goals, addGoal, updateGoal, deleteGoal } = useGoals();
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [exportFormat, setExportFormat] = useState<'pdf' | 'excel' | 'csv' | 'json'>('pdf');
@@ -64,7 +67,16 @@ export default function ReportsPage() {
   };
 
   const handleExportReport = async () => {
-    if (!stats) return;
+    if (!stats) {
+      toast.error('No data available to export');
+      return;
+    }
+    
+    // Validate stats structure
+    if (!stats.monthlyIncome || !stats.monthlyExpenses || typeof stats.monthlyIncome !== 'number' || typeof stats.monthlyExpenses !== 'number') {
+      toast.error('Invalid data format for export');
+      return;
+    }
     
     try {
       const exportOptions: ExportOptions = {
@@ -83,7 +95,16 @@ export default function ReportsPage() {
   };
 
   const handleQuickExport = async (format: 'pdf' | 'excel' | 'csv' | 'json') => {
-    if (!stats) return;
+    if (!stats) {
+      toast.error('No data available to export');
+      return;
+    }
+    
+    // Validate stats structure
+    if (!stats.monthlyIncome || !stats.monthlyExpenses || typeof stats.monthlyIncome !== 'number' || typeof stats.monthlyExpenses !== 'number') {
+      toast.error('Invalid data format for export');
+      return;
+    }
     
     try {
       const exportOptions: ExportOptions = {
@@ -329,50 +350,97 @@ export default function ReportsPage() {
 
         <TabsContent value="visualizations" className="space-y-6">
           <div className="grid gap-6">
-            <EnhancedPieChart 
-              data={stats.categoryBreakdown}
-              title="Spending by Category"
-              showDrillDown={true}
-            />
-            <ComparisonChart 
-              data={stats.monthlyTrend}
-              title="Monthly Comparison"
-              type="bar"
-            />
-            <CashFlowChart 
-              income={stats.monthlyIncome}
-              expenses={stats.monthlyExpenses}
-              categories={stats.categoryBreakdown.map(cat => ({
-                category: cat.category,
-                amount: cat.amount,
-                type: 'expense'
-              }))}
-              title="Cash Flow Analysis"
-              showDetails={true}
-            />
+            <CategoryBreakdownReport categoryBreakdown={stats.categoryBreakdown} />
+            <MonthlyTrendsReport monthlyTrend={stats.monthlyTrend} />
           </div>
         </TabsContent>
 
-        <TabsContent value="trends" className="space-y-6">
-          <ComparisonChart 
-            data={stats.monthlyTrend}
-            title="Monthly Trends Analysis"
-            type="line"
-            comparisonType="month-over-month"
-          />
-        </TabsContent>
-
         <TabsContent value="categories" className="space-y-6">
-          <CategoryBreakdownReport categoryBreakdown={stats.categoryBreakdown} />
+          <div className="grid gap-6">
+            <CategoryBreakdownReport categoryBreakdown={stats.categoryBreakdown} />
+            <Card>
+              <CardHeader>
+                <CardTitle>Category Analysis</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {stats.categoryBreakdown && stats.categoryBreakdown.length > 0 ? (
+                    stats.categoryBreakdown.map((category, index) => (
+                      <div key={index} className="flex items-center justify-between p-3 border rounded-lg">
+                        <div>
+                          <h4 className="font-medium">{category.category}</h4>
+                          <p className="text-sm text-muted-foreground">
+                            {category.percentage}% of total expenses
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <div className="font-medium">{formatCurrency(category.amount)}</div>
+                          <div className="text-sm text-muted-foreground">{category.percentage}%</div>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-muted-foreground">No category data available</p>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         </TabsContent>
 
         <TabsContent value="patterns" className="space-y-6">
           <div className="grid gap-6">
             <SpendingHeatMap 
-              data={stats.recentTransactions.map(t => ({
+              data={transactions.map((t: any) => ({
+                amount: Math.abs(t.amount),
                 date: t.date,
                 category: t.category,
+                dayOfWeek: new Date(t.date).toLocaleDateString('en-US', { weekday: 'short' }),
+                week: Math.ceil(new Date(t.date).getDate() / 7),
+                month: new Date(t.date).toLocaleDateString('en-US', { month: 'short' })
+              }))}
+              title="Spending Patterns Heat Map"
+              period="month"
+            />
+            <Card>
+              <CardHeader>
+                <CardTitle>Spending Patterns</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div className="p-4 bg-muted/50 rounded-lg">
+                      <h4 className="font-medium mb-2">Average Daily Spending</h4>
+                      <p className="text-2xl font-bold">
+                        {stats.monthlyExpenses > 0 ? formatCurrency(stats.monthlyExpenses / 30) : formatCurrency(0)}
+                      </p>
+                      <p className="text-sm text-muted-foreground">Per day this month</p>
+                    </div>
+                    <div className="p-4 bg-muted/50 rounded-lg">
+                      <h4 className="font-medium mb-2">Highest Spending Day</h4>
+                      <p className="text-2xl font-bold">
+                        {transactions.length > 0 ? formatCurrency(Math.max(...transactions.map((t: any) => Math.abs(t.amount)))) : formatCurrency(0)}
+                      </p>
+                      <p className="text-sm text-muted-foreground">Single transaction</p>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="trends" className="space-y-6">
+          <div className="grid gap-6">
+            <ComparisonChart 
+              data={stats.monthlyTrend}
+              title="Monthly Trends Analysis"
+            />
+            <SpendingHeatMap 
+              data={transactions.map((t: any) => ({
                 amount: Math.abs(t.amount),
+                date: t.date,
+                category: t.category,
                 dayOfWeek: new Date(t.date).toLocaleDateString('en-US', { weekday: 'short' }),
                 week: Math.ceil(new Date(t.date).getDate() / 7),
                 month: new Date(t.date).toLocaleDateString('en-US', { month: 'short' })
@@ -414,12 +482,16 @@ export default function ReportsPage() {
                     <h4 className="font-medium mb-2">Savings Rate</h4>
                     <p className="text-sm text-muted-foreground">
                       {((stats.monthlyIncome - stats.monthlyExpenses) / stats.monthlyIncome * 100).toFixed(1)}% of your income is saved. 
-                      {((stats.monthlyIncome - stats.monthlyExpenses) / stats.monthlyIncome * 100) >= 20 ?
-                        ' Excellent! You\'re saving more than the recommended 20%.' :
-                        ((stats.monthlyIncome - stats.monthlyExpenses) / stats.monthlyIncome * 100) >= 10 ?
-                          ' Good! Try to aim for 20% savings rate.' :
-                          ' Consider increasing your savings rate for better financial health.'
-                      }
+                      {(() => {
+                        const savingsRate = stats.monthlyIncome > 0 ? 
+                          ((stats.monthlyIncome - stats.monthlyExpenses) / stats.monthlyIncome * 100) : 0;
+                        
+                        return savingsRate >= 20 ?
+                          ' Excellent! You\'re saving more than the recommended 20%.' :
+                          savingsRate >= 10 ?
+                            ' Good! Try to aim for 20% savings rate.' :
+                            ' Consider increasing your savings rate for better financial health.';
+                      })()}
                     </p>
                   </div>
 
@@ -480,7 +552,7 @@ export default function ReportsPage() {
                         <h4 className="font-medium text-yellow-600">Increase Savings</h4>
                         <p className="text-sm text-muted-foreground">
                           Your savings rate is below the recommended 20%. 
-                          Try to save at least {formatCurrency(stats.monthlyIncome * 0.2 - (stats.monthlyIncome - stats.monthlyExpenses))} more per month.
+                          Try to save at least {formatCurrency(Math.max(0, stats.monthlyIncome * 0.2 - (stats.monthlyIncome - stats.monthlyExpenses)))} more per month.
                         </p>
                       </div>
                     </div>

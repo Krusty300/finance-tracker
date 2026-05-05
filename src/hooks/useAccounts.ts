@@ -91,6 +91,12 @@ export function useAccounts() {
 
   const getTotalBalance = useCallback(() => {
     return accounts.reduce((total, account) => {
+      // Validate account structure
+      if (!account || typeof account.balance !== 'number') {
+        console.warn('Invalid account data in getTotalBalance:', account);
+        return total;
+      }
+      
       if (account.type === 'credit') {
         return total - Math.abs(account.balance);
       }

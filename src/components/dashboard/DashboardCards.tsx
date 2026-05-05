@@ -17,6 +17,12 @@ export function DashboardCards({
   monthlyExpenses,
   netWorth,
 }: DashboardCardsProps) {
+  // Validate numeric values
+  const safeTotalBalance = typeof totalBalance === 'number' && !isNaN(totalBalance) ? totalBalance : 0;
+  const safeMonthlyIncome = typeof monthlyIncome === 'number' && !isNaN(monthlyIncome) ? monthlyIncome : 0;
+  const safeMonthlyExpenses = typeof monthlyExpenses === 'number' && !isNaN(monthlyExpenses) ? monthlyExpenses : 0;
+  const safeNetWorth = typeof netWorth === 'number' && !isNaN(netWorth) ? netWorth : 0;
+
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
       <Card>
@@ -25,7 +31,7 @@ export function DashboardCards({
           <Wallet className="h-4 w-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold">{formatCurrency(totalBalance)}</div>
+          <div className="text-2xl font-bold">{formatCurrency(safeTotalBalance)}</div>
           <p className="text-xs text-muted-foreground">
             Across all accounts
           </p>
@@ -39,7 +45,7 @@ export function DashboardCards({
         </CardHeader>
         <CardContent>
           <div className="text-2xl font-bold text-green-600">
-            +{formatCurrency(monthlyIncome)}
+            +{formatCurrency(safeMonthlyIncome)}
           </div>
           <p className="text-xs text-muted-foreground">
             This month
@@ -54,7 +60,7 @@ export function DashboardCards({
         </CardHeader>
         <CardContent>
           <div className="text-2xl font-bold text-red-600">
-            -{formatCurrency(monthlyExpenses)}
+            -{formatCurrency(safeMonthlyExpenses)}
           </div>
           <p className="text-xs text-muted-foreground">
             This month
@@ -67,8 +73,8 @@ export function DashboardCards({
           <CardTitle className="text-sm font-medium">Net Worth</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className={`text-2xl font-bold ${netWorth >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-            {formatCurrency(netWorth)}
+          <div className={`text-2xl font-bold ${safeNetWorth >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+            {formatCurrency(safeNetWorth)}
           </div>
           <p className="text-xs text-muted-foreground">
             Total assets minus liabilities
