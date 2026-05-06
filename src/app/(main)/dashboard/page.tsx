@@ -132,7 +132,7 @@ export default function DashboardPage() {
   return (
     <div className="space-y-4 sm:space-y-6">
       <div>
-        <h1 className="text-2xl sm:text-3xl font-bold">Dashboard</h1>
+        <h1 data-onboarding="dashboard-title" className="text-2xl sm:text-3xl font-bold">Dashboard</h1>
         <p className="text-sm sm:text-base text-muted-foreground">
           Overview of your financial health
         </p>
@@ -140,12 +140,14 @@ export default function DashboardPage() {
 
       {/* KPI Cards */}
       <DashboardErrorBoundary fallback={DashboardErrorFallback}>
-        <DashboardCards
-          totalBalance={stats.totalBalance}
-          monthlyIncome={stats.monthlyIncome}
-          monthlyExpenses={stats.monthlyExpenses}
-          netWorth={stats.netWorth}
-        />
+        <div data-onboarding="dashboard-cards">
+          <DashboardCards
+            totalBalance={stats.totalBalance}
+            monthlyIncome={stats.monthlyIncome}
+            monthlyExpenses={stats.monthlyExpenses}
+            netWorth={stats.netWorth}
+          />
+        </div>
       </DashboardErrorBoundary>
 
       {/* Charts Row */}

@@ -2,6 +2,99 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
+/* Onboarding Tour Styles with Theme Support */
+:root {
+  --glow-shadow: 0 0 0 4px oklch(from var(--primary) l c h / 0.3);
+  --tour-highlight-bg: oklch(from var(--primary) l c h / 0.1);
+  --tour-highlight-border: var(--primary);
+  --tour-accent-bg: var(--muted);
+  --tour-accent-border: var(--border);
+}
+
+.dark {
+  --glow-shadow: 0 0 0 4px oklch(from var(--primary) l c h / 0.4);
+  --tour-highlight-bg: oklch(from var(--primary) l c h / 0.2);
+  --tour-highlight-border: var(--primary);
+  --tour-accent-bg: var(--muted);
+  --tour-accent-border: var(--border);
+}
+
+.onboarding-highlight {
+  position: relative !important;
+  z-index: 45 !important;
+  box-shadow: var(--glow-shadow) !important;
+  border: 2px solid var(--tour-highlight-border) !important;
+  border-radius: 8px !important;
+  transition: all 0.3s ease !important;
+  background: var(--tour-highlight-bg) !important;
+}
+
+.onboarding-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 40;
+  pointer-events: none;
+}
+
+/* Theme-aware tour animations */
+@keyframes tour-pulse {
+  0%, 100% {
+    box-shadow: var(--glow-shadow);
+  }
+  50% {
+    box-shadow: 0 0 0 8px oklch(from var(--primary) l c h / 0.5), 0 0 20px oklch(from var(--primary) l c h / 0.3);
+  }
+}
+
+.tour-pulse {
+  animation: tour-pulse 2s ease-in-out infinite;
+}
+
+/* Tour tooltip positioning */
+.tour-tooltip {
+  background: var(--background);
+  border: 2px solid var(--primary);
+  color: var(--foreground);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+}
+
+/* Tour progress indicators */
+.tour-progress {
+  background: var(--muted);
+  border: 1px solid var(--border);
+}
+
+.tour-progress-bar {
+  background: var(--primary);
+}
+
+/* Tour buttons */
+.tour-button-primary {
+  background: var(--primary);
+  color: var(--primary-foreground);
+  border: 1px solid var(--primary);
+}
+
+.tour-button-primary:hover {
+  background: oklch(from var(--primary) l c h / 0.9);
+  border-color: oklch(from var(--primary) l c h / 0.9);
+}
+
+.tour-button-secondary {
+  background: var(--muted);
+  color: var(--foreground);
+  border: 1px solid var(--border);
+}
+
+.tour-button-secondary:hover {
+  background: var(--accent);
+  border-color: var(--border);
+}
+
 @custom-variant dark (&:is(.dark *));
 
 @font-face {

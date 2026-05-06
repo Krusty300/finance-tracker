@@ -153,7 +153,7 @@ export function Sidebar({ className, isCollapsed = false, onToggle, showIcons = 
   }, [sortedItems, stats]);
 
   return (
-    <div className={cn(
+    <div data-onboarding="sidebar" className={cn(
       'pb-12 z-40',
       'transition-all duration-500 ease-out',
       'will-change-transform',

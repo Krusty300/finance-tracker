@@ -16,6 +16,7 @@ export function FloatingActionButton({ className }: FloatingActionButtonProps) {
     <>
       {/* Floating Action Button */}
       <Button
+        data-onboarding="add-transaction"
         onClick={() => setIsModalOpen(true)}
         size="lg"
         className={`

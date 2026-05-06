@@ -7,6 +7,7 @@ import { BreadcrumbNavigation } from '@/components/navigation/BreadcrumbNavigati
 import { FloatingActionButton } from '@/components/navigation/FloatingActionButton';
 import { ThemeToggle } from '@/components/theme/ThemeToggle';
 import { NotificationSystem, ToastNotifications } from '@/components/notifications/NotificationSystem';
+import { OnboardingTour, OnboardingTrigger, OnboardingNotifications, OnboardingHints, FeatureDiscoveryNotifications, TourNavigation } from '@/components/onboarding/index';
 import { Button } from '@/components/ui/button';
 import { Menu, Eye, EyeOff } from 'lucide-react';
 
@@ -115,10 +116,18 @@ export default function MainLayout({
         
         {/* Floating Action Button for mobile */}
         <FloatingActionButton />
+        
+        {/* Toast Notifications */}
+        <ToastNotifications />
+        
+        {/* Onboarding Components */}
+        <OnboardingTour />
+        <OnboardingTrigger />
+        <TourNavigation />
+        <OnboardingNotifications />
+        <OnboardingHints />
+        <FeatureDiscoveryNotifications />
       </main>
-      
-      {/* Toast Notifications */}
-      <ToastNotifications />
     </div>
   );
 }

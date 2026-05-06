@@ -26,10 +26,13 @@ import { verifyDataPersistence, verifyLocalStorage } from '@/lib/dataVerificatio
 import { seedSampleData } from '@/lib/seedData';
 import { db } from '@/lib/db';
 import { useTheme } from '@/contexts/ThemeContext';
+import { useOnboarding } from '@/contexts/OnboardingContext';
+import { OnboardingProgress } from '@/components/onboarding/OnboardingProgress';
 import { toast } from 'sonner';
 
 export default function SettingsPage() {
   const { theme, setTheme } = useTheme();
+  const { resetOnboarding, progress } = useOnboarding();
   
   // Theme Settings
   const [selectedTheme, setSelectedTheme] = useState(theme);
@@ -288,6 +291,11 @@ export default function SettingsPage() {
     }
   };
 
+  const handleResetOnboarding = () => {
+    resetOnboarding();
+    toast.success('Onboarding has been reset. You can start the tour again from the dashboard!');
+  };
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'available':
@@ -330,7 +338,11 @@ export default function SettingsPage() {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="space-y-6">
+        {/* Onboarding Progress */}
+        <OnboardingProgress />
+        
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Theme Settings */}
         <Card>
           <CardHeader>
@@ -509,6 +521,10 @@ export default function SettingsPage() {
               <RefreshCw className="mr-2 h-4 w-4" />
               Clear Cache
             </Button>
+            <Button onClick={handleResetOnboarding} variant="outline" className="w-full">
+              <RefreshCw className="mr-2 h-4 w-4" />
+              Reset Onboarding
+            </Button>
           </CardContent>
         </Card>
       </div>
@@ -578,6 +594,7 @@ export default function SettingsPage() {
           </div>
         </CardContent>
       </Card>
+      </div>
     </div>
   );
 }

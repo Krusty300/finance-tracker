@@ -645,7 +645,7 @@ export default function TransactionsPage() {
             Manage your income and expenses
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div data-onboarding="add-transaction-desktop" className="flex items-center gap-2">
           <TransactionForm 
             onSubmit={handleAddTransaction} 
             initialData={templateData || undefined}

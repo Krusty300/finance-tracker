@@ -43,6 +43,13 @@ export const NavigationItem = memo(function NavigationItem({
 
   return (
     <Button
+      data-onboarding={
+        name === 'Transactions' ? 'transactions-nav' :
+        name === 'Budgets' ? 'budgets-nav' :
+        name === 'Reports' ? 'reports-nav' :
+        name === 'Settings' ? 'settings-nav' :
+        undefined
+      }
       variant={isActive ? 'secondary' : 'ghost'}
       className={cn(
         'w-full justify-start relative transition-all duration-300 ease-out',
