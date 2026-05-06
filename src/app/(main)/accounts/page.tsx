@@ -236,7 +236,6 @@ export default function AccountsPage() {
         </div>
         <div className="flex items-center gap-2">
           <Button onClick={() => setShowCreateDialog(true)} className="w-full sm:w-auto">
-            <Plus className="mr-2 h-4 w-4" />
             Add Account
           </Button>
         </div>
@@ -255,7 +254,6 @@ export default function AccountsPage() {
               </p>
             </div>
             <Button onClick={() => setShowCreateDialog(true)}>
-              <Plus className="mr-2 h-4 w-4" />
               Add Account
             </Button>
           </div>

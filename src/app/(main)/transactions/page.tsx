@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Transaction } from '@/lib/types';
 import { TransactionForm } from '@/components/forms/TransactionForm';
@@ -19,31 +19,137 @@ import { toast } from 'sonner';
 import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
 import { DeleteConfirmDialog } from '@/components/dialogs/DeleteConfirmDialog';
 import { ExportDialog } from '@/components/dialogs/ExportDialog';
-import { AdvancedFilters } from '@/components/filters/AdvancedFilters';
+import { BulkCategoryChangeDialog } from '@/components/dialogs/BulkCategoryChangeDialog';
+import { BulkDateEditDialog } from '@/components/dialogs/BulkDateEditDialog';
+import { EnhancedTransactionFilters } from '@/components/filters/EnhancedTransactionFilters';
+import { InfiniteScrollTransactions } from '@/components/transactions/InfiniteScrollTransactions';
+import { MonthlyComparison } from '@/components/charts/MonthlyComparison';
+import { SparklineChart } from '@/components/charts/SparklineChart';
+import { 
+  TransactionTableSkeleton, 
+  SummaryCardsSkeleton, 
+  FiltersSkeleton, 
+  ChartSkeleton 
+} from '@/components/ui/TransactionSkeleton';
+import { 
+  EmptyTransactionsState, 
+  NoSearchResultsState, 
+  NoFilterResultsState, 
+  EmptyChartsState 
+} from '@/components/ui/EmptyStates';
+import { TooltipWrapper } from '@/components/ui/Tooltip';
+import { BulkOperationProgress } from '@/components/ui/BulkOperationProgress';
 import { useCategories } from '@/hooks/useCategories';
+import { useAccounts } from '@/hooks/useAccounts';
+import { useDebounce } from '@/hooks/useDebounce';
+import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
+
+interface FilterState {
+  searchTerm: string;
+  type: 'all' | 'income' | 'expense';
+  category: string;
+  account: string;
+  tags: string[];
+  dateRange: { start: string; end: string };
+  amountRange: { min: number; max: number };
+}
 
 export default function TransactionsPage() {
   const searchParams = useSearchParams();
   const { transactions, addTransaction, deleteTransaction, updateTransaction } = useTransactions();
-  const [searchTerm, setSearchTerm] = useState('');
-  const [filterType, setFilterType] = useState<'all' | 'income' | 'expense'>('all');
-  const [filterCategory, setFilterCategory] = useState<string>('all');
+  const { categories } = useCategories();
+  const { accounts } = useAccounts();
+  
+  // Enhanced filter state
+  const [filters, setFilters] = useState<FilterState>(() => {
+    // Safe initialization with fallback values
+    if (!transactions || transactions.length === 0) {
+      return {
+        searchTerm: '',
+        type: 'all' as 'all' | 'income' | 'expense',
+        category: 'all',
+        account: 'all',
+        tags: [],
+        dateRange: { start: '', end: '' },
+        amountRange: { min: 0, max: 1000 }
+      };
+    }
+    
+    const amounts = transactions.map(t => t.amount || 0);
+    const minAmount = Math.min(...amounts, 0);
+    const maxAmount = Math.max(...amounts, 1000);
+    
+    return {
+      searchTerm: '',
+      type: 'all' as 'all' | 'income' | 'expense',
+      category: 'all',
+      account: 'all',
+      tags: [],
+      dateRange: { start: '', end: '' },
+      amountRange: { min: minAmount, max: maxAmount }
+    };
+  });
+
+  // Debounced search for real-time updates
+  const debouncedSearchTerm = useDebounce(filters.searchTerm, 300);
+
+  // Update amount range when transactions change
+  useEffect(() => {
+    if (transactions.length > 0) {
+      const amounts = transactions.map(t => t.amount);
+      const minAmount = Math.min(...amounts, 0);
+      const maxAmount = Math.max(...amounts, 1000);
+      
+      // Only update if the current range is too restrictive
+      if (filters.amountRange.max < maxAmount) {
+        setFilters(prev => ({
+          ...prev,
+          amountRange: { min: minAmount, max: maxAmount }
+        }));
+      }
+    }
+  }, [transactions, filters.amountRange.max]);
+
+  // Keyboard shortcuts
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  
+  useKeyboardShortcuts({
+    onNewTransaction: () => {
+      // Trigger new transaction dialog
+      const event = new CustomEvent('open-transaction-dialog');
+      document.dispatchEvent(event);
+    },
+    onSearchFocus: () => {
+      searchInputRef.current?.focus();
+    },
+    onDelete: () => {
+      // Bulk delete selected items
+      if (selectedIds.length > 0) {
+        handleBulkDelete(selectedIds);
+      }
+    }
+  });
+  
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [transactionToDelete, setTransactionToDelete] = useState<string | null>(null);
   const [bulkDeleteIds, setBulkDeleteIds] = useState<string[]>([]);
   const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false);
-  const [dateRange, setDateRange] = useState<{ start: string; end: string }>({
-    start: '',
-    end: '',
-  });
-  const [showAdvanced, setShowAdvanced] = useState(false);
-  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const [useEnhancedTable, setUseEnhancedTable] = useState(true);
   const [exportDialogOpen, setExportDialogOpen] = useState(false);
+  const [bulkCategoryDialogOpen, setBulkCategoryDialogOpen] = useState(false);
+  const [bulkDateDialogOpen, setBulkDateDialogOpen] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [templateData, setTemplateData] = useState<Partial<Transaction> | null>(null);
-  const { categories } = useCategories();
+  const [isLoading, setIsLoading] = useState(false);
+  const [bulkOperationProgress, setBulkOperationProgress] = useState<{
+    operation: string;
+    total: number;
+    completed: number;
+    failed: number;
+    status: 'pending' | 'running' | 'completed' | 'error';
+    error?: string;
+  } | null>(null);
 
   // Handle URL parameters from template navigation
   useEffect(() => {
@@ -66,10 +172,14 @@ export default function TransactionsPage() {
       console.log('TransactionsPage: Setting templateData', templateDataToSet);
       setTemplateData(templateDataToSet);
 
-      // Pre-fill the form fields
-      if (type) setFilterType(type);
-      if (category) setFilterCategory(category);
-      if (description) setSearchTerm(description);
+      // Pre-fill the filters
+      setFilters((prev: FilterState) => ({
+        ...prev,
+        type: type || 'all',
+        category: category || 'all',
+        account: account || 'all',
+        searchTerm: description || ''
+      }));
 
       // Clear URL params after a short delay to ensure form processes them first
       setTimeout(() => {
@@ -79,21 +189,6 @@ export default function TransactionsPage() {
     }
   }, [searchParams]);
 
-  // Combined filters object for AdvancedFilters
-  const filters = {
-    searchTerm,
-    type: filterType,
-    category: filterCategory,
-    dateRange: dateRange,
-    amountRange: { min: '', max: '' }
-  };
-
-  const handleFiltersChange = (newFilters: any) => {
-    setSearchTerm(newFilters.searchTerm || searchTerm);
-    setFilterType(newFilters.type || filterType);
-    setFilterCategory(newFilters.category || filterCategory);
-    setDateRange(newFilters.dateRange || dateRange);
-  };
 
   const handleAddTransaction = (data: Omit<Transaction, 'id'>) => {
     try {
@@ -107,6 +202,81 @@ export default function TransactionsPage() {
     }
   };
 
+  // Helper function to get monthly trend data for sparklines
+  const getMonthlyTrendData = (transactions: Transaction[] | number[]) => {
+    if (!transactions || transactions.length === 0) return [];
+    
+    // If it's already numbers (net data), validate and return as is
+    if (typeof transactions[0] === 'number') {
+      return (transactions as number[]).map(n => isNaN(n) ? 0 : n);
+    }
+    
+    // Group by month and sum amounts with safety checks
+    const monthlyData = (transactions as Transaction[]).reduce((acc, transaction) => {
+      // Skip invalid transactions
+      if (!transaction || !transaction.date) return acc;
+      
+      try {
+        const date = new Date(transaction.date);
+        // Check if date is valid
+        if (isNaN(date.getTime())) return acc;
+        
+        const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+        
+        if (!acc[monthKey]) {
+          acc[monthKey] = 0;
+        }
+        
+        acc[monthKey] += transaction.amount || 0;
+        return acc;
+      } catch (error) {
+        console.error('Error processing transaction date:', error);
+        return acc;
+      }
+    }, {} as Record<string, number>);
+
+    // Get last 6 months of data
+    const sortedMonths = Object.entries(monthlyData)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .slice(-6)
+      .map(([, value]) => isNaN(value) ? 0 : value);
+
+    return sortedMonths;
+  };
+
+  // Safe calculation functions for summary stats
+  const calculateTotalIncome = (transactionsList: Transaction[]) => {
+    if (!transactionsList || transactionsList.length === 0) return 0;
+    
+    return transactionsList
+      .filter(t => t && t.type === 'income' && typeof t.amount === 'number' && !isNaN(t.amount))
+      .reduce((sum, t) => sum + t.amount, 0);
+  };
+
+  const calculateTotalExpenses = (transactionsList: Transaction[]) => {
+    if (!transactionsList || transactionsList.length === 0) return 0;
+    
+    return transactionsList
+      .filter(t => t && t.type === 'expense' && typeof t.amount === 'number' && !isNaN(t.amount))
+      .reduce((sum, t) => sum + t.amount, 0);
+  };
+
+  const calculateNet = (transactionsList: Transaction[]) => {
+    const income = calculateTotalIncome(transactionsList);
+    const expenses = calculateTotalExpenses(transactionsList);
+    return income - expenses;
+  };
+
+  // Loading state management
+  useEffect(() => {
+    setIsLoading(true);
+    const timer = setTimeout(() => {
+      setIsLoading(false);
+    }, 500); // Simulate loading time
+
+    return () => clearTimeout(timer);
+  }, [transactions.length]);
+
   // Clear template data when component unmounts or after 5 minutes
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -115,6 +285,16 @@ export default function TransactionsPage() {
 
     return () => clearTimeout(timer);
   }, []);
+
+  // Cleanup bulk operation progress timers
+  useEffect(() => {
+    return () => {
+      // Clear any pending progress timers
+      if (bulkOperationProgress) {
+        setBulkOperationProgress(null);
+      }
+    };
+  }, [bulkOperationProgress]);
 
   const handleEditTransaction = (transaction: Transaction) => {
     setEditingTransaction(transaction);
@@ -185,38 +365,99 @@ export default function TransactionsPage() {
   };
 
   const filteredTransactions = transactions.filter(transaction => {
-    const matchesSearch = !searchTerm || 
-      transaction.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      transaction.category.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    const matchesType = filterType === 'all' || transaction.type === filterType;
-    
-    const matchesCategory = filterCategory === 'all' || transaction.category === filterCategory;
+    // Skip invalid transactions
+    if (!transaction || !transaction.id) return false;
 
-    // Date range filtering
+    // Search filter with null checks
+    const matchesSearch = !debouncedSearchTerm || 
+      (transaction.description && transaction.description.toLowerCase().includes(debouncedSearchTerm.toLowerCase())) ||
+      (transaction.category && transaction.category.toLowerCase().includes(debouncedSearchTerm.toLowerCase())) ||
+      (transaction.account && transaction.account.toLowerCase().includes(debouncedSearchTerm.toLowerCase())) ||
+      (transaction.tags && transaction.tags.some((tag: string) => 
+        tag && tag.toLowerCase().includes(debouncedSearchTerm.toLowerCase())
+      ));
+
+    // Type filter with null check
+    const matchesType = filters.type === 'all' || (transaction.type && transaction.type === filters.type);
+
+    // Category filter with null check
+    const matchesCategory = filters.category === 'all' || (transaction.category && transaction.category === filters.category);
+
+    // Account filter with null check
+    const matchesAccount = filters.account === 'all' || (transaction.account && transaction.account === filters.account);
+
+    // Tags filter with null check
+    const matchesTags = filters.tags.length === 0 || 
+      (transaction.tags && filters.tags.some((tag: string) => transaction.tags!.includes(tag)));
+
+    // Amount range filter with null check
+    const transactionAmount = transaction.amount || 0;
+    const matchesAmountRange = transactionAmount >= filters.amountRange.min && 
+                           transactionAmount <= filters.amountRange.max;
+
+    // Date range filtering with validation
     let matchesDateRange = true;
-    if (dateRange.start || dateRange.end) {
-      const transactionDate = new Date(transaction.date);
-      if (dateRange.start) {
-        matchesDateRange = transactionDate >= new Date(dateRange.start);
-      }
-      if (dateRange.end) {
-        matchesDateRange = matchesDateRange && transactionDate <= new Date(dateRange.end + 'T23:59:59');
+    if (filters.dateRange.start || filters.dateRange.end) {
+      try {
+        const transactionDate = new Date(transaction.date);
+        // Check if date is valid
+        if (isNaN(transactionDate.getTime())) {
+          matchesDateRange = false;
+        } else {
+          if (filters.dateRange.start) {
+            const startDate = new Date(filters.dateRange.start);
+            if (!isNaN(startDate.getTime())) {
+              matchesDateRange = transactionDate >= startDate;
+            }
+          }
+          if (filters.dateRange.end && matchesDateRange) {
+            const endDate = new Date(filters.dateRange.end + 'T23:59:59');
+            if (!isNaN(endDate.getTime())) {
+              matchesDateRange = transactionDate <= endDate;
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Date parsing error:', error);
+        matchesDateRange = false;
       }
     }
 
-    return matchesSearch && matchesType && matchesCategory && matchesDateRange;
+    return matchesSearch && matchesType && matchesCategory && matchesAccount && 
+           matchesTags && matchesDateRange && matchesAmountRange;
   });
 
   const clearAllFilters = () => {
-    setSearchTerm('');
-    setFilterType('all');
-    setFilterCategory('all');
-    setDateRange({ start: '', end: '' });
+    // Safe amount calculation with fallback
+    let minAmount = 0;
+    let maxAmount = 1000;
+    
+    if (transactions && transactions.length > 0) {
+      const amounts = transactions.map(t => t.amount || 0);
+      minAmount = Math.min(...amounts, 0);
+      maxAmount = Math.max(...amounts, 1000);
+    }
+
+    setFilters({
+      searchTerm: '',
+      type: 'all',
+      category: 'all',
+      account: 'all',
+      tags: [],
+      dateRange: { start: '', end: '' },
+      amountRange: { min: minAmount, max: maxAmount }
+    });
     toast.success('All filters cleared');
   };
 
-  const hasActiveFilters = searchTerm || filterType !== 'all' || filterCategory !== 'all' || dateRange.start || dateRange.end;
+  const hasActiveFilters = 
+    filters.searchTerm ||
+    filters.type !== 'all' ||
+    filters.category !== 'all' ||
+    filters.account !== 'all' ||
+    filters.tags.length > 0 ||
+    filters.dateRange.start ||
+    filters.dateRange.end;
 
   const exportTransactions = () => {
     setExportDialogOpen(true);
@@ -259,6 +500,142 @@ export default function TransactionsPage() {
     }
   };
 
+  const handleBulkCategoryChange = async (updates: { ids: string[]; category: string }) => {
+    const startTime = Date.now();
+    setBulkOperationProgress({
+      operation: 'Changing Categories',
+      total: updates.ids.length,
+      completed: 0,
+      failed: 0,
+      status: 'running'
+    });
+
+    try {
+      let completed = 0;
+      let failed = 0;
+
+      for (const id of updates.ids) {
+        try {
+          const transaction = transactions.find(t => t.id === id);
+          if (transaction) {
+            updateTransaction(id, { ...transaction, category: updates.category });
+            completed++;
+          } else {
+            failed++;
+          }
+        } catch (error) {
+          failed++;
+        }
+
+        // Update progress
+        setBulkOperationProgress(prev => prev ? {
+          ...prev,
+          completed,
+          failed
+        } : null);
+
+        // Small delay to show progress
+        await new Promise(resolve => setTimeout(resolve, 50));
+      }
+
+      setBulkOperationProgress({
+        operation: 'Changing Categories',
+        total: updates.ids.length,
+        completed,
+        failed,
+        status: failed > 0 ? 'error' : 'completed'
+      });
+
+      setSelectedIds([]);
+      
+      // Hide progress after 2 seconds
+      const hideTimer = setTimeout(() => setBulkOperationProgress(null), 2000);
+      return () => clearTimeout(hideTimer);
+      
+    } catch (error) {
+      setBulkOperationProgress({
+        operation: 'Changing Categories',
+        total: updates.ids.length,
+        completed: 0,
+        failed: updates.ids.length,
+        status: 'error',
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+      
+      const errorTimer = setTimeout(() => setBulkOperationProgress(null), 3000);
+      return () => clearTimeout(errorTimer);
+      throw error;
+    }
+  };
+
+  const handleBulkDateEdit = async (updates: { ids: string[]; date: string; mode: 'set' | 'adjust' }) => {
+    const startTime = Date.now();
+    setBulkOperationProgress({
+      operation: 'Editing Dates',
+      total: updates.ids.length,
+      completed: 0,
+      failed: 0,
+      status: 'running'
+    });
+
+    try {
+      let completed = 0;
+      let failed = 0;
+
+      for (const id of updates.ids) {
+        try {
+          const transaction = transactions.find(t => t.id === id);
+          if (transaction) {
+            updateTransaction(id, { ...transaction, date: updates.date });
+            completed++;
+          } else {
+            failed++;
+          }
+        } catch (error) {
+          failed++;
+        }
+
+        // Update progress
+        setBulkOperationProgress(prev => prev ? {
+          ...prev,
+          completed,
+          failed
+        } : null);
+
+        // Small delay to show progress
+        await new Promise(resolve => setTimeout(resolve, 50));
+      }
+
+      setBulkOperationProgress({
+        operation: 'Editing Dates',
+        total: updates.ids.length,
+        completed,
+        failed,
+        status: failed > 0 ? 'error' : 'completed'
+      });
+
+      setSelectedIds([]);
+      
+      // Hide progress after 2 seconds
+      const hideTimer = setTimeout(() => setBulkOperationProgress(null), 2000);
+      return () => clearTimeout(hideTimer);
+      
+    } catch (error) {
+      setBulkOperationProgress({
+        operation: 'Editing Dates',
+        total: updates.ids.length,
+        completed: 0,
+        failed: updates.ids.length,
+        status: 'error',
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+      
+      const errorTimer = setTimeout(() => setBulkOperationProgress(null), 3000);
+      return () => clearTimeout(errorTimer);
+      throw error;
+    }
+  };
+
   return (
     <div className="space-y-4 sm:space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -283,47 +660,79 @@ export default function TransactionsPage() {
         )}
       </div>
 
-      {/* Advanced Filters */}
-      <AdvancedFilters
-        filters={filters}
-        onFiltersChange={handleFiltersChange}
-        categories={categories}
-        isOpen={showAdvancedFilters}
-        onToggle={() => setShowAdvancedFilters(!showAdvancedFilters)}
-      />
+      {/* Bulk Operation Progress */}
+      {bulkOperationProgress && (
+        <BulkOperationProgress
+          operation={bulkOperationProgress.operation}
+          total={bulkOperationProgress.total}
+          completed={bulkOperationProgress.completed}
+          failed={bulkOperationProgress.failed}
+          status={bulkOperationProgress.status}
+          error={bulkOperationProgress.error}
+        />
+      )}
 
-      {/* Summary Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="text-2xl font-bold text-green-600">
-                  +${filteredTransactions
-                    .filter(t => t.type === 'income')
-                    .reduce((sum, t) => sum + t.amount, 0)
-                    .toFixed(2)}
+      {/* Enhanced Filters */}
+      {isLoading ? (
+        <FiltersSkeleton />
+      ) : (
+        <EnhancedTransactionFilters
+          filters={filters}
+          onFiltersChange={setFilters}
+          categories={categories}
+          accounts={accounts}
+          transactions={transactions}
+        />
+      )}
+
+      {/* Infinite Scroll Toggle */}
+      <div className="flex justify-end mb-2">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setUseEnhancedTable(!useEnhancedTable)}
+        >
+          {useEnhancedTable ? 'Simple View' : 'Infinite Scroll'}
+        </Button>
+      </div>
+
+      {/* Summary Stats with Sparklines */}
+      {isLoading ? (
+        <SummaryCardsSkeleton />
+      ) : filteredTransactions.length === 0 ? (
+        <EmptyTransactionsState />
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <Card>
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between mb-3">
+                <div>
+                  <div className="text-2xl font-bold text-green-600">
+                    +${calculateTotalIncome(filteredTransactions).toFixed(2)}
+                  </div>
+                  <p className="text-xs text-muted-foreground">Total Income</p>
                 </div>
-                <p className="text-xs text-muted-foreground">Total Income</p>
+                {hasActiveFilters && (
+                  <Badge variant="outline" className="text-xs">
+                    {filteredTransactions.filter(t => t.type === 'income').length} items
+                  </Badge>
+                )}
               </div>
-              {hasActiveFilters && (
-                <Badge variant="outline" className="text-xs">
-                  {filteredTransactions.filter(t => t.type === 'income').length} items
-                </Badge>
-              )}
-            </div>
-          </CardContent>
-        </Card>
+              <SparklineChart 
+                data={getMonthlyTrendData(transactions.filter(t => t.type === 'income'))}
+                color="#10b981"
+                height={40}
+                positive={true}
+              />
+            </CardContent>
+          </Card>
         
         <Card>
           <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between mb-3">
               <div>
                 <div className="text-2xl font-bold text-red-600">
-                  -${filteredTransactions
-                    .filter(t => t.type === 'expense')
-                    .reduce((sum, t) => sum + t.amount, 0)
-                    .toFixed(2)}
+                  -${calculateTotalExpenses(filteredTransactions).toFixed(2)}
                 </div>
                 <p className="text-xs text-muted-foreground">Total Expenses</p>
               </div>
@@ -333,21 +742,21 @@ export default function TransactionsPage() {
                 </Badge>
               )}
             </div>
+            <SparklineChart 
+              data={getMonthlyTrendData(transactions.filter(t => t.type === 'expense'))}
+              color="#ef4444"
+              height={40}
+              positive={false}
+            />
           </CardContent>
         </Card>
         
         <Card>
           <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between mb-3">
               <div>
-                <div className="text-2xl font-bold">
-                  ${(filteredTransactions
-                    .filter(t => t.type === 'income')
-                    .reduce((sum, t) => sum + t.amount, 0) -
-                    filteredTransactions
-                    .filter(t => t.type === 'expense')
-                    .reduce((sum, t) => sum + t.amount, 0))
-                    .toFixed(2)}
+                <div className={`text-2xl font-bold ${calculateNet(filteredTransactions) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  ${calculateNet(filteredTransactions).toFixed(2)}
                 </div>
                 <p className="text-xs text-muted-foreground">Net</p>
               </div>
@@ -357,9 +766,16 @@ export default function TransactionsPage() {
                 </Badge>
               )}
             </div>
+            <SparklineChart 
+              data={getMonthlyTrendData(transactions.map(t => t.type === 'income' ? t.amount : -t.amount))}
+              color="currentColor"
+              height={40}
+              positive={true}
+            />
           </CardContent>
         </Card>
-      </div>
+        </div>
+      )}
 
       {/* Table Toggle */}
       <div className="flex justify-end mb-2">
@@ -377,7 +793,7 @@ export default function TransactionsPage() {
         {useEnhancedTable ? (
           <EnhancedTransactionTable
             transactions={filteredTransactions}
-            searchTerm={searchTerm}
+            searchTerm={debouncedSearchTerm}
             onEdit={handleEditTransaction}
             onDelete={handleDeleteTransaction}
             onBulkDelete={handleBulkDelete}
@@ -385,6 +801,20 @@ export default function TransactionsPage() {
             onDuplicate={handleDuplicateTransaction}
             onExportDialog={exportTransactions}
             onSelectionChange={setSelectedIds}
+            onBulkCategoryChange={() => setBulkCategoryDialogOpen(true)}
+            onBulkDateEdit={() => setBulkDateDialogOpen(true)}
+          />
+        ) : useEnhancedTable === false ? (
+          <InfiniteScrollTransactions
+            transactions={filteredTransactions}
+            onLoadMore={() => {
+              // Load more logic is handled internally by the component
+            }}
+            hasMore={true}
+            loading={false}
+            onEdit={handleEditTransaction}
+            onDelete={handleDeleteTransaction}
+            onDuplicate={handleDuplicateTransaction}
           />
         ) : (
           <TransactionTable
@@ -434,7 +864,36 @@ export default function TransactionsPage() {
         transactions={filteredTransactions}
         selectedIds={selectedIds}
         onExportComplete={() => setSelectedIds([])}
+        categories={categories}
+        accounts={accounts}
       />
+
+      {/* Bulk Category Change Dialog */}
+      <BulkCategoryChangeDialog
+        open={bulkCategoryDialogOpen}
+        onOpenChange={setBulkCategoryDialogOpen}
+        selectedIds={selectedIds}
+        transactions={filteredTransactions}
+        categories={categories}
+        onUpdate={handleBulkCategoryChange}
+      />
+
+      {/* Bulk Date Edit Dialog */}
+      <BulkDateEditDialog
+        open={bulkDateDialogOpen}
+        onOpenChange={setBulkDateDialogOpen}
+        selectedIds={selectedIds}
+        transactions={filteredTransactions}
+        onUpdate={handleBulkDateEdit}
+      />
+
+      {/* Data Visualization - Bottom Section */}
+      <ErrorBoundary>
+        <div className="mt-8 pt-8 border-t">
+          <h2 className="text-xl font-semibold mb-4">Financial Insights</h2>
+          <MonthlyComparison transactions={filteredTransactions} />
+        </div>
+      </ErrorBoundary>
     </div>
   );
 }

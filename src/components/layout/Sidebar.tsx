@@ -153,12 +153,25 @@ export function Sidebar({ className, isCollapsed = false, onToggle, showIcons = 
   }, [sortedItems, stats]);
 
   return (
-    <div className={cn('pb-12 transition-all duration-300 z-40', isMounted ? sidebarWidth : 'w-64', className)}>
+    <div className={cn(
+      'pb-12 z-40',
+      'transition-all duration-500 ease-out',
+      'will-change-transform',
+      isMounted ? sidebarWidth : 'w-64', 
+      className
+    )}>
       <div className="space-y-4 py-4">
         {/* Header with toggle button */}
-        <div className="px-3 py-2 flex items-center justify-between">
+        <div className={cn(
+          'py-2 flex items-center justify-between',
+          isCollapsed ? 'px-1' : 'px-3'
+        )}>
           {!isCollapsed && (
-            <h2 className="mb-2 px-4 text-lg font-semibold tracking-tight">
+            <h2 className={cn(
+              'mb-2 px-4 text-lg font-semibold tracking-tight',
+              'transition-all duration-300 ease-out',
+              isMounted ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-4'
+            )}>
               Sprint Financial
             </h2>
           )}
@@ -177,7 +190,10 @@ export function Sidebar({ className, isCollapsed = false, onToggle, showIcons = 
         </div>
         
         {/* Navigation - Virtual Scrolling for performance */}
-        <div className="px-3 py-2">
+        <div className={cn(
+          'py-2',
+          isCollapsed ? 'px-1' : 'px-3'
+        )}>
           {navigation.length > 10 ? (
             <VirtualNavigation
               items={navigation}
@@ -230,31 +246,63 @@ export function Sidebar({ className, isCollapsed = false, onToggle, showIcons = 
             </div>
           )}
         </div>
-        
+
+        {/* Section Divider */}
+        {!isCollapsed && (
+          <div className="px-3 py-2">
+            <div className="h-px bg-gradient-to-r from-transparent via-border to-transparent" />
+          </div>
+        )}
         
         {/* Quick Actions - Lazy loaded when sidebar is expanded */}
         {!isCollapsed && (
           <LazySection delay={100} threshold={0.1}>
-            <QuickActions pathname={pathname} />
+            <div className={cn(
+              'transition-all duration-300 ease-out',
+              isMounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'
+            )}>
+              <QuickActions pathname={pathname} showIcons={showIcons} />
+            </div>
           </LazySection>
         )}
 
         {/* Favorites Section - Lazy loaded */}
         {!isCollapsed && favoriteItems.length > 0 && (
           <LazySection delay={200} threshold={0.1}>
-            <FavoritesSection items={favoriteItems} pathname={pathname} onToggleFavorite={toggleFavorite} />
+            <div className={cn(
+              'transition-all duration-300 ease-out delay-100',
+              isMounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'
+            )}>
+              <FavoritesSection items={favoriteItems} pathname={pathname} onToggleFavorite={toggleFavorite} showIcons={showIcons} />
+            </div>
           </LazySection>
         )}
 
         {/* Recently Viewed - Lazy loaded */}
         {!isCollapsed && recentlyViewedItems.length > 0 && (
           <LazySection delay={300} threshold={0.1}>
-            <RecentlyViewedSection items={recentlyViewedItems} pathname={pathname} />
+            <div className={cn(
+              'transition-all duration-300 ease-out delay-200',
+              isMounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'
+            )}>
+              <RecentlyViewedSection items={recentlyViewedItems} pathname={pathname} showIcons={showIcons} />
+            </div>
           </LazySection>
         )}
         
+        {/* Section Divider */}
+        <div className={cn(
+          'py-2',
+          isCollapsed ? 'px-1' : 'px-3'
+        )}>
+          <div className="h-px bg-gradient-to-r from-transparent via-border to-transparent" />
+        </div>
+        
         {/* Theme Toggle - Always visible at bottom */}
-        <div className="px-3 py-3 border-t mt-auto">
+        <div className={cn(
+          'py-3 mt-auto',
+          isCollapsed ? 'px-1' : 'px-3'
+        )}>
           <div className="flex items-center justify-center">
             <ThemeToggle variant="sidebar" />
           </div>
@@ -265,7 +313,7 @@ export function Sidebar({ className, isCollapsed = false, onToggle, showIcons = 
 }
 
 // Lazy-loaded Quick Actions component
-const QuickActions = memo(function QuickActions({ pathname }: { pathname: string }) {
+const QuickActions = memo(function QuickActions({ pathname, showIcons = true }: { pathname: string; showIcons?: boolean }) {
   return (
     <div className="px-3 py-2">
       <h2 className="mb-2 px-4 text-lg font-semibold tracking-tight">
@@ -274,37 +322,37 @@ const QuickActions = memo(function QuickActions({ pathname }: { pathname: string
       <div className="space-y-1">
         <Button className="w-full justify-start transition-all duration-200 hover:scale-[1.02] hover:shadow-sm active:scale-[0.98]" asChild>
           <Link href="/transactions">
-            <Plus className="mr-2 h-4 w-4 transition-transform duration-200 group-hover:rotate-90" />
+            {showIcons && <Plus className="mr-2 h-4 w-4 transition-transform duration-200 group-hover:rotate-90" />}
             Add Transaction
           </Link>
         </Button>
         <Button className="w-full justify-start transition-all duration-200 hover:scale-[1.02] hover:shadow-sm active:scale-[0.98]" variant="outline" asChild>
           <Link href="/transactions?filter=recent">
-            <Calendar className="mr-2 h-4 w-4 transition-transform duration-200 group-hover:scale-110" />
+            {showIcons && <Calendar className="mr-2 h-4 w-4 transition-transform duration-200 group-hover:scale-110" />}
             Recent Transactions
           </Link>
         </Button>
         <Button className="w-full justify-start transition-all duration-200 hover:scale-[1.02] hover:shadow-sm active:scale-[0.98]" variant="outline" asChild>
           <Link href="/budgets">
-            <PiggyBank className="mr-2 h-4 w-4 transition-transform duration-200 group-hover:scale-110" />
+            {showIcons && <PiggyBank className="mr-2 h-4 w-4 transition-transform duration-200 group-hover:scale-110" />}
             Create Budget
           </Link>
         </Button>
         <Button className="w-full justify-start transition-all duration-200 hover:scale-[1.02] hover:shadow-sm active:scale-[0.98]" variant="outline" asChild>
           <Link href="/reports">
-            <Calculator className="mr-2 h-4 w-4 transition-transform duration-200 group-hover:scale-110" />
+            {showIcons && <Calculator className="mr-2 h-4 w-4 transition-transform duration-200 group-hover:scale-110" />}
             Generate Report
           </Link>
         </Button>
         <Button className="w-full justify-start transition-all duration-200 hover:scale-[1.02] hover:shadow-sm active:scale-[0.98]" variant="outline" asChild>
           <Link href="/accounts">
-            <Wallet className="mr-2 h-4 w-4 transition-transform duration-200 group-hover:scale-110" />
+            {showIcons && <Wallet className="mr-2 h-4 w-4 transition-transform duration-200 group-hover:scale-110" />}
             Manage Accounts
           </Link>
         </Button>
         <Button className="w-full justify-start transition-all duration-200 hover:scale-[1.02] hover:shadow-sm active:scale-[0.98]" variant="outline" asChild>
           <Link href="/transactions?export=true">
-            <FileDown className="mr-2 h-4 w-4 transition-transform duration-200 group-hover:scale-110" />
+            {showIcons && <FileDown className="mr-2 h-4 w-4 transition-transform duration-200 group-hover:scale-110" />}
             Export Data
           </Link>
         </Button>

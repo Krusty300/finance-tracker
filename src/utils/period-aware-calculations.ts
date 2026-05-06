@@ -1,13 +1,26 @@
 import { Budget, Transaction } from '@/lib/types';
 
 export function getPeriodStartEnd(budget: Budget, referenceDate: Date = new Date()) {
+  // Validate referenceDate
+  const safeReferenceDate = referenceDate instanceof Date && !isNaN(referenceDate.getTime()) 
+    ? referenceDate 
+    : new Date();
+  
   const { period, startDate, endDate } = budget;
+  
+  console.log('getPeriodStartEnd called for budget:', {
+    budgetId: budget.id,
+    period,
+    startDate,
+    endDate,
+    referenceDate: safeReferenceDate.toISOString()
+  });
   
   // Validate budget structure
   if (!budget || !period) {
     console.warn('Invalid budget structure:', budget);
     // Default to current month
-    const now = new Date(referenceDate);
+    const now = safeReferenceDate;
     return {
       start: new Date(now.getFullYear(), now.getMonth(), 1),
       end: new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999)
@@ -22,7 +35,7 @@ export function getPeriodStartEnd(budget: Budget, referenceDate: Date = new Date
     if (isNaN(start.getTime()) || isNaN(end.getTime())) {
       console.warn('Invalid custom dates:', { startDate, endDate });
       // Fallback to current month
-      const now = new Date(referenceDate);
+      const now = safeReferenceDate;
       return {
         start: new Date(now.getFullYear(), now.getMonth(), 1),
         end: new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999)
@@ -32,7 +45,7 @@ export function getPeriodStartEnd(budget: Budget, referenceDate: Date = new Date
     return { start, end };
   }
 
-  const now = new Date(referenceDate);
+  const now = safeReferenceDate;
   let start: Date;
   let end: Date;
 
@@ -94,8 +107,15 @@ export function calculatePeriodSpending(budget: Budget, transactions: Transactio
   }
   
   const { start, end } = getPeriodStartEnd(budget);
+  console.log('calculatePeriodSpending for budget:', {
+    budgetId: budget.id,
+    category: budget.category,
+    period: budget.period,
+    periodRange: { start: start.toISOString(), end: end.toISOString() },
+    totalTransactions: transactions.length
+  });
   
-  return transactions
+  const filteredTransactions = transactions
     .filter(t => 
       t && 
       t.type === 'expense' && 
@@ -112,11 +132,20 @@ export function calculatePeriodSpending(budget: Budget, transactions: Transactio
         return false;
       }
       return transactionDate >= start && transactionDate <= end;
-    })
-    .reduce((sum, t) => sum + t.amount, 0);
+    });
+  
+  const totalSpent = filteredTransactions.reduce((sum, t) => sum + t.amount, 0);
+  console.log('calculatePeriodSpending result:', {
+    matchedTransactions: filteredTransactions.length,
+    totalSpent
+  });
+  
+  return totalSpent;
 }
 
 export function getPeriodDisplayText(budget: Budget): string {
+  console.log('getPeriodDisplayText called with budget:', budget);
+  
   const periodLabels = {
     weekly: 'Weekly',
     biweekly: 'Bi-weekly',
@@ -131,21 +160,37 @@ export function getPeriodDisplayText(budget: Budget): string {
   if (budget.period === 'custom' && budget.startDate && budget.endDate) {
     const start = new Date(budget.startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
     const end = new Date(budget.endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-    return `${baseLabel}: ${start} - ${end}`;
+    const displayText = `${baseLabel}: ${start} - ${end}`;
+    console.log('Custom period display text:', displayText);
+    return displayText;
   }
   
+  console.log('Standard period display text:', baseLabel);
   return baseLabel;
 }
 
 export function getPeriodProgress(budget: Budget): number {
-  const { start, end } = getPeriodStartEnd(budget);
-  const now = new Date();
-  
-  if (now < start) return 0;
-  if (now > end) return 100;
-  
-  const totalDuration = end.getTime() - start.getTime();
-  const elapsedDuration = now.getTime() - start.getTime();
-  
-  return Math.min(100, Math.max(0, (elapsedDuration / totalDuration) * 100));
+  try {
+    const { start, end } = getPeriodStartEnd(budget);
+    const now = new Date();
+    
+    // Validate dates
+    if (!(start instanceof Date) || !(end instanceof Date) || 
+        isNaN(start.getTime()) || isNaN(end.getTime())) {
+      return 0;
+    }
+    
+    if (now < start) return 0;
+    if (now > end) return 100;
+    
+    const totalDuration = end.getTime() - start.getTime();
+    if (totalDuration <= 0) return 0; // Prevent division by zero
+    
+    const elapsedDuration = now.getTime() - start.getTime();
+    
+    return Math.min(100, Math.max(0, (elapsedDuration / totalDuration) * 100));
+  } catch (error) {
+    console.warn('Error calculating period progress:', error);
+    return 0;
+  }
 }

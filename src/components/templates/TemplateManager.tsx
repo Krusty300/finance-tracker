@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { TransactionTemplate } from '@/lib/types';
 import { useTransactionTemplates } from '@/hooks/useTransactionTemplates';
 import { useCategories } from '@/hooks/useCategories';
@@ -13,6 +13,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { 
   Plus, 
   Edit, 
@@ -21,10 +22,14 @@ import {
   Star, 
   Layout,
   TrendingUp,
-  Clock
+  Clock,
+  AlertTriangle,
+  Loader2
 } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
 import { toast } from 'sonner';
+import { validateTemplateData, sanitizeTags, parseAmount, validateTemplateUsage, TemplateValidationError } from '@/utils/templateValidation';
+import { LoadingIndicator } from '@/components/ui/LoadingIndicator';
 
 interface TemplateManagerProps {
   onUseTemplate?: (template: TransactionTemplate) => void;
@@ -61,6 +66,10 @@ export function TemplateManager({ onUseTemplate }: TemplateManagerProps) {
     color: '#64748b'
   });
 
+  const [validationErrors, setValidationErrors] = useState<TemplateValidationError[]>([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [operationErrors, setOperationErrors] = useState<string[]>([]);
+
   const resetForm = () => {
     setFormData({
       name: '',
@@ -74,53 +83,89 @@ export function TemplateManager({ onUseTemplate }: TemplateManagerProps) {
       icon: '📌',
       color: '#64748b'
     });
+    setValidationErrors([]);
+    setOperationErrors([]);
   };
 
   const handleCreateTemplate = async () => {
-    try {
-      if (!formData.name || !formData.amount || !formData.category) {
-        toast.error('Please fill in all required fields');
-        return;
-      }
+    setIsSubmitting(true);
+    setOperationErrors([]);
 
+    try {
+      // Validate form data
+      const parsedAmount = parseAmount(formData.amount);
+      const sanitizedTags = sanitizeTags(formData.tags);
+      
       const templateData = {
-        name: formData.name,
-        description: formData.description || undefined,
-        amount: parseFloat(formData.amount),
+        name: formData.name.trim(),
+        description: formData.description?.trim() || undefined,
+        amount: parsedAmount!,
         type: formData.type,
-        category: formData.category,
-        account: formData.account || undefined,
-        tags: formData.tags ? formData.tags.split(',').map(tag => tag.trim()).filter(Boolean) : undefined,
+        category: formData.category.trim(),
+        account: formData.account?.trim() || undefined,
+        tags: sanitizedTags,
         isQuickAdd: formData.isQuickAdd,
         icon: formData.icon,
         color: formData.color,
       };
+
+      // Validate template data
+      const errors = validateTemplateData(templateData);
+      if (errors.length > 0) {
+        setValidationErrors(errors);
+        const errorMessages = errors.map(e => `${e.field}: ${e.message}`);
+        setOperationErrors(errorMessages);
+        toast.error('Please fix the validation errors');
+        return;
+      }
 
       await addTemplate(templateData);
       toast.success('Template created successfully');
       setShowCreateDialog(false);
       resetForm();
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      setOperationErrors([errorMessage]);
       toast.error('Failed to create template');
+      console.error('Template creation error:', error);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   const handleEditTemplate = async () => {
     if (!selectedTemplate) return;
 
+    setIsSubmitting(true);
+    setOperationErrors([]);
+
     try {
+      // Validate form data
+      const parsedAmount = parseAmount(formData.amount);
+      const sanitizedTags = sanitizeTags(formData.tags);
+      
       const updates = {
-        name: formData.name,
-        description: formData.description || undefined,
-        amount: parseFloat(formData.amount),
+        name: formData.name.trim(),
+        description: formData.description?.trim() || undefined,
+        amount: parsedAmount!,
         type: formData.type,
-        category: formData.category,
-        account: formData.account || undefined,
-        tags: formData.tags ? formData.tags.split(',').map(tag => tag.trim()).filter(Boolean) : undefined,
+        category: formData.category.trim(),
+        account: formData.account?.trim() || undefined,
+        tags: sanitizedTags,
         isQuickAdd: formData.isQuickAdd,
         icon: formData.icon,
         color: formData.color,
       };
+
+      // Validate template data
+      const errors = validateTemplateData(updates);
+      if (errors.length > 0) {
+        setValidationErrors(errors);
+        const errorMessages = errors.map(e => `${e.field}: ${e.message}`);
+        setOperationErrors(errorMessages);
+        toast.error('Please fix the validation errors');
+        return;
+      }
 
       await updateTemplate(selectedTemplate.id, updates);
       toast.success('Template updated successfully');
@@ -128,7 +173,12 @@ export function TemplateManager({ onUseTemplate }: TemplateManagerProps) {
       setSelectedTemplate(null);
       resetForm();
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      setOperationErrors([errorMessage]);
       toast.error('Failed to update template');
+      console.error('Template update error:', error);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -140,6 +190,25 @@ export function TemplateManager({ onUseTemplate }: TemplateManagerProps) {
       toast.error('Failed to delete template');
     }
   };
+
+  const handleUseTemplateClick = useCallback((template: TransactionTemplate) => {
+    try {
+      // Validate template before usage
+      const errors = validateTemplateUsage(template);
+      if (errors.length > 0) {
+        toast.error('Template cannot be used: ' + errors.map(e => e.message).join(', '));
+        return;
+      }
+
+      if (onUseTemplate) {
+        onUseTemplate(template);
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      toast.error('Failed to use template: ' + errorMessage);
+      console.error('Template usage error:', error);
+    }
+  }, [onUseTemplate]);
 
   const handleEditTemplateClick = (template: TransactionTemplate) => {
     setSelectedTemplate(template);
@@ -166,7 +235,30 @@ export function TemplateManager({ onUseTemplate }: TemplateManagerProps) {
   const iconOptions = ['📌', '💰', '💼', '📈', '🍔', '🚗', '🛍️', '🎮', '📄', '🏥', '📚', '🏠', '⚡', '🛒', '🎬', '✈️'];
   const colorOptions = ['#ef4444', '#f59e0b', '#10b981', '#3b82f6', '#8b5cf6', '#ec4899', '#6366f1', '#14b8a6', '#84cc16', '#64748b'];
 
-  const filteredCategories = categories.filter(cat => cat.type === formData.type);
+  const filteredCategories = useMemo(() => 
+    categories.filter(cat => cat.type === formData.type),
+    [categories, formData.type]
+  );
+
+  const quickAddTemplates = useMemo(() => 
+    templates.filter(t => t.isQuickAdd),
+    [templates]
+  );
+
+  const mostUsedTemplates = useMemo(() => 
+    templates
+      .filter(t => !t.isQuickAdd)
+      .slice(0, 5),
+    [templates]
+  );
+
+  const otherTemplates = useMemo(() => 
+    templates.filter(t => 
+      !t.isQuickAdd && 
+      mostUsedTemplates.findIndex(ut => ut.id === t.id) === -1
+    ),
+    [templates, mostUsedTemplates]
+  );
 
   if (loading) {
     return (
@@ -198,15 +290,29 @@ export function TemplateManager({ onUseTemplate }: TemplateManagerProps) {
         </Button>
       </div>
 
+      {/* Error Display */}
+      {operationErrors.length > 0 && (
+        <Alert variant="destructive">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertDescription>
+            <div className="space-y-1">
+              {operationErrors.map((error, index) => (
+                <div key={index}>{error}</div>
+              ))}
+            </div>
+          </AlertDescription>
+        </Alert>
+      )}
+
       {/* Quick Add Templates */}
-      {getQuickAddTemplates().length > 0 && (
+      {quickAddTemplates.length > 0 && (
         <div>
           <h3 className="text-lg font-semibold mb-3 flex items-center">
             <Star className="h-5 w-5 mr-2" />
             Quick Add
           </h3>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            {getQuickAddTemplates().map((template) => (
+            {quickAddTemplates.map((template) => (
               <Card key={template.id} className="cursor-pointer hover:shadow-md transition-shadow">
                 <CardContent className="p-4">
                   <div className="flex items-center justify-between mb-2">
@@ -238,14 +344,14 @@ export function TemplateManager({ onUseTemplate }: TemplateManagerProps) {
       )}
 
       {/* Most Used Templates */}
-      {getMostUsedTemplates().length > 0 && (
+      {mostUsedTemplates.length > 0 && (
         <div>
           <h3 className="text-lg font-semibold mb-3 flex items-center">
             <TrendingUp className="h-5 w-5 mr-2" />
             Most Used
           </h3>
           <div className="space-y-2">
-            {getMostUsedTemplates().map((template) => (
+            {mostUsedTemplates.map((template) => (
               <Card key={template.id} className="cursor-pointer hover:shadow-md transition-shadow">
                 <CardContent className="p-4">
                   <div className="flex items-center justify-between">
@@ -262,7 +368,7 @@ export function TemplateManager({ onUseTemplate }: TemplateManagerProps) {
                       {onUseTemplate && (
                         <Button
                           size="sm"
-                          onClick={() => onUseTemplate(template)}
+                          onClick={() => handleUseTemplateClick(template)}
                         >
                           <Copy className="h-3 w-3 mr-1" />
                           Use
@@ -292,16 +398,14 @@ export function TemplateManager({ onUseTemplate }: TemplateManagerProps) {
       )}
 
       {/* All Other Templates */}
-      {templates.filter(t => !t.isQuickAdd && getMostUsedTemplates().findIndex(ut => ut.id === t.id) === -1).length > 0 && (
+      {otherTemplates.length > 0 && (
         <div>
           <h3 className="text-lg font-semibold mb-3 flex items-center">
             <Layout className="h-5 w-5 mr-2" />
             All Templates
           </h3>
           <div className="space-y-2">
-            {templates
-              .filter(t => !t.isQuickAdd && getMostUsedTemplates().findIndex(ut => ut.id === t.id) === -1)
-              .map((template) => (
+            {otherTemplates.map((template) => (
                 <Card key={template.id} className="cursor-pointer hover:shadow-md transition-shadow">
                   <CardContent className="p-4">
                     <div className="flex items-center justify-between">
@@ -390,6 +494,24 @@ export function TemplateManager({ onUseTemplate }: TemplateManagerProps) {
               }
             </DialogDescription>
           </DialogHeader>
+          
+          {/* Validation Errors */}
+          {validationErrors.length > 0 && (
+            <Alert variant="destructive">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertDescription>
+                <div className="space-y-1">
+                  <div className="font-medium">Please fix the following errors:</div>
+                  {validationErrors.map((error, index) => (
+                    <div key={index} className="text-sm">
+                      • {error.field}: {error.message}
+                    </div>
+                  ))}
+                </div>
+              </AlertDescription>
+            </Alert>
+          )}
+
           <div className="space-y-4">
             <div className="flex gap-2">
               <Button
@@ -548,11 +670,24 @@ export function TemplateManager({ onUseTemplate }: TemplateManagerProps) {
                 setSelectedTemplate(null);
                 resetForm();
               }}
+              disabled={isSubmitting}
             >
               Cancel
             </Button>
-            <Button onClick={showEditDialog ? handleEditTemplate : handleCreateTemplate}>
-              {showEditDialog ? 'Update Template' : 'Create Template'}
+            <Button 
+              onClick={showEditDialog ? handleEditTemplate : handleCreateTemplate}
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  {showEditDialog ? 'Updating...' : 'Creating...'}
+                </>
+              ) : (
+                <>
+                  {showEditDialog ? 'Update Template' : 'Create Template'}
+                </>
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>

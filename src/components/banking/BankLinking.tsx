@@ -138,7 +138,6 @@ export function BankLinking({ onAccountLinked }: BankLinkingProps) {
         <Dialog open={showLinkDialog} onOpenChange={setShowLinkDialog}>
           <DialogTrigger asChild>
             <Button>
-              <Link className="mr-2 h-4 w-4" />
               Link Bank Account
             </Button>
           </DialogTrigger>
@@ -300,7 +299,6 @@ export function BankLinking({ onAccountLinked }: BankLinkingProps) {
                   </p>
                 </div>
                 <Button onClick={() => setShowLinkDialog(true)}>
-                  <Link className="mr-2 h-4 w-4" />
                   Link Bank Account
                 </Button>
               </div>

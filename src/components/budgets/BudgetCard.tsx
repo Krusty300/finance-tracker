@@ -9,6 +9,7 @@ import { formatCurrency } from '@/lib/utils';
 import { Edit, Trash2, AlertCircle, TrendingUp, TrendingDown, Calendar } from 'lucide-react';
 import { useCategories } from '@/hooks/useCategories';
 import { getPeriodDisplayText } from '@/utils/period-aware-calculations';
+import { memo, useMemo } from 'react';
 
 interface BudgetCardProps {
   budget: Budget;
@@ -19,7 +20,7 @@ interface BudgetCardProps {
   onDelete: () => void;
 }
 
-export function BudgetCard({ 
+export const BudgetCard = memo(function BudgetCard({ 
   budget, 
   spent, 
   remaining, 
@@ -31,9 +32,11 @@ export function BudgetCard({
   const isOverBudget = percentageUsed > 100;
   const isNearLimit = percentageUsed >= 80 && percentageUsed <= 100;
 
-  // Map category ID to name
-  const category = categories.find(c => c.id === budget.category);
-  const categoryName = category?.name || budget.category;
+  // Memoize category lookup to avoid repeated array searches
+  const categoryName = useMemo(() => {
+    const category = categories.find(c => c.id === budget.category);
+    return category?.name || budget.category;
+  }, [categories, budget.category]);
   
   const getStatusColor = () => {
     if (isOverBudget) return 'destructive';
@@ -140,4 +143,4 @@ export function BudgetCard({
       </CardContent>
     </Card>
   );
-}
+});

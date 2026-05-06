@@ -352,6 +352,19 @@ export default function ReportsPage() {
           <div className="grid gap-6">
             <CategoryBreakdownReport categoryBreakdown={stats.categoryBreakdown} />
             <MonthlyTrendsReport monthlyTrend={stats.monthlyTrend} />
+            <CashFlowChart 
+              income={stats.monthlyIncome}
+              expenses={stats.monthlyExpenses}
+              categories={stats.categoryBreakdown
+                .filter(cat => cat.amount !== 0)
+                .map(cat => ({
+                  category: cat.category,
+                  amount: Math.abs(cat.amount),
+                  type: cat.amount > 0 ? 'income' : 'expense' as const
+                }))}
+              title="Cash Flow Analysis"
+              showDetails={true}
+            />
           </div>
         </TabsContent>
 

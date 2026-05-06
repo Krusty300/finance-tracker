@@ -17,18 +17,20 @@ interface RecentlyViewedSectionProps {
     color?: string;
   }>;
   pathname: string;
+  showIcons?: boolean;
 }
 
 export const RecentlyViewedSection = memo(function RecentlyViewedSection({
   items,
   pathname,
+  showIcons = true,
 }: RecentlyViewedSectionProps) {
   if (items.length === 0) return null;
 
   return (
     <div className="px-3 py-2">
       <h2 className="mb-2 px-4 text-lg font-semibold tracking-tight flex items-center">
-        <Clock className="h-4 w-4 mr-2 text-blue-500" />
+        {showIcons && <Clock className="h-4 w-4 mr-2 text-blue-500" />}
         Recently Viewed
       </h2>
       <div className="space-y-1">
@@ -42,6 +44,7 @@ export const RecentlyViewedSection = memo(function RecentlyViewedSection({
             color={item.color}
             isActive={pathname === item.href}
             isCollapsed={false}
+            showIcons={showIcons}
           />
         ))}
       </div>

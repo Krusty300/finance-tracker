@@ -18,19 +18,21 @@ interface FavoritesSectionProps {
   }>;
   pathname: string;
   onToggleFavorite: (id: string) => void;
+  showIcons?: boolean;
 }
 
 export const FavoritesSection = memo(function FavoritesSection({
   items,
   pathname,
   onToggleFavorite,
+  showIcons = true,
 }: FavoritesSectionProps) {
   if (items.length === 0) return null;
 
   return (
     <div className="px-3 py-2">
       <h2 className="mb-2 px-4 text-lg font-semibold tracking-tight flex items-center">
-        <Star className="h-4 w-4 mr-2 text-yellow-500" />
+        {showIcons && <Star className="h-4 w-4 mr-2 text-yellow-500" />}
         Favorites
       </h2>
       <div className="space-y-1">
@@ -44,6 +46,7 @@ export const FavoritesSection = memo(function FavoritesSection({
             color={item.color}
             isActive={pathname === item.href}
             isCollapsed={false}
+            showIcons={showIcons}
           />
         ))}
       </div>

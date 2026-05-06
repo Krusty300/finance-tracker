@@ -35,6 +35,8 @@ interface EnhancedTransactionTableProps {
   onDuplicate?: (data: Omit<Transaction, 'id'>) => void;
   onExportDialog?: () => void;
   onSelectionChange?: (ids: string[]) => void;
+  onBulkCategoryChange?: () => void;
+  onBulkDateEdit?: () => void;
 }
 
 type SortField = 'date' | 'description' | 'category' | 'amount' | 'account';
@@ -45,11 +47,13 @@ export function EnhancedTransactionTable({
   searchTerm = '',
   onEdit, 
   onDelete, 
-  onBulkDelete,
-  onBulkExport,
-  onDuplicate,
-  onExportDialog,
-  onSelectionChange
+  onBulkDelete, 
+  onBulkExport, 
+  onDuplicate, 
+  onExportDialog, 
+  onSelectionChange,
+  onBulkCategoryChange,
+  onBulkDateEdit
 }: EnhancedTransactionTableProps) {
   const { categories } = useCategories();
   const { accounts } = useAccounts();
@@ -218,6 +222,12 @@ export function EnhancedTransactionTable({
                   <Button variant="outline" size="sm" onClick={handleBulkExport}>
                     <FileDown className="mr-2 h-4 w-4" />
                     Export Selected
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={onBulkCategoryChange}>
+                    Change Category
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={onBulkDateEdit}>
+                    Edit Dates
                   </Button>
                   <Button variant="destructive" size="sm" onClick={handleBulkDelete}>
                     <Trash2 className="mr-2 h-4 w-4" />

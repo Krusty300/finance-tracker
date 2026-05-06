@@ -12,21 +12,25 @@ export interface SelectorOption<T extends string> {
 }
 
 interface PopupSelectorProps<T extends string> {
+  id?: string;
   value?: T;
   onValueChange: (value: T) => void;
   options: SelectorOption<T>[];
   placeholder?: string;
   className?: string;
   disabled?: boolean;
+  'aria-describedby'?: string;
 }
 
 export function PopupSelector<T extends string>({
+  id,
   value,
   onValueChange,
   options,
   placeholder = "Select option",
   className = "",
   disabled = false,
+  'aria-describedby': ariaDescribedBy,
 }: PopupSelectorProps<T>) {
   const [isOpen, setIsOpen] = useState(false);
 
@@ -36,10 +40,12 @@ export function PopupSelector<T extends string>({
     <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
       <DropdownMenuTrigger asChild>
         <Button
+          id={id}
           variant="outline"
           className={`w-full justify-start text-left font-normal ${className}`}
           type="button"
           disabled={disabled}
+          aria-describedby={ariaDescribedBy}
         >
           {selectedOption ? (
             <div className="flex items-center gap-2">

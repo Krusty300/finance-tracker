@@ -64,17 +64,27 @@ export function BudgetComparisonChart({
   const [selectedChart, setSelectedChart] = useState(chartType);
   const [hoveredCategory, setHoveredCategory] = useState<string | null>(null);
 
-  // Calculate summary statistics
-  const totalBudget = data.reduce((sum, item) => sum + item.budget, 0);
-  const totalSpent = data.reduce((sum, item) => sum + item.spent, 0);
+  // Validate data
+  const safeData = Array.isArray(data) ? data : [];
+  const validatedData = safeData.filter(item => 
+    item && 
+    typeof item.budget === 'number' && item.budget >= 0 &&
+    typeof item.spent === 'number' && item.spent >= 0 &&
+    typeof item.percentageUsed === 'number' &&
+    item.category
+  );
+
+  // Calculate summary statistics with validation
+  const totalBudget = validatedData.reduce((sum, item) => sum + item.budget, 0);
+  const totalSpent = validatedData.reduce((sum, item) => sum + item.spent, 0);
   const totalRemaining = totalBudget - totalSpent;
   const overallPercentage = totalBudget > 0 ? (totalSpent / totalBudget) * 100 : 0;
 
   // Status distribution for pie chart
   const statusData = [
-    { name: 'On Track', value: data.filter(d => d.status === 'on-track').length, color: '#10b981' },
-    { name: 'Near Limit', value: data.filter(d => d.status === 'near-limit').length, color: '#f59e0b' },
-    { name: 'Over Budget', value: data.filter(d => d.status === 'over-budget').length, color: '#ef4444' },
+    { name: 'On Track', value: validatedData.filter(d => d.status === 'on-track').length, color: '#10b981' },
+    { name: 'Near Limit', value: validatedData.filter(d => d.status === 'near-limit').length, color: '#f59e0b' },
+    { name: 'Over Budget', value: validatedData.filter(d => d.status === 'over-budget').length, color: '#ef4444' },
   ];
 
   const CustomTooltip = ({ active, payload, label }: any) => {
@@ -123,7 +133,7 @@ export function BudgetComparisonChart({
 
   const renderChart = () => {
     const commonProps = {
-      data: data,
+      data: validatedData,
       margin: { top: 20, right: 30, left: 20, bottom: 5 }
     };
 
@@ -222,6 +232,24 @@ export function BudgetComparisonChart({
       default: return <Target className="h-4 w-4 text-gray-600" />;
     }
   };
+
+  // Handle empty data case
+  if (validatedData.length === 0) {
+    return (
+      <Card className="w-full">
+        <CardHeader>
+          <CardTitle className="text-lg">{title}</CardTitle>
+        </CardHeader>
+        <CardContent className="flex items-center justify-center py-8">
+          <div className="text-center text-muted-foreground">
+            <Target className="h-12 w-12 mx-auto mb-4 opacity-50" />
+            <p>No budget data available</p>
+            <p className="text-sm">Create budgets to see spending analysis</p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <Card>
@@ -373,15 +401,15 @@ export function BudgetComparisonChart({
             <div className="flex items-center gap-4 text-sm">
               <div className="flex items-center gap-1">
                 <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-                <span>On Track: {data.filter(d => d.status === 'on-track').length}</span>
+                <span>On Track: {validatedData.filter(d => d.status === 'on-track').length}</span>
               </div>
               <div className="flex items-center gap-1">
                 <div className="w-3 h-3 bg-yellow-500 rounded-full"></div>
-                <span>Near Limit: {data.filter(d => d.status === 'near-limit').length}</span>
+                <span>Near Limit: {validatedData.filter(d => d.status === 'near-limit').length}</span>
               </div>
               <div className="flex items-center gap-1">
                 <div className="w-3 h-3 bg-red-500 rounded-full"></div>
-                <span>Over Budget: {data.filter(d => d.status === 'over-budget').length}</span>
+                <span>Over Budget: {validatedData.filter(d => d.status === 'over-budget').length}</span>
               </div>
             </div>
             <div className="text-right">

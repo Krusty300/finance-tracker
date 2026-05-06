@@ -49,33 +49,46 @@ export function BudgetTrendChart({
   showProjection = true,
   categories = []
 }: BudgetTrendChartProps) {
+  // Validate data
+  const validatedData = useMemo(() => {
+    if (!Array.isArray(data)) return [];
+    return data.filter(item => 
+      item && 
+      typeof item.budget === 'number' && item.budget >= 0 &&
+      typeof item.spent === 'number' && item.spent >= 0 &&
+      typeof item.variance === 'number' &&
+      typeof item.percentageUsed === 'number' &&
+      item.month
+    );
+  }, [data]);
+
   // Calculate trend statistics
   const trendStats = useMemo(() => {
-    if (data.length === 0) return { trend: 'stable', avgVariance: 0, totalOverspend: 0 };
+    if (validatedData.length === 0) return { trend: 'stable', avgVariance: 0, totalOverspend: 0 };
 
-    const recentMonths = data.slice(-3); // Last 3 months
+    const recentMonths = validatedData.slice(-3); // Last 3 months
     const avgVariance = recentMonths.reduce((sum, month) => sum + month.variance, 0) / recentMonths.length;
-    const totalOverspend = data.filter(m => m.spent > m.budget).length;
+    const totalOverspend = validatedData.filter(m => m.spent > m.budget).length;
     
     let trend = 'stable';
     if (avgVariance > 10) trend = 'increasing';
     else if (avgVariance < -10) trend = 'decreasing';
 
     return { trend, avgVariance, totalOverspend };
-  }, [data]);
+  }, [validatedData]);
 
   // Generate projection data
   const projectedData = useMemo(() => {
-    if (!showProjection || data.length < 2) return [];
+    if (!showProjection || validatedData.length < 2) return [];
 
-    const lastTwoMonths = data.slice(-2);
+    const lastTwoMonths = validatedData.slice(-2);
     const avgSpending = lastTwoMonths.reduce((sum, m) => sum + m.spent, 0) / lastTwoMonths.length;
     const avgBudget = lastTwoMonths.reduce((sum, m) => sum + m.budget, 0) / lastTwoMonths.length;
     
     // Project next 3 months
     const projections = [];
     for (let i = 1; i <= 3; i++) {
-      const lastMonth = new Date(data[data.length - 1].month);
+      const lastMonth = new Date(validatedData[validatedData.length - 1].month);
       const projectedMonth = new Date(lastMonth.getFullYear(), lastMonth.getMonth() + i, 1);
       
       projections.push({
@@ -89,9 +102,9 @@ export function BudgetTrendChart({
     }
     
     return projections;
-  }, [data, showProjection]);
+  }, [validatedData, showProjection]);
 
-  const allData = [...data, ...projectedData];
+  const allData = [...validatedData, ...projectedData];
 
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
@@ -160,6 +173,24 @@ export function BudgetTrendChart({
       default: return 'text-blue-600';
     }
   };
+
+  // Handle empty data case
+  if (validatedData.length === 0) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>{title}</CardTitle>
+        </CardHeader>
+        <CardContent className="flex items-center justify-center py-8">
+          <div className="text-center text-muted-foreground">
+            <Calendar className="h-12 w-12 mx-auto mb-4 opacity-50" />
+            <p>No trend data available</p>
+            <p className="text-sm">Add budgets over multiple months to see trends</p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <Card>

@@ -45,9 +45,16 @@ export const NavigationItem = memo(function NavigationItem({
     <Button
       variant={isActive ? 'secondary' : 'ghost'}
       className={cn(
-        'w-full justify-start relative transition-all duration-300 hover:scale-[1.02] hover:shadow-sm active:scale-[0.98]',
-        isActive && `border-l-2 border-l-${color?.replace('text-', '')}`,
-        'hover:border-l-2 hover:border-l-gray-300',
+        'w-full justify-start relative transition-all duration-300 ease-out',
+        'hover:scale-[1.02] hover:shadow-md active:scale-[0.98]',
+        'before:absolute before:inset-0 before:rounded-md before:opacity-0 before:transition-opacity before:duration-200',
+        'hover:before:opacity-10 hover:before:bg-gradient-to-r hover:before:from-primary/20 hover:before:to-primary/10',
+        isActive && [
+          `border-l-4 border-l-${color?.replace('text-', '')}`,
+          'bg-gradient-to-r from-secondary/50 to-secondary/30',
+          'shadow-md'
+        ],
+        !isActive && 'hover:border-l-2 hover:border-l-gray-300',
         'h-10 sm:h-9 px-2 sm:px-3'
       )}
       onClick={handleClick}
@@ -60,7 +67,9 @@ export const NavigationItem = memo(function NavigationItem({
           <div className="relative">
             <Icon
               className={cn(
-                'h-4 w-4 sm:h-4 sm:w-4 transition-all duration-300 group-hover:scale-110 group-hover:rotate-12 flex-shrink-0',
+                'h-4 w-4 sm:h-4 sm:w-4 transition-all duration-300 ease-out',
+                'group-hover:scale-110 group-hover:rotate-12 group-hover:text-primary',
+                'flex-shrink-0',
                 !isCollapsed && 'mr-2 sm:mr-3',
                 color
               )}
@@ -68,12 +77,15 @@ export const NavigationItem = memo(function NavigationItem({
             {isCollapsed && badge && (
               <div
                 className={cn(
-                  'absolute -top-1 -right-1 h-3 w-3 rounded-full text-[10px] font-bold flex items-center justify-center',
+                  'absolute -top-1 -right-1 h-3 w-3 rounded-full text-[10px] font-bold',
+                  'flex items-center justify-center transition-all duration-200',
+                  'group-hover:scale-110 group-hover:shadow-md',
+                  'animate-pulse',
                   badge === '!'
-                    ? 'bg-red-500 text-white'
+                    ? 'bg-red-500 text-white shadow-red-500/50'
                     : parseInt(badge) > 0
-                    ? 'bg-blue-500 text-white'
-                    : 'bg-gray-400 text-white'
+                    ? 'bg-blue-500 text-white shadow-blue-500/50'
+                    : 'bg-gray-400 text-white shadow-gray-400/50'
                 )}
               >
                 {badge === '!'
@@ -94,7 +106,11 @@ export const NavigationItem = memo(function NavigationItem({
       </div>
       {!isCollapsed && (
         <div className="flex items-center flex-1">
-          <span className="font-medium transition-colors duration-200 group-hover:text-foreground">
+          <span className={cn(
+            'font-medium transition-all duration-200 ease-out',
+            'group-hover:text-foreground group-hover:translate-x-1',
+            'group-hover:font-semibold'
+          )}>
             {name}
           </span>
           {badge && (
@@ -102,14 +118,11 @@ export const NavigationItem = memo(function NavigationItem({
               variant={
                 badge === '!'
                   ? 'destructive'
-                  : badge !== '!' && parseInt(badge) > 0
-                  ? 'default'
                   : 'secondary'
               }
               className={cn(
-                'ml-2 text-xs transition-all duration-200 animate-pulse shadow-sm',
-                badge === '!' && 'bg-red-500 text-white border-red-500 animate-pulse',
-                parseInt(badge) > 0 && 'bg-blue-500 text-white border-blue-500'
+                'ml-2 transition-all duration-200',
+                'group-hover:scale-105 group-hover:shadow-sm'
               )}
             >
               {badge}

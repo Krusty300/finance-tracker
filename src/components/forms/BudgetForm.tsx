@@ -18,10 +18,63 @@ import { Calendar, CalendarDays, CalendarRange, CalendarClock, Calendar as Calen
 
 const budgetSchema = z.object({
   category: z.string().min(1, 'Category is required'),
-  amount: z.number().min(0, 'Amount must be positive'),
+  amount: z.number().min(0.01, 'Amount must be greater than 0').max(999999999, 'Amount seems too large'),
   period: z.enum(['weekly', 'biweekly', 'monthly', 'quarterly', 'yearly', 'custom']),
   startDate: z.string().optional(),
   endDate: z.string().optional(),
+}).refine((data) => {
+  if (data.period === 'custom') {
+    // Require both dates for custom period
+    if (!data.startDate || !data.endDate) {
+      return false;
+    }
+    
+    const start = new Date(data.startDate);
+    const end = new Date(data.endDate);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    // Check if dates are valid
+    if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+      return false;
+    }
+    
+    // Check if end date is after start date
+    if (start >= end) {
+      return false;
+    }
+    
+    // Check if start date is not too far in the past (max 1 year ago)
+    const oneYearAgo = new Date();
+    oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+    if (start < oneYearAgo) {
+      return false;
+    }
+    
+    // Check if end date is not too far in the future (max 5 years)
+    const fiveYearsFromNow = new Date();
+    fiveYearsFromNow.setFullYear(fiveYearsFromNow.getFullYear() + 5);
+    if (end > fiveYearsFromNow) {
+      return false;
+    }
+    
+    // Check if custom period is reasonable (not too long)
+    const maxDays = 365 * 2; // 2 years max
+    const daysDiff = (end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24);
+    if (daysDiff > maxDays) {
+      return false;
+    }
+    
+    // Check if custom period is not too short (min 1 day)
+    if (daysDiff < 1) {
+      return false;
+    }
+  }
+  
+  return true;
+}, {
+  message: 'Invalid date range. For custom periods, ensure dates are valid, end date is after start date, and the range is reasonable (1 day to 2 years).',
+  path: ['startDate']
 });
 
 type BudgetFormData = z.infer<typeof budgetSchema>;
@@ -72,10 +125,9 @@ const periodOptions: Array<SelectorOption<'weekly' | 'biweekly' | 'monthly' | 'q
 ];
 
 export function BudgetForm({ budget, onSubmit, onCancel }: BudgetFormProps) {
-  const { categories } = useCategories();
+  const { categories, loading } = useCategories();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [selectedPeriod, setSelectedPeriod] = useState(budget?.period || 'monthly');
-
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const form = useForm<BudgetFormData>({
     resolver: zodResolver(budgetSchema),
     defaultValues: {
@@ -87,9 +139,13 @@ export function BudgetForm({ budget, onSubmit, onCancel }: BudgetFormProps) {
     },
   });
 
+  // Watch the period value from the form
+  const selectedPeriod = form.watch('period');
+
   // Update form values when budget prop changes
   useEffect(() => {
     if (budget) {
+      console.log('Initializing form with budget data:', budget);
       form.reset({
         category: budget.category,
         amount: budget.amount,
@@ -97,26 +153,134 @@ export function BudgetForm({ budget, onSubmit, onCancel }: BudgetFormProps) {
         startDate: budget.startDate || '',
         endDate: budget.endDate || '',
       });
-      setSelectedPeriod(budget.period);
     }
   }, [budget, form]);
 
+  // Debug: Watch for period changes
+  useEffect(() => {
+    console.log('Period changed to:', selectedPeriod);
+  }, [selectedPeriod]);
+
+  // Clear errors when period changes
+  useEffect(() => {
+    if (selectedPeriod !== 'custom') {
+      form.clearErrors(['startDate', 'endDate']);
+    }
+  }, [selectedPeriod, form]);
+
   const handleSubmit = async (data: BudgetFormData) => {
     setIsSubmitting(true);
+    setSubmitError(null);
+    
+    // Debug: Log the form data being submitted
+    console.log('Submitting budget data:', {
+      isEdit: !!budget,
+      data: {
+        ...data,
+        category: data.category,
+        amount: data.amount,
+        period: data.period,
+        startDate: data.startDate,
+        endDate: data.endDate
+      }
+    });
+    
     try {
+      // Validate category exists
+      const selectedCategory = categories.find(c => c.id === data.category);
+      if (!selectedCategory) {
+        form.setError('category', { message: 'Selected category not found' });
+        return;
+      }
+
+      // Validate category type (should be expense for budgets)
+      if (selectedCategory.type !== 'expense') {
+        form.setError('category', { message: 'Budgets can only be created for expense categories' });
+        return;
+      }
+
+      // Additional validation for custom periods
+      if (data.period === 'custom' && data.startDate && data.endDate) {
+        const start = new Date(data.startDate);
+        const end = new Date(data.endDate);
+        
+        // Ensure start date is not in the past for new budgets
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        if (!budget && start < today) {
+          form.setError('startDate', { message: 'Start date cannot be in the past for new budgets' });
+          return;
+        }
+      }
+
       await onSubmit(data);
+      console.log('Budget submitted successfully');
       // Only reset form on successful creation, not edit
       if (!budget) {
         form.reset();
       }
     } catch (error) {
       console.error('Error submitting budget:', error);
+      let errorMessage = 'Failed to save budget. Please try again.';
+      
+      if (error instanceof Error) {
+        // Handle specific error types
+        if (error.message.includes('duplicate') || error.message.includes('already exists')) {
+          errorMessage = 'A budget for this category already exists. Please edit the existing budget instead.';
+        } else if (error.message.includes('validation')) {
+          errorMessage = 'Invalid budget data. Please check your inputs and try again.';
+        } else if (error.message.includes('network') || error.message.includes('fetch')) {
+          errorMessage = 'Network error. Please check your connection and try again.';
+        } else {
+          errorMessage = error.message;
+        }
+      }
+      
+      setSubmitError(errorMessage);
+      form.setError('root', { message: errorMessage });
     } finally {
       setIsSubmitting(false);
     }
   };
 
   const expenseCategories = categories.filter(cat => cat.type === 'expense');
+
+  // Show loading state while categories are loading
+  if (loading) {
+    return (
+      <Card className="w-full max-w-md">
+        <CardHeader>
+          <CardTitle>{budget ? 'Edit Budget' : 'Create Budget'}</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-center py-8">
+            <div className="text-sm text-muted-foreground">Loading categories...</div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // Show error state if no expense categories available
+  if (expenseCategories.length === 0) {
+    return (
+      <Card className="w-full max-w-md">
+        <CardHeader>
+          <CardTitle>{budget ? 'Edit Budget' : 'Create Budget'}</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="text-center py-8">
+            <p className="text-sm text-muted-foreground mb-4">
+              No expense categories found. You need to create an expense category before creating a budget.
+            </p>
+            <Button type="button" variant="outline" onClick={onCancel}>
+              Cancel
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <Card className="w-full max-w-md">
@@ -126,15 +290,36 @@ export function BudgetForm({ budget, onSubmit, onCancel }: BudgetFormProps) {
       <CardContent>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
+            {submitError && (
+              <div 
+                className="p-3 text-sm text-destructive bg-destructive/10 rounded-md border border-destructive/20"
+                role="alert"
+                aria-live="polite"
+              >
+                <div className="flex items-start gap-2">
+                  <span className="font-medium" aria-hidden="true">Error:</span>
+                  <span>{submitError}</span>
+                </div>
+              </div>
+            )}
+            {form.formState.errors.root && !submitError && (
+              <div 
+                className="p-3 text-sm text-destructive bg-destructive/10 rounded-md"
+                role="alert"
+                aria-live="polite"
+              >
+                {form.formState.errors.root.message}
+              </div>
+            )}
             <FormField
               control={form.control}
               name="category"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Category</FormLabel>
+                  <FormLabel htmlFor="category-select">Category</FormLabel>
                   <Select value={field.value} onValueChange={field.onChange}>
                     <FormControl>
-                      <SelectTrigger>
+                      <SelectTrigger id="category-select" aria-describedby={form.formState.errors.category ? 'category-error' : undefined}>
                         <SelectValue placeholder="Select category" />
                       </SelectTrigger>
                     </FormControl>
@@ -147,6 +332,11 @@ export function BudgetForm({ budget, onSubmit, onCancel }: BudgetFormProps) {
                     </SelectContent>
                   </Select>
                   <FormMessage />
+                  {form.formState.errors.category && (
+                    <span id="category-error" className="sr-only">
+                      Category error: {form.formState.errors.category.message}
+                    </span>
+                  )}
                 </FormItem>
               )}
             />
@@ -156,17 +346,24 @@ export function BudgetForm({ budget, onSubmit, onCancel }: BudgetFormProps) {
               name="amount"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Budget Amount</FormLabel>
+                  <FormLabel htmlFor="budget-amount">Budget Amount</FormLabel>
                   <FormControl>
                     <Input
+                      id="budget-amount"
                       type="number"
                       step="0.01"
                       placeholder="0.00"
+                      aria-describedby={form.formState.errors.amount ? 'amount-error' : undefined}
                       {...field}
                       onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
                     />
                   </FormControl>
                   <FormMessage />
+                  {form.formState.errors.amount && (
+                    <span id="amount-error" className="sr-only">
+                      Amount error: {form.formState.errors.amount.message}
+                    </span>
+                  )}
                 </FormItem>
               )}
             />
@@ -176,19 +373,25 @@ export function BudgetForm({ budget, onSubmit, onCancel }: BudgetFormProps) {
               name="period"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Period</FormLabel>
+                  <FormLabel htmlFor="period-selector">Period</FormLabel>
                   <FormControl>
                     <PopupSelector<'weekly' | 'biweekly' | 'monthly' | 'quarterly' | 'yearly' | 'custom'>
+                      id="period-selector"
                       value={field.value}
                       onValueChange={(value) => {
                         field.onChange(value);
-                        setSelectedPeriod(value);
                       }}
                       options={periodOptions}
                       placeholder="Select period"
+                      aria-describedby={form.formState.errors.period ? 'period-error' : undefined}
                     />
                   </FormControl>
                   <FormMessage />
+                  {form.formState.errors.period && (
+                    <span id="period-error" className="sr-only">
+                      Period error: {form.formState.errors.period.message}
+                    </span>
+                  )}
                 </FormItem>
               )}
             />
@@ -201,15 +404,24 @@ export function BudgetForm({ budget, onSubmit, onCancel }: BudgetFormProps) {
                   name="startDate"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Start Date</FormLabel>
+                      <FormLabel htmlFor="start-date">Start Date</FormLabel>
                       <FormControl>
                         <Input
+                          id="start-date"
                           type="date"
                           placeholder="Start date"
+                          aria-describedby={form.formState.errors.startDate ? 'start-date-error' : undefined}
                           {...field}
+                          min={!budget ? new Date().toISOString().split('T')[0] : undefined}
+                          max={new Date(Date.now() + 365 * 5 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]}
                         />
                       </FormControl>
                       <FormMessage />
+                      {form.formState.errors.startDate && (
+                        <span id="start-date-error" className="sr-only">
+                          Start date error: {form.formState.errors.startDate.message}
+                        </span>
+                      )}
                     </FormItem>
                   )}
                 />
@@ -218,15 +430,24 @@ export function BudgetForm({ budget, onSubmit, onCancel }: BudgetFormProps) {
                   name="endDate"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>End Date</FormLabel>
+                      <FormLabel htmlFor="end-date">End Date</FormLabel>
                       <FormControl>
                         <Input
+                          id="end-date"
                           type="date"
                           placeholder="End date"
+                          aria-describedby={form.formState.errors.endDate ? 'end-date-error' : undefined}
                           {...field}
+                          min={field.value ? new Date(new Date(field.value).getTime() + 24 * 60 * 60 * 1000).toISOString().split('T')[0] : undefined}
+                          max={new Date(Date.now() + 365 * 5 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]}
                         />
                       </FormControl>
                       <FormMessage />
+                      {form.formState.errors.endDate && (
+                        <span id="end-date-error" className="sr-only">
+                          End date error: {form.formState.errors.endDate.message}
+                        </span>
+                      )}
                     </FormItem>
                   )}
                 />
@@ -237,9 +458,17 @@ export function BudgetForm({ budget, onSubmit, onCancel }: BudgetFormProps) {
               <Button
                 type="submit"
                 className="flex-1"
-                disabled={isSubmitting}
+                disabled={isSubmitting || loading}
               >
-                {isSubmitting ? 'Saving...' : budget ? 'Update' : 'Create'}
+                {isSubmitting ? (
+                  <>
+                    <span className="animate-pulse">Saving...</span>
+                  </>
+                ) : budget ? (
+                  'Update Budget'
+                ) : (
+                  'Create Budget'
+                )}
               </Button>
               <Button
                 type="button"

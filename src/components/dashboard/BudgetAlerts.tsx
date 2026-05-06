@@ -13,17 +13,23 @@ import {
 } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
 import { DashboardStats } from '@/lib/types';
+import { useRouter } from 'next/navigation';
 
 interface BudgetAlertsProps {
   stats: DashboardStats;
 }
 
 export function BudgetAlerts({ stats }: BudgetAlertsProps) {
+  const router = useRouter();
   const { budgetBreakdown, budgetHealth } = stats;
 
   // Get critical and warning budgets
   const overBudgetBudgets = budgetBreakdown.filter(b => b.status === 'over-budget');
   const nearLimitBudgets = budgetBreakdown.filter(b => b.status === 'near-limit');
+
+  const handleReviewBudgets = () => {
+    router.push('/budgets');
+  };
 
   const hasAlerts = overBudgetBudgets.length > 0 || nearLimitBudgets.length > 0;
 
@@ -85,7 +91,12 @@ export function BudgetAlerts({ stats }: BudgetAlertsProps) {
               ))}
             </div>
             <div className="mt-4 pt-4 border-t border-red-200">
-              <Button size="sm" variant="outline" className="text-red-600 border-red-200 hover:bg-red-100">
+              <Button 
+                size="sm" 
+                variant="outline" 
+                className="text-red-600 border-red-200 hover:bg-red-100"
+                onClick={handleReviewBudgets}
+              >
                 <Target className="h-4 w-4 mr-2" />
                 Review Budgets
               </Button>
@@ -132,7 +143,12 @@ export function BudgetAlerts({ stats }: BudgetAlertsProps) {
               ))}
             </div>
             <div className="mt-4 pt-4 border-t border-yellow-200">
-              <Button size="sm" variant="outline" className="text-yellow-600 border-yellow-200 hover:bg-yellow-100">
+              <Button 
+                size="sm" 
+                variant="outline" 
+                className="text-yellow-600 border-yellow-200 hover:bg-yellow-100"
+                onClick={handleReviewBudgets}
+              >
                 <ArrowRight className="h-4 w-4 mr-2" />
                 View Details
               </Button>

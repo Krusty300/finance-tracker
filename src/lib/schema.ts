@@ -19,11 +19,26 @@ export const categorySchema = z.object({
   type: z.enum(['income', 'expense']),
 });
 
-export const budgetSchema = z.object({
+// Base budget schema without refinements (for .omit() to work)
+export const budgetBaseSchema = z.object({
   id: z.string().uuid(),
   category: z.string().min(1, 'Category is required'),
   amount: z.number().positive('Budget amount must be positive'),
-  period: z.enum(['monthly']),
+  period: z.enum(['weekly', 'biweekly', 'monthly', 'quarterly', 'yearly', 'custom']),
+  startDate: z.string().optional(),
+  endDate: z.string().optional(),
+});
+
+// Refined budget schema for validation
+export const budgetSchema = budgetBaseSchema.refine((data) => {
+  // For custom periods, both dates are required
+  if (data.period === 'custom') {
+    return !!(data.startDate && data.endDate);
+  }
+  return true;
+}, {
+  message: 'Custom periods require both start and end dates',
+  path: ['startDate']
 });
 
 export const accountSchema = z.object({
@@ -36,5 +51,5 @@ export const accountSchema = z.object({
 
 export const createTransactionSchema = transactionSchema.omit({ id: true });
 export const createCategorySchema = categorySchema.omit({ id: true });
-export const createBudgetSchema = budgetSchema.omit({ id: true });
+export const createBudgetSchema = budgetBaseSchema.omit({ id: true });
 export const createAccountSchema = accountSchema.omit({ id: true });

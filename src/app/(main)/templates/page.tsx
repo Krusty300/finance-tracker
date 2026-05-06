@@ -5,6 +5,8 @@ import { TransactionTemplate } from '@/lib/types';
 import { useTransactionTemplates } from '@/hooks/useTransactionTemplates';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
+import { TemplatesErrorBoundary } from '@/components/error/TemplatesErrorBoundary';
+import { validateTemplateUsage } from '@/utils/templateValidation';
 
 export default function TemplatesPage() {
   const { useTemplate } = useTransactionTemplates();
@@ -12,6 +14,13 @@ export default function TemplatesPage() {
 
   const handleUseTemplate = (template: TransactionTemplate) => {
     try {
+      // Validate template before usage
+      const errors = validateTemplateUsage(template);
+      if (errors.length > 0) {
+        toast.error('Template cannot be used: ' + errors.map(e => e.message).join(', '));
+        return;
+      }
+
       const transaction = useTemplate(template);
       
       // Navigate to transactions page with pre-filled data
@@ -27,13 +36,17 @@ export default function TemplatesPage() {
       router.push(`/transactions?${params.toString()}`);
       toast.success('Template applied! Complete the transaction details.');
     } catch (error) {
-      toast.error('Failed to use template');
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      toast.error('Failed to use template: ' + errorMessage);
+      console.error('Template usage error:', error);
     }
   };
 
   return (
     <div className="container mx-auto py-6">
-      <TemplateManager onUseTemplate={handleUseTemplate} />
+      <TemplatesErrorBoundary>
+        <TemplateManager onUseTemplate={handleUseTemplate} />
+      </TemplatesErrorBoundary>
     </div>
   );
 }

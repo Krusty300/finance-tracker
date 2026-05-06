@@ -45,7 +45,7 @@ export function useTransactions() {
 
       // Update account balance if transaction has an account
       if (transaction.account && accounts.length > 0) {
-        const account = accounts.find(acc => acc.name === transaction.account);
+        const account = accounts.find(acc => acc.id === transaction.account);
         if (account) {
           const balanceChange = transaction.type === 'income' 
             ? transaction.amount 
@@ -87,7 +87,7 @@ export function useTransactions() {
         if (amountChanged || typeChanged || accountChanged) {
           // Reverse old transaction effect
           if (oldTransaction.account && accounts.length > 0) {
-            const oldAccount = accounts.find(acc => acc.name === oldTransaction.account);
+            const oldAccount = accounts.find(acc => acc.id === oldTransaction.account);
             if (oldAccount) {
               const oldBalanceChange = oldTransaction.type === 'income' 
                 ? -oldTransaction.amount 
@@ -102,7 +102,7 @@ export function useTransactions() {
           // Apply new transaction effect
           const newTransaction = { ...oldTransaction, ...updates };
           if (newTransaction.account && accounts.length > 0) {
-            const newAccount = accounts.find(acc => acc.name === newTransaction.account);
+            const newAccount = accounts.find(acc => acc.id === newTransaction.account);
             if (newAccount) {
               const newBalanceChange = newTransaction.type === 'income' 
                 ? newTransaction.amount 
@@ -143,7 +143,7 @@ export function useTransactions() {
 
         // Update account balance when transaction is deleted
         if (transactionToDelete?.account && accounts.length > 0) {
-          const account = accounts.find(acc => acc.name === transactionToDelete.account);
+          const account = accounts.find(acc => acc.id === transactionToDelete.account);
           if (account) {
             // Reverse the transaction effect on balance
             const balanceChange = transactionToDelete.type === 'income' 
@@ -179,7 +179,7 @@ export function useTransactions() {
 
         // Update account balance when transaction is restored
         if (transactionToRestore?.account && accounts.length > 0) {
-          const account = accounts.find(acc => acc.name === transactionToRestore.account);
+          const account = accounts.find(acc => acc.id === transactionToRestore.account);
           if (account) {
             // Apply the transaction effect on balance
             const balanceChange = transactionToRestore.type === 'income' 

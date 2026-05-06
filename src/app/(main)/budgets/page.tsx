@@ -15,6 +15,7 @@ import { BudgetSummary } from '@/components/budgets/BudgetSummary';
 import { DeleteBudgetDialog } from '@/components/dialogs/DeleteBudgetDialog';
 import { BudgetComparisonChart } from '@/components/charts/BudgetComparisonChart';
 import { BudgetTrendChart } from '@/components/charts/BudgetTrendChart';
+import { SafeChart } from '@/components/charts/ChartErrorBoundary';
 import { Budget } from '@/lib/types';
 import { BudgetErrorBoundary, BudgetErrorFallback } from '@/components/error/BudgetErrorBoundary';
 import { Plus, PiggyBank, TrendingUp, AlertCircle, Target } from 'lucide-react';
@@ -31,8 +32,32 @@ export default function BudgetsPage() {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [selectedBudget, setSelectedBudget] = useState<Budget | null>(null);
 
+  // Memoize category lookups to avoid repeated filtering
+  const expenseCategories = useMemo(() => 
+    categories.filter(cat => cat.type === 'expense'), 
+    [categories]
+  );
+
+  // Memoize current month transactions to avoid repeated filtering
+  const currentMonthTransactions = useMemo(() => {
+    const currentMonth = new Date().getMonth();
+    const currentYear = new Date().getFullYear();
+    
+    return transactions.filter(t => {
+      if (!t.date) return false;
+      const transactionDate = new Date(t.date);
+      return !isNaN(transactionDate.getTime()) &&
+             transactionDate.getMonth() === currentMonth && 
+             transactionDate.getFullYear() === currentYear;
+    });
+  }, [transactions]);
+
   // Calculate budget analytics
   const budgetAnalytics = useMemo(() => {
+    console.log('Recalculating budget analytics with:', {
+      budgetsCount: budgets.length,
+      transactionsCount: transactions.length
+    });
     // Validate inputs
     if (!Array.isArray(transactions) || !Array.isArray(budgets)) {
       console.warn('Invalid data for budget analytics:', { transactions, budgets });
@@ -45,11 +70,26 @@ export default function BudgetsPage() {
       };
     }
 
-    // Debug: Check for duplicate budget IDs
+    // Check for duplicate budgets by category and period
+    const duplicateBudgets = budgets.filter((budget, index, self) => 
+      self.findIndex((b, idx) => 
+        idx !== index && 
+        b.category === budget.category && 
+        b.period === budget.period &&
+        b.startDate === budget.startDate &&
+        b.endDate === budget.endDate
+      ) !== -1
+    );
+
+    // Remove duplicate budgets by ID but log warnings
     const budgetIds = budgets.map(b => b.id);
     const uniqueIds = new Set(budgetIds);
     if (budgetIds.length !== uniqueIds.size) {
       console.warn('Duplicate budget IDs detected:', budgetIds);
+      // Show user warning for duplicate budgets
+      if (duplicateBudgets.length > 0) {
+        toast.warning(`Found ${duplicateBudgets.length} duplicate budget(s). Duplicates have been filtered out.`);
+      }
     }
 
     // Remove duplicate budgets by ID
@@ -57,16 +97,7 @@ export default function BudgetsPage() {
       index === self.findIndex((b) => b.id === budget.id)
     );
 
-    const currentMonth = new Date().getMonth();
-    const currentYear = new Date().getFullYear();
-
-    // Get current month transactions
-    const currentMonthTransactions = transactions.filter(t => {
-      const transactionDate = new Date(t.date);
-      return transactionDate.getMonth() === currentMonth && 
-             transactionDate.getFullYear() === currentYear;
-    });
-
+    // Process budgets with spending calculations
     const budgetsWithSpending = uniqueBudgets.map(budget => {
       // Validate budget structure
       if (!budget || typeof budget.amount !== 'number' || budget.amount < 0) {
@@ -80,7 +111,6 @@ export default function BudgetsPage() {
       }
       
       const spent = calculatePeriodSpending(budget, transactions);
-      
       const remaining = budget.amount - spent;
       const percentageUsed = budget.amount > 0 ? (spent / budget.amount) * 100 : 0;
 
@@ -92,6 +122,7 @@ export default function BudgetsPage() {
       };
     });
 
+    // Calculate aggregates
     const totalBudget = uniqueBudgets.reduce((sum, b) => sum + b.amount, 0);
     const totalSpent = budgetsWithSpending.reduce((sum, b) => sum + b.spent, 0);
     const overBudgetCount = budgetsWithSpending.filter(b => b.percentageUsed > 100).length;
@@ -104,10 +135,25 @@ export default function BudgetsPage() {
       overBudgetCount,
       nearLimitCount,
     };
-  }, [transactions, budgets]);
+  }, [transactions, budgets, currentMonthTransactions]);
 
   const handleCreateBudget = async (data: Omit<Budget, 'id'>) => {
     try {
+      // Check for existing budget with same category and period
+      const existingBudget = budgets.find(b => 
+        b.category === data.category && 
+        b.period === data.period &&
+        b.startDate === data.startDate &&
+        b.endDate === data.endDate
+      );
+
+      if (existingBudget) {
+        const category = categories.find(c => c.id === data.category);
+        const categoryName = category?.name || data.category;
+        toast.error(`A budget for "${categoryName}" already exists for this period.`);
+        return;
+      }
+
       await addBudget(data);
       setShowCreateDialog(false);
       toast.success('Budget created successfully');
@@ -120,8 +166,15 @@ export default function BudgetsPage() {
   const handleEditBudget = async (data: Omit<Budget, 'id'>) => {
     if (!selectedBudget) return;
     
+    console.log('Editing budget:', {
+      budgetId: selectedBudget.id,
+      originalData: selectedBudget,
+      newData: data
+    });
+    
     try {
-      await updateBudget(selectedBudget.id, data);
+      const updatedBudget = await updateBudget(selectedBudget.id, data);
+      console.log('Budget updated successfully:', updatedBudget);
       setShowEditDialog(false);
       setSelectedBudget(null);
       toast.success('Budget updated successfully');
@@ -146,6 +199,7 @@ export default function BudgetsPage() {
   };
 
   const openEditDialog = (budget: Budget) => {
+    console.log('Opening edit dialog for budget:', budget);
     setSelectedBudget(budget);
     setShowEditDialog(true);
   };
@@ -155,8 +209,8 @@ export default function BudgetsPage() {
     setShowDeleteDialog(true);
   };
 
-  // Generate trend data for the last 6 months
-  const generateTrendData = () => {
+  // Generate trend data for the last 6 months (memoized)
+  const generateTrendData = useMemo(() => {
     const trendData = [];
     const now = new Date();
     
@@ -165,17 +219,17 @@ export default function BudgetsPage() {
       const trendStart = new Date(trendDate.getFullYear(), trendDate.getMonth(), 1);
       const trendEnd = new Date(trendDate.getFullYear(), trendDate.getMonth() + 1, 0);
       
-      // Get transactions for this month
+      // Get transactions for this month (optimized with pre-filtered data)
       const monthTransactions = transactions.filter(t => {
+        if (!t.date || t.type !== 'expense') return false;
         const transactionDate = new Date(t.date);
-        return transactionDate >= trendStart && transactionDate <= trendEnd;
+        return !isNaN(transactionDate.getTime()) &&
+               transactionDate >= trendStart && transactionDate <= trendEnd;
       });
 
       // Calculate total budget and spent for this month
       const monthBudget = budgets.reduce((sum, budget) => sum + budget.amount, 0);
-      const monthSpent = monthTransactions
-        .filter(t => t.type === 'expense')
-        .reduce((sum, t) => sum + t.amount, 0);
+      const monthSpent = monthTransactions.reduce((sum, t) => sum + t.amount, 0);
 
       trendData.push({
         month: trendDate.toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
@@ -187,7 +241,7 @@ export default function BudgetsPage() {
     }
     
     return trendData;
-  };
+  }, [transactions, budgets]);
 
   if (loading) {
     return (
@@ -316,31 +370,35 @@ export default function BudgetsPage() {
 
             <TabsContent value="analytics" className="space-y-6">
               <div className="grid gap-6">
-                <BudgetComparisonChart
-                  data={budgetAnalytics.budgetsWithSpending.map(({ budget, spent, remaining, percentageUsed }) => {
-                    // Map category ID to name for display
-                    const category = categories.find(c => c.id === budget.category);
-                    const categoryName = category?.name || budget.category;
-                    
-                    return {
-                      category: categoryName,
-                      budget: budget.amount,
-                      spent,
-                      remaining,
-                      percentageUsed,
-                      status: percentageUsed > 100 ? 'over-budget' : percentageUsed >= 80 ? 'near-limit' : 'on-track',
-                      period: getPeriodDisplayText(budget)
-                    };
-                  })}
-                  title="Budget vs Spending Analysis"
-                  showComparison={true}
-                />
+                <SafeChart title="Budget vs Spending Analysis">
+                  <BudgetComparisonChart
+                    data={budgetAnalytics.budgetsWithSpending.map(({ budget, spent, remaining, percentageUsed }) => {
+                      // Map category ID to name for display
+                      const category = categories.find(c => c.id === budget.category);
+                      const categoryName = category?.name || budget.category;
+                      
+                      return {
+                        category: categoryName,
+                        budget: budget.amount,
+                        spent,
+                        remaining,
+                        percentageUsed,
+                        status: percentageUsed > 100 ? 'over-budget' : percentageUsed >= 80 ? 'near-limit' : 'on-track',
+                        period: getPeriodDisplayText(budget)
+                      };
+                    })}
+                    title="Budget vs Spending Analysis"
+                    showComparison={true}
+                  />
+                </SafeChart>
 
-                <BudgetTrendChart
-                  data={generateTrendData()}
-                  title="Budget Performance Trends"
-                  showProjection={true}
-                />
+                <SafeChart title="Budget Performance Trends">
+                  <BudgetTrendChart
+                    data={generateTrendData}
+                    title="Budget Performance Trends"
+                    showProjection={true}
+                  />
+                </SafeChart>
               </div>
             </TabsContent>
           </Tabs>
