@@ -1,10 +1,13 @@
 import { useState, useEffect, useCallback } from 'react';
 import { TransactionTemplate, Transaction } from '@/lib/types';
 import { db } from '@/lib/db';
+import { useDebounceCallback } from '@/hooks/useDebounceCallback';
+import { validateTemplateUsage } from '@/utils/templateValidation';
 
 export function useTransactionTemplates() {
   const [templates, setTemplates] = useState<TransactionTemplate[]>([]);
   const [loading, setLoading] = useState(true);
+  const [updatingIds, setUpdatingIds] = useState<Set<string>>(new Set());
 
   const loadTemplates = useCallback(() => {
     setLoading(true);
@@ -27,18 +30,21 @@ export function useTransactionTemplates() {
     }
   }, []);
 
+  // Debounced version to prevent event storms
+  const debouncedLoadTemplates = useDebounceCallback(loadTemplates, 300);
+
   useEffect(() => {
     loadTemplates();
 
     const handleStorageChange = () => {
-      loadTemplates();
+      debouncedLoadTemplates();
     };
 
     window.addEventListener('storage', handleStorageChange);
     return () => {
       window.removeEventListener('storage', handleStorageChange);
     };
-  }, [loadTemplates]);
+  }, [debouncedLoadTemplates]);
 
   const addTemplate = useCallback((template: Omit<TransactionTemplate, 'id' | 'usageCount'>) => {
     try {
@@ -51,8 +57,17 @@ export function useTransactionTemplates() {
     }
   }, []);
 
-  const updateTemplate = useCallback((id: string, updates: Partial<TransactionTemplate>) => {
+  const updateTemplate = useCallback(async (id: string, updates: Partial<TransactionTemplate>) => {
+    // Prevent concurrent updates for the same template
+    if (updatingIds.has(id)) {
+      console.warn(`Template ${id} is already being updated, skipping concurrent update`);
+      return null;
+    }
+
     try {
+      // Mark as updating
+      setUpdatingIds(prev => new Set(prev).add(id));
+
       const updated = db.updateTemplate(id, updates);
       if (updated) {
         setTemplates(prev => 
@@ -63,29 +78,49 @@ export function useTransactionTemplates() {
     } catch (error) {
       console.error('Error updating template:', error);
       throw error;
+    } finally {
+      // Clear updating flag
+      setUpdatingIds(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(id);
+        return newSet;
+      });
     }
-  }, []);
+  }, [updatingIds]);
 
   const deleteTemplate = useCallback((id: string) => {
     try {
       const success = db.deleteTemplate(id);
       if (success) {
         setTemplates(prev => prev.filter(t => t.id !== id));
+      } else {
+        throw new Error('Template not found or could not be deleted');
       }
       return success;
     } catch (error) {
       console.error('Error deleting template:', error);
-      throw error;
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      throw new Error(`Failed to delete template: ${errorMessage}`);
     }
   }, []);
 
-  const useTemplate = useCallback((template: TransactionTemplate): Omit<Transaction, 'id'> => {
-    // Increment usage count
-    console.log(`Using template: ${template.name} (usage count: ${template.usageCount + 1})`);
-    updateTemplate(template.id, { 
-      usageCount: template.usageCount + 1,
-      lastUsed: new Date().toISOString()
-    });
+  const useTemplate = useCallback(async (template: TransactionTemplate): Promise<Omit<Transaction, 'id'>> => {
+    // Validate template before usage
+    const errors = validateTemplateUsage(template);
+    if (errors.length > 0) {
+      throw new Error(`Template validation failed: ${errors.map(e => e.message).join(', ')}`);
+    }
+
+    // Increment usage count with race condition protection
+    try {
+      await updateTemplate(template.id, { 
+        usageCount: template.usageCount + 1,
+        lastUsed: new Date().toISOString()
+      });
+    } catch (error) {
+      console.warn('Failed to update template usage count:', error);
+      // Continue with template usage even if count update fails
+    }
 
     // Return transaction data from template
     return {
@@ -131,6 +166,7 @@ export function useTransactionTemplates() {
   return {
     templates,
     loading,
+    updatingIds,
     addTemplate,
     updateTemplate,
     deleteTemplate,

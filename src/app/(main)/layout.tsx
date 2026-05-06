@@ -6,7 +6,9 @@ import { GlobalSearch } from '@/components/search/GlobalSearch';
 import { BreadcrumbNavigation } from '@/components/navigation/BreadcrumbNavigation';
 import { FloatingActionButton } from '@/components/navigation/FloatingActionButton';
 import { ThemeToggle } from '@/components/theme/ThemeToggle';
-import { NotificationSystem, ToastNotifications } from '@/components/notifications/NotificationSystem';
+import { NotificationCenter } from '@/components/notifications/NotificationCenter';
+import { ToastNotifications } from '@/components/notifications/NotificationSystem';
+import { ConnectionStatus } from '@/components/ui/ConnectionStatus';
 import { OnboardingTour, OnboardingTrigger, OnboardingNotifications, OnboardingHints, FeatureDiscoveryNotifications, TourNavigation } from '@/components/onboarding/index';
 import { Button } from '@/components/ui/button';
 import { Menu, Eye, EyeOff } from 'lucide-react';
@@ -113,6 +115,7 @@ export default function MainLayout({
               <BreadcrumbNavigation />
             </div>
             <div className="flex items-center gap-1 sm:gap-2 ml-2">
+              <ConnectionStatus />
               <Button
                 variant="ghost"
                 size="sm"
@@ -122,7 +125,7 @@ export default function MainLayout({
               >
                 {showSidebarIcons ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
               </Button>
-              <NotificationSystem />
+              <NotificationCenter />
               <ThemeToggle />
             </div>
           </div>

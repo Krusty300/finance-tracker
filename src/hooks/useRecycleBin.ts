@@ -2,6 +2,8 @@ import { useState, useEffect, useCallback } from 'react';
 import { RecycleBinItem } from '@/lib/types';
 import { db } from '@/lib/db';
 import { useCurrency } from '@/contexts/CurrencyContext';
+import { useDebounceCallback } from '@/hooks/useDebounceCallback';
+import { toast } from 'sonner';
 
 export function useRecycleBin() {
   const { formatCurrency } = useCurrency();
@@ -19,23 +21,27 @@ export function useRecycleBin() {
       setItems(sortedItems);
     } catch (error) {
       console.error('Error loading recycle bin items:', error);
+      toast.error('Failed to load recycle bin items. Please try again.');
     } finally {
       setLoading(false);
     }
   }, []);
 
+  // Debounced version to prevent event storms
+  const debouncedLoadItems = useDebounceCallback(loadItems, 300);
+
   useEffect(() => {
     loadItems();
 
     const handleStorageChange = () => {
-      loadItems();
+      debouncedLoadItems();
     };
 
     window.addEventListener('storage', handleStorageChange);
     return () => {
       window.removeEventListener('storage', handleStorageChange);
     };
-  }, [loadItems]);
+  }, [debouncedLoadItems]);
 
   const restoreItem = useCallback((id: string) => {
     try {

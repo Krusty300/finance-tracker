@@ -40,7 +40,7 @@ export function useNotifications() {
       timestamp: Date.now(),
       read: false,
       archived: false,
-      autoHide: true,
+      autoHide: false, // Disable auto-hide so notifications stay in the system
       duration: notification.type === 'error' ? 8000 : notification.type === 'warning' ? 6000 : 5000,
       ...notification
     };

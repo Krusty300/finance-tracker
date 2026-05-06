@@ -3,6 +3,8 @@ import { Transaction, TransactionSplit, TransactionAttachment, RecurringTransact
 import { db } from '@/lib/db';
 import { useAccounts } from './useAccounts';
 import { useRealtimeTransactions } from './useRealtime';
+import { useDebounceCallback } from '@/hooks/useDebounceCallback';
+import { toast } from 'sonner';
 
 export function useTransactions() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -17,23 +19,27 @@ export function useTransactions() {
       setTransactions(data);
     } catch (error) {
       console.error('Error loading transactions:', error);
+      toast.error('Failed to load transactions. Please try again.');
     } finally {
       setLoading(false);
     }
   }, []);
 
+  // Debounced version to prevent event storms
+  const debouncedLoadTransactions = useDebounceCallback(loadTransactions, 300);
+
   useEffect(() => {
     loadTransactions();
 
     const handleStorageChange = () => {
-      loadTransactions();
+      debouncedLoadTransactions();
     };
 
     window.addEventListener('storage', handleStorageChange);
     return () => {
       window.removeEventListener('storage', handleStorageChange);
     };
-  }, [loadTransactions]);
+  }, [debouncedLoadTransactions]);
 
   const addTransaction = useCallback((transaction: Omit<Transaction, 'id'>) => {
     try {
@@ -62,9 +68,10 @@ export function useTransactions() {
       return newTransaction;
     } catch (error) {
       console.error('Error adding transaction:', error);
+      toast.error('Failed to add transaction. Please try again.');
       throw error;
     }
-  }, [accounts, updateAccount]);
+  }, [accounts, updateAccount, notifyTransactionChange]);
 
   const updateTransaction = useCallback((id: string, updates: Partial<Transaction>) => {
     try {

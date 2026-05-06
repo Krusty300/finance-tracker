@@ -39,6 +39,7 @@ export function TemplateManager({ onUseTemplate }: TemplateManagerProps) {
   const { 
     templates, 
     loading, 
+    updatingIds,
     addTemplate, 
     updateTemplate, 
     deleteTemplate,
@@ -186,9 +187,11 @@ export function TemplateManager({ onUseTemplate }: TemplateManagerProps) {
   const handleDeleteTemplate = async (template: TransactionTemplate) => {
     try {
       await deleteTemplate(template.id);
-      toast.success('Template deleted successfully');
+      toast.success(`Template "${template.name}" deleted successfully`);
     } catch (error) {
-      toast.error('Failed to delete template');
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      console.error('Error deleting template:', error);
+      toast.error(`Failed to delete template: ${errorMessage}`);
     }
   };
 
@@ -228,6 +231,10 @@ export function TemplateManager({ onUseTemplate }: TemplateManagerProps) {
     setShowEditDialog(true);
   };
 
+  const isTemplateUpdating = (templateId: string) => {
+    return updatingIds.has(templateId);
+  };
+
   const openCreateDialog = () => {
     resetForm();
     setShowCreateDialog(true);
@@ -262,18 +269,63 @@ export function TemplateManager({ onUseTemplate }: TemplateManagerProps) {
   );
 
   if (loading) {
+    const skeletonCount = Math.max(1, Math.min(6, Math.ceil(templates.length / 2) || 3));
     return (
-      <div className="space-y-4">
-        {[...Array(3)].map((_, i) => (
-          <Card key={i}>
-            <CardContent className="p-4">
-              <div className="animate-pulse">
-                <div className="h-4 bg-muted rounded w-3/4 mb-2"></div>
-                <div className="h-3 bg-muted rounded w-1/2"></div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <div className="h-8 bg-muted rounded w-48 mb-2 animate-pulse"></div>
+            <div className="h-4 bg-muted rounded w-64 animate-pulse"></div>
+          </div>
+          <div className="h-10 bg-muted rounded w-32 animate-pulse"></div>
+        </div>
+        
+        {/* Quick Add Skeleton */}
+        <div>
+          <div className="h-6 bg-muted rounded w-24 mb-3 animate-pulse"></div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            {[...Array(skeletonCount)].map((_, i) => (
+              <Card key={`quick-skeleton-${i}`}>
+                <CardContent className="p-4">
+                  <div className="animate-pulse">
+                    <div className="h-8 bg-muted rounded w-8 mb-2"></div>
+                    <div className="h-4 bg-muted rounded w-3/4 mb-1"></div>
+                    <div className="h-3 bg-muted rounded w-1/2"></div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+        
+        {/* Most Used Skeleton */}
+        <div>
+          <div className="h-6 bg-muted rounded w-24 mb-3 animate-pulse"></div>
+          <div className="space-y-2">
+            {[...Array(Math.min(3, skeletonCount))].map((_, i) => (
+              <Card key={`most-skeleton-${i}`}>
+                <CardContent className="p-4">
+                  <div className="animate-pulse">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="h-6 bg-muted rounded w-6"></div>
+                        <div>
+                          <div className="h-4 bg-muted rounded w-32 mb-1"></div>
+                          <div className="h-3 bg-muted rounded w-48"></div>
+                        </div>
+                      </div>
+                      <div className="flex gap-2">
+                        <div className="h-8 bg-muted rounded w-16"></div>
+                        <div className="h-8 bg-muted rounded w-8"></div>
+                        <div className="h-8 bg-muted rounded w-8"></div>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
       </div>
     );
   }
@@ -308,13 +360,25 @@ export function TemplateManager({ onUseTemplate }: TemplateManagerProps) {
       {/* Quick Add Templates */}
       {quickAddTemplates.length > 0 && (
         <div>
-          <h3 className="text-lg font-semibold mb-3 flex items-center">
-            <Star className="h-5 w-5 mr-2" />
+          <h3 className="text-lg font-semibold mb-3">
             Quick Add
           </h3>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             {quickAddTemplates.map((template) => (
-              <Card key={template.id} className="cursor-pointer hover:shadow-md transition-shadow">
+              <Card 
+                key={template.id} 
+                className="cursor-pointer hover:shadow-md transition-shadow"
+                role="button"
+                tabIndex={0}
+                aria-label={`Quick add template: ${template.name}, amount ${formatCurrency(template.amount)}, category ${template.category}`}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    handleUseTemplateClick(template);
+                  }
+                }}
+                onClick={() => handleUseTemplateClick(template)}
+              >
                 <CardContent className="p-4">
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-2xl">{template.icon}</span>
@@ -347,13 +411,25 @@ export function TemplateManager({ onUseTemplate }: TemplateManagerProps) {
       {/* Most Used Templates */}
       {mostUsedTemplates.length > 0 && (
         <div>
-          <h3 className="text-lg font-semibold mb-3 flex items-center">
-            <TrendingUp className="h-5 w-5 mr-2" />
+          <h3 className="text-lg font-semibold mb-3">
             Most Used
           </h3>
           <div className="space-y-2">
             {mostUsedTemplates.map((template) => (
-              <Card key={template.id} className="cursor-pointer hover:shadow-md transition-shadow">
+              <Card 
+                key={template.id} 
+                className="cursor-pointer hover:shadow-md transition-shadow"
+                role="button"
+                tabIndex={0}
+                aria-label={`Most used template: ${template.name}, amount ${formatCurrency(template.amount)}, category ${template.category}, used ${template.usageCount} times`}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    handleUseTemplateClick(template);
+                  }
+                }}
+                onClick={() => handleUseTemplateClick(template)}
+              >
                 <CardContent className="p-4">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
@@ -370,8 +446,14 @@ export function TemplateManager({ onUseTemplate }: TemplateManagerProps) {
                         <Button
                           size="sm"
                           onClick={() => handleUseTemplateClick(template)}
+                          disabled={isTemplateUpdating(template.id)}
+                          aria-label={`Use template ${template.name}`}
                         >
-                          <Copy className="h-3 w-3 mr-1" />
+                          {isTemplateUpdating(template.id) ? (
+                            <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                          ) : (
+                            <Copy className="h-3 w-3 mr-1" />
+                          )}
                           Use
                         </Button>
                       )}
@@ -379,15 +461,27 @@ export function TemplateManager({ onUseTemplate }: TemplateManagerProps) {
                         size="sm"
                         variant="ghost"
                         onClick={() => handleEditTemplateClick(template)}
+                        disabled={isTemplateUpdating(template.id)}
+                        aria-label={`Edit template ${template.name}`}
                       >
-                        <Edit className="h-3 w-3" />
+                        {isTemplateUpdating(template.id) ? (
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                        ) : (
+                          <Edit className="h-3 w-3" />
+                        )}
                       </Button>
                       <Button
                         size="sm"
                         variant="ghost"
                         onClick={() => handleDeleteTemplate(template)}
+                        disabled={isTemplateUpdating(template.id)}
+                        aria-label={`Delete template ${template.name}`}
                       >
-                        <Trash2 className="h-3 w-3" />
+                        {isTemplateUpdating(template.id) ? (
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                        ) : (
+                          <Trash2 className="h-3 w-3" />
+                        )}
                       </Button>
                     </div>
                   </div>
@@ -407,7 +501,20 @@ export function TemplateManager({ onUseTemplate }: TemplateManagerProps) {
           </h3>
           <div className="space-y-2">
             {otherTemplates.map((template) => (
-                <Card key={template.id} className="cursor-pointer hover:shadow-md transition-shadow">
+              <Card 
+                key={template.id} 
+                className="cursor-pointer hover:shadow-md transition-shadow"
+                role="button"
+                tabIndex={0}
+                aria-label={`Template: ${template.name}, amount ${formatCurrency(template.amount)}, category ${template.category}${template.lastUsed ? `, last used ${new Date(template.lastUsed).toLocaleDateString()}` : ''}`}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    handleUseTemplateClick(template);
+                  }
+                }}
+                onClick={() => handleUseTemplateClick(template)}
+              >
                   <CardContent className="p-4">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
@@ -429,9 +536,15 @@ export function TemplateManager({ onUseTemplate }: TemplateManagerProps) {
                         {onUseTemplate && (
                           <Button
                             size="sm"
-                            onClick={() => onUseTemplate(template)}
+                            onClick={() => handleUseTemplateClick(template)}
+                            disabled={isTemplateUpdating(template.id)}
+                            aria-label={`Use template ${template.name}`}
                           >
-                            <Copy className="h-3 w-3 mr-1" />
+                            {isTemplateUpdating(template.id) ? (
+                              <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                            ) : (
+                              <Copy className="h-3 w-3 mr-1" />
+                            )}
                             Use
                           </Button>
                         )}
@@ -439,15 +552,27 @@ export function TemplateManager({ onUseTemplate }: TemplateManagerProps) {
                           size="sm"
                           variant="ghost"
                           onClick={() => handleEditTemplateClick(template)}
+                          disabled={isTemplateUpdating(template.id)}
+                          aria-label={`Edit template ${template.name}`}
                         >
-                          <Edit className="h-3 w-3" />
+                          {isTemplateUpdating(template.id) ? (
+                            <Loader2 className="h-3 w-3 animate-spin" />
+                          ) : (
+                            <Edit className="h-3 w-3" />
+                          )}
                         </Button>
                         <Button
                           size="sm"
                           variant="ghost"
                           onClick={() => handleDeleteTemplate(template)}
+                          disabled={isTemplateUpdating(template.id)}
+                          aria-label={`Delete template ${template.name}`}
                         >
-                          <Trash2 className="h-3 w-3" />
+                          {isTemplateUpdating(template.id) ? (
+                            <Loader2 className="h-3 w-3 animate-spin" />
+                          ) : (
+                            <Trash2 className="h-3 w-3" />
+                          )}
                         </Button>
                       </div>
                     </div>

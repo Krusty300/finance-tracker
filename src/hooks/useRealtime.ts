@@ -110,13 +110,15 @@ class RealtimeEventManager {
   }
 
   // Listen for storage events from other tabs
-  initCrossTabCommunication(): void {
+  initCrossTabCommunication = (): void => {
     const handleStorageChange = (e: StorageEvent) => {
       if (e.key?.startsWith('realtime-event-') && e.newValue) {
         try {
           const event = JSON.parse(e.newValue) as RealtimeEvent;
+          const currentTabId = this.getCurrentTabId();
+          
           // Don't echo back events from this tab
-          if (event.source !== this.getCurrentTabId()) {
+          if (event.source !== currentTabId) {
             this.emitLocal(event);
           }
         } catch (error) {
@@ -126,7 +128,7 @@ class RealtimeEventManager {
     };
 
     window.addEventListener('storage', handleStorageChange);
-  }
+  };
 
   private emitLocal(event: RealtimeEvent): void {
     const listeners = this.listeners.get(event.type) || [];
@@ -187,9 +189,10 @@ export function useRealtime() {
 
   // Emit events
   const emit = useCallback((event: Omit<RealtimeEvent, 'id' | 'timestamp'>) => {
+    const currentTabId = realtimeManager.getCurrentTabId();
     const fullEvent = {
       ...event,
-      source: realtimeManager.getCurrentTabId()
+      source: currentTabId
     };
     realtimeManager.emit(fullEvent);
   }, []);
@@ -199,11 +202,21 @@ export function useRealtime() {
     return realtimeManager.getHistory(type, limit);
   }, []);
 
-  // Cleanup on unmount
+  // Enhanced cleanup on unmount
   useEffect(() => {
     return () => {
-      listenersRef.current.forEach(unsubscribe => unsubscribe());
+      // Cleanup all active listeners
+      listenersRef.current.forEach(unsubscribe => {
+        try {
+          unsubscribe();
+        } catch (error) {
+          console.error('Error during listener cleanup:', error);
+        }
+      });
       listenersRef.current.clear();
+
+      // Clean up event history
+      realtimeManager.clearHistory();
     };
   }, []);
 

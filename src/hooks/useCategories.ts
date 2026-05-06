@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Category } from '@/lib/types';
 import { db } from '@/lib/db';
+import { useDebounceCallback } from '@/hooks/useDebounceCallback';
+import { toast } from 'sonner';
 
 export function useCategories() {
   const [categories, setCategories] = useState<Category[]>([]);
@@ -13,31 +15,37 @@ export function useCategories() {
       setCategories(data);
     } catch (error) {
       console.error('Error loading categories:', error);
+      toast.error('Failed to load categories. Please try again.');
     } finally {
       setLoading(false);
     }
   }, []);
 
+  // Debounced version to prevent event storms
+  const debouncedLoadCategories = useDebounceCallback(loadCategories, 300);
+
   useEffect(() => {
     loadCategories();
 
     const handleStorageChange = () => {
-      loadCategories();
+      debouncedLoadCategories();
     };
 
     window.addEventListener('storage', handleStorageChange);
     return () => {
       window.removeEventListener('storage', handleStorageChange);
     };
-  }, [loadCategories]);
+  }, [debouncedLoadCategories]);
 
   const addCategory = useCallback((category: Omit<Category, 'id'>) => {
     try {
       const newCategory = db.addCategory(category);
       setCategories(prev => [...prev, newCategory]);
+      toast.success('Category added successfully');
       return newCategory;
     } catch (error) {
       console.error('Error adding category:', error);
+      toast.error('Failed to add category. Please try again.');
       throw error;
     }
   }, []);

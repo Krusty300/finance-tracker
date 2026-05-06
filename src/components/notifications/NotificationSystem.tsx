@@ -262,57 +262,8 @@ export function NotificationSystem() {
   );
 }
 
-// Toast-style notifications for immediate feedback
+// Disabled toast notifications - using notification system instead
 export function ToastNotifications() {
-  const { notifications, removeNotification } = useNotifications();
-  const [toasts, setToasts] = useState<any[]>([]);
-
-  // Convert notifications to toasts (show only recent, non-persistent ones)
-  useEffect(() => {
-    const recentToasts = notifications
-      .filter(n => n.autoHide !== false)
-      .slice(0, 3); // Show max 3 toasts at once
-    
-    setToasts(recentToasts);
-  }, [notifications]);
-
-  const removeToast = (id: string) => {
-    removeNotification(id);
-  };
-
-  if (toasts.length === 0) return null;
-
-  return (
-    <div className="fixed top-4 right-4 z-50 space-y-2">
-      {toasts.map((notification) => {
-        const Icon = notificationIcons[notification.type as NotificationType];
-        
-        return (
-          <div
-            key={notification.id}
-            className={cn(
-              'flex items-center gap-3 p-4 rounded-lg shadow-lg border max-w-sm animate-in slide-in-from-right-full',
-              notificationStyles[notification.type as NotificationType]
-            )}
-          >
-            <Icon className="h-5 w-5 flex-shrink-0" />
-            
-            <div className="flex-1 min-w-0">
-              <h4 className="font-medium text-sm">{notification.title}</h4>
-              <p className="text-sm mt-1 opacity-90">{notification.message}</p>
-            </div>
-            
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => removeToast(notification.id)}
-              className="h-6 w-6 p-0 opacity-60 hover:opacity-100 flex-shrink-0"
-            >
-              <X className="h-3 w-3" />
-            </Button>
-          </div>
-        );
-      })}
-    </div>
-  );
+  // Return null to disable toast popups
+  return null;
 }
