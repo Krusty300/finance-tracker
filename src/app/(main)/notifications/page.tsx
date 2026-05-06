@@ -19,14 +19,16 @@ import {
   Info,
   XCircle,
   Clock,
-  Archive
+  Archive,
+  Check,
+  X
 } from 'lucide-react';
 import { useNotifications } from '@/hooks/useNotifications';
 import { NotificationSettings } from '@/components/notifications/NotificationSettings';
 import { NotificationCenter } from '@/components/notifications/NotificationCenter';
 
 export default function NotificationsPage() {
-  const { notifications, markAllAsRead, clearAll, unreadCount } = useNotifications();
+  const { notifications, markAllAsRead, clearAll, unreadCount, markAsRead, removeNotification } = useNotifications();
   const [activeTab, setActiveTab] = useState('notifications');
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState<'all' | 'read' | 'unread'>('all');
@@ -330,7 +332,7 @@ export default function NotificationsPage() {
                                 <Button
                                   variant="ghost"
                                   size="sm"
-                                  onClick={() => handleMarkAsRead(notification.id)}
+                                  onClick={() => markAsRead(notification.id)}
                                   className="h-6 w-6 p-0"
                                   title="Mark as read"
                                 >
@@ -341,7 +343,7 @@ export default function NotificationsPage() {
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                onClick={() => handleRemove(notification.id)}
+                                onClick={() => removeNotification(notification.id)}
                                 className="h-6 w-6 p-0"
                                 title="Remove notification"
                               >

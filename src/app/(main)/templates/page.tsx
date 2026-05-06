@@ -12,7 +12,7 @@ export default function TemplatesPage() {
   const { useTemplate } = useTransactionTemplates();
   const router = useRouter();
 
-  const handleUseTemplate = (template: TransactionTemplate) => {
+  const handleUseTemplate = async (template: TransactionTemplate) => {
     try {
       // Validate template before usage
       const errors = validateTemplateUsage(template);
@@ -21,7 +21,7 @@ export default function TemplatesPage() {
         return;
       }
 
-      const transaction = useTemplate(template);
+      const transaction = await useTemplate(template);
       
       // Navigate to transactions page with pre-filled data
       const params = new URLSearchParams({

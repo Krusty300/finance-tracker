@@ -200,8 +200,8 @@ export function EnhancedTransactionForm({
     setAttachments(attachments.filter(a => a.id !== id));
   };
 
-  const handleUseTemplate = (template: any) => {
-    const transaction = useTemplate(template);
+  const handleUseTemplate = async (template: any) => {
+    const transaction = await useTemplate(template);
     setFormData({
       amount: transaction.amount.toString(),
       type: transaction.type,
