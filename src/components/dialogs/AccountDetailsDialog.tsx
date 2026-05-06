@@ -12,7 +12,8 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Account, Transaction } from '@/lib/types';
 import { AccountAnalytics } from '@/components/accounts/AccountAnalytics';
-import { formatCurrency } from '@/lib/utils';
+import { useCurrency } from '@/contexts/CurrencyContext';
+import { useFormatting } from '@/contexts/FormattingContext';
 import { TrendingUp, CreditCard, Wallet, Smartphone, DollarSign, ArrowRight } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
@@ -43,6 +44,8 @@ export function AccountDetailsDialog({
   account,
   transactions,
 }: AccountDetailsDialogProps) {
+  const { formatCurrency } = useCurrency();
+  const { formatDate } = useFormatting();
   const router = useRouter();
   const [activeTab, setActiveTab] = useState('overview');
 
@@ -207,7 +210,7 @@ export function AccountDetailsDialog({
                           <div>
                             <p className="font-medium">{transaction.description}</p>
                             <p className="text-sm text-muted-foreground">
-                              {transaction.category} • {new Date(transaction.date).toLocaleDateString()}
+                              {transaction.category} • {formatDate(transaction.date)}
                             </p>
                           </div>
                         </div>

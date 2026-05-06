@@ -1,17 +1,30 @@
 'use client';
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
+import { Badge } from '@/components/ui/badge';
+import { 
+  TrendingUp, 
+  TrendingDown, 
+  Wallet, 
+  Target,
+  ArrowUp,
+  ArrowDown,
+  AlertTriangle,
+  CheckCircle
+} from 'lucide-react';
+import { useCurrency } from '@/contexts/CurrencyContext';
+import { useFormatting } from '@/contexts/FormattingContext';
 import { DashboardStats } from '@/lib/types';
-import { formatCurrency } from '@/lib/utils';
-import { TrendingUp, TrendingDown, Target, Wallet, AlertTriangle, CheckCircle } from 'lucide-react';
 
 interface FinancialSummaryReportProps {
   stats: DashboardStats;
 }
 
 export function FinancialSummaryReport({ stats }: FinancialSummaryReportProps) {
+  const { formatCurrency } = useCurrency();
+  const { formatDate } = useFormatting();
+  
   // Validate stats data
   if (!stats || typeof stats !== 'object') {
     console.warn('Invalid stats data provided to FinancialSummaryReport:', stats);
@@ -191,7 +204,6 @@ export function FinancialSummaryReport({ stats }: FinancialSummaryReportProps) {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Monthly Savings</CardTitle>
-            <Wallet className="h-4 w-4 text-blue-600" />
           </CardHeader>
           <CardContent>
             <div className={`text-2xl font-bold ${monthlySavings >= 0 ? 'text-green-600' : 'text-red-600'}`}>

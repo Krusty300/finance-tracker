@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo, useCallback, memo, lazy, Suspense } from 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
-import { formatCurrency } from '@/lib/utils';
+import { useCurrency } from '@/contexts/CurrencyContext';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -57,6 +57,7 @@ interface SidebarProps {
 
 export function Sidebar({ className, isCollapsed = false, onToggle, showIcons = true }: SidebarProps) {
   const pathname = usePathname();
+  const { formatCurrency } = useCurrency();
   const { stats, loading: statsLoading } = useDashboardStats();
   const { sortedItems, favoriteItems, recentlyViewedItems, toggleFavorite } = useNavigationCache();
   

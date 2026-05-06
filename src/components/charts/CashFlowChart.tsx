@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { TrendingUp, TrendingDown, ArrowDownRight, ArrowUpRight } from 'lucide-react';
-import { formatCurrency } from '@/lib/utils';
+import { useCurrency } from '@/contexts/CurrencyContext';
 
 interface CashFlowItem {
   name: string;
@@ -34,6 +34,7 @@ export function CashFlowChart({
   title = "Cash Flow Analysis",
   showDetails = true 
 }: CashFlowChartProps) {
+  const { formatCurrency } = useCurrency();
   const { chartData, finalBalance } = useMemo(() => {
     const data: CashFlowItem[] = [];
     let runningTotal = 0;

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -11,7 +11,8 @@ import { Transaction } from '@/lib/types';
 import { useTransactions } from '@/hooks/useTransactions';
 import { useCategories } from '@/hooks/useCategories';
 import { useAccounts } from '@/hooks/useAccounts';
-import { formatCurrency } from '@/lib/utils';
+import { useCurrency } from '@/contexts/CurrencyContext';
+import { useFormatting } from '@/contexts/FormattingContext';
 import { toast } from 'sonner';
 import { 
   Plus, 
@@ -42,9 +43,18 @@ const quickDescriptions = [
 ];
 
 export function QuickAddModal({ open, onOpenChange }: QuickAddModalProps) {
+  const { formatCurrency, currency, getCurrencySymbol } = useCurrency();
+  const { formatDate } = useFormatting();
   const { addTransaction } = useTransactions();
   const { categories } = useCategories();
   const { accounts } = useAccounts();
+
+  // Prevent SSR issues by ensuring we're on client side
+  const [isClient, setIsClient] = useState(false);
+  
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
 
   const [formData, setFormData] = useState({
     type: 'expense' as 'income' | 'expense',
@@ -146,18 +156,25 @@ export function QuickAddModal({ open, onOpenChange }: QuickAddModalProps) {
 
           {/* Amount Input with Quick Amounts */}
           <div className="space-y-3">
-            <label className="text-sm font-medium">Amount</label>
+            <label className="text-sm font-medium">Amount ({getCurrencySymbol(currency)})</label>
             <div className="relative">
-              <DollarSign className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+              <span className="absolute left-3 top-3 text-sm font-medium text-muted-foreground">
+                {getCurrencySymbol(currency)}
+              </span>
               <Input
                 type="number"
                 step="0.01"
-                placeholder="0.00"
+                placeholder={`0.00 ${getCurrencySymbol(currency)}`}
                 value={formData.amount}
                 onChange={(e) => setFormData(prev => ({ ...prev, amount: e.target.value }))}
                 className="pl-10 text-lg font-semibold"
                 required
               />
+              {formData.amount && parseFloat(formData.amount) > 0 && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  Preview: {formatCurrency(parseFloat(formData.amount) || 0)}
+                </p>
+              )}
             </div>
             
             {/* Quick Amount Buttons */}
@@ -171,7 +188,7 @@ export function QuickAddModal({ open, onOpenChange }: QuickAddModalProps) {
                   onClick={() => setQuickAmount(amount)}
                   className="text-xs"
                 >
-                  {formatCurrency(amount)}
+                  {isClient ? formatCurrency(amount) : `$${amount.toFixed(2)}`}
                 </Button>
               ))}
             </div>
@@ -281,7 +298,7 @@ export function QuickAddModal({ open, onOpenChange }: QuickAddModalProps) {
                       {formatCurrency(parseFloat(formData.amount) || 0)}
                     </div>
                     <div className="text-xs text-muted-foreground">
-                      {new Date(formData.date).toLocaleDateString()}
+                      {isClient ? formatDate(formData.date) : new Date(formData.date).toLocaleDateString()}
                     </div>
                   </div>
                 </div>

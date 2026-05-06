@@ -6,13 +6,36 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
+// Legacy formatCurrency function - now uses currency context in components
 export function formatCurrency(amount: number, currency = 'USD'): string {
-  return new Intl.NumberFormat('en-US', {
+  return new Intl.NumberFormat(getLocaleForCurrency(currency), {
     style: 'currency',
     currency,
-  }).format(amount)
+    minimumFractionDigits: currency === 'JPY' ? 0 : 2,
+    maximumFractionDigits: currency === 'JPY' ? 0 : 2,
+  }).format(amount);
 }
 
+// Helper function to get appropriate locale for currency formatting
+function getLocaleForCurrency(currency: string): string {
+  switch (currency) {
+    case 'EUR':
+      return 'de-DE'; // German locale for Euro formatting
+    case 'GBP':
+      return 'en-GB'; // British locale for Pound formatting
+    case 'JPY':
+      return 'ja-JP'; // Japanese locale for Yen formatting
+    case 'CAD':
+      return 'en-CA'; // Canadian locale for Canadian Dollar
+    case 'AUD':
+      return 'en-AU'; // Australian locale for Australian Dollar
+    case 'USD':
+    default:
+      return 'en-US'; // US locale for US Dollar
+  }
+}
+
+// Legacy formatDate function - components should use formatting context
 export function formatDate(date: string | Date, formatStr = 'MMM dd, yyyy'): string {
   const dateObj = typeof date === 'string' ? new Date(date) : date
   return format(dateObj, formatStr)

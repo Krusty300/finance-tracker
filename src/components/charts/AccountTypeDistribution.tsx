@@ -27,7 +27,7 @@ import {
   ArrowRight,
   TrendingUp
 } from 'lucide-react';
-import { formatCurrency } from '@/lib/utils';
+import { useCurrency } from '@/contexts/CurrencyContext';
 import { Account, Transaction } from '@/lib/types';
 
 interface AccountTypeData {
@@ -51,6 +51,7 @@ export function AccountTypeDistribution({
   accounts: Account[]; 
   transactions: Transaction[] 
 }) {
+  const { formatCurrency } = useCurrency();
   const [selectedType, setSelectedType] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'pie' | 'bar'>('pie');
 

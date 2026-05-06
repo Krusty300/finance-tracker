@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import { BankAccount, BankProvider } from '@/lib/types';
 import { useBankIntegration } from '@/hooks/useBankIntegration';
+import { useCurrency } from '@/contexts/CurrencyContext';
 
 interface BankLinkingProps {
   onAccountLinked?: (account: BankAccount) => void;
@@ -29,6 +30,7 @@ interface BankLinkingProps {
 
 export function BankLinking({ onAccountLinked }: BankLinkingProps) {
   const { bankAccounts, linkBankAccount, unlinkBankAccount, syncBankTransactions, loading } = useBankIntegration();
+  const { formatCurrency } = useCurrency();
   const [showLinkDialog, setShowLinkDialog] = useState(false);
   const [linking, setLinking] = useState(false);
   const [formData, setFormData] = useState({
@@ -327,7 +329,7 @@ export function BankLinking({ onAccountLinked }: BankLinkingProps) {
                   
                   <div className="flex items-center gap-2">
                     <div className="text-right">
-                      <div className="font-semibold">{account.balance.toLocaleString()} {account.currency}</div>
+                      <div className="font-semibold">{formatCurrency(account.balance, account.currency as any)}</div>
                       <div className="text-sm text-muted-foreground">
                         Last sync: {account.lastSync ? new Date(account.lastSync).toLocaleDateString() : 'Never'}
                       </div>

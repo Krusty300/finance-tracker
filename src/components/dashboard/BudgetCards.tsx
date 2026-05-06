@@ -14,7 +14,7 @@ import {
   PieChart,
   Calendar
 } from 'lucide-react';
-import { formatCurrency } from '@/lib/utils';
+import { useCurrency } from '@/contexts/CurrencyContext';
 import { DashboardStats } from '@/lib/types';
 
 interface BudgetCardsProps {
@@ -22,6 +22,8 @@ interface BudgetCardsProps {
 }
 
 export function BudgetCards({ stats }: BudgetCardsProps) {
+  const { formatCurrency } = useCurrency();
+  
   // Validate stats data
   if (!stats || typeof stats !== 'object') {
     console.warn('Invalid stats data provided to BudgetCards:', stats);

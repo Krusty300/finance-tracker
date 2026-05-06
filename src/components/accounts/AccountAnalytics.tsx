@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Account, Transaction } from '@/lib/types';
-import { formatCurrency } from '@/lib/utils';
+import { useCurrency } from '@/contexts/CurrencyContext';
 import { TrendingUp, TrendingDown, Activity, Target, Calendar, AlertCircle } from 'lucide-react';
 import {
   LineChart,
@@ -27,6 +27,8 @@ interface AccountAnalyticsProps {
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8'];
 
 export function AccountAnalytics({ account, transactions }: AccountAnalyticsProps) {
+  const { formatCurrency } = useCurrency();
+  
   // Filter transactions for this account
   const accountTransactions = transactions.filter(t => t.account === account.name);
   

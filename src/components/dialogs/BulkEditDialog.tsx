@@ -12,11 +12,9 @@ import {
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Switch } from '@/components/ui/switch';
-import { Separator } from '@/components/ui/separator';
+import { useCurrency } from '@/contexts/CurrencyContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
 import { Edit2, DollarSign, Calendar, Tag, FileText, Building } from 'lucide-react';
@@ -48,6 +46,8 @@ export function BulkEditDialog({
   accounts,
   onUpdate
 }: BulkEditDialogProps) {
+  const { formatCurrency } = useCurrency();
+  const [selectedField, setSelectedField] = useState<EditableField | null>(null);
   const [activeFields, setActiveFields] = useState<Record<string, boolean>>({});
   const [editValues, setEditValues] = useState<Record<string, any>>({});
   const [isUpdating, setIsUpdating] = useState(false);
@@ -256,11 +256,10 @@ export function BulkEditDialog({
 
       case 'textarea':
         return (
-          <Textarea
+          <Input
             value={value}
-            onChange={(e) => handleValueChange(field.field, e.target.value)}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleValueChange(field.field, e.target.value)}
             placeholder={currentValue ? `Current: ${currentValue}` : 'Enter description'}
-            rows={3}
           />
         );
 
@@ -348,9 +347,11 @@ export function BulkEditDialog({
                         {field.icon}
                         <Label className="text-sm font-medium">{field.label}</Label>
                       </div>
-                      <Switch
+                      <input
+                        type="checkbox"
                         checked={isEnabled}
-                        onCheckedChange={(checked) => handleFieldToggle(field.field, checked)}
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleFieldToggle(field.field, e.target.checked)}
+                        className="h-4 w-4"
                       />
                     </div>
                     

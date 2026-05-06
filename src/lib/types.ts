@@ -50,6 +50,7 @@ export type Transaction = {
   date: string; // ISO date
   description: string;
   account?: string;
+  currency?: string; // Currency for this transaction
   tags?: string[];
   splits?: TransactionSplit[]; // For split transactions
   attachments?: TransactionAttachment[];

@@ -12,6 +12,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { createTransactionSchema } from '@/lib/schema';
 import { useCategories } from '@/hooks/useCategories';
 import { useAccounts } from '@/hooks/useAccounts';
+import { useCurrency } from '@/contexts/CurrencyContext';
 import { Plus } from 'lucide-react';
 
 const formSchema = createTransactionSchema.extend({
@@ -28,9 +29,11 @@ interface TransactionFormProps {
 }
 
 export function TransactionForm({ onSubmit, trigger, initialData, onDialogClose }: TransactionFormProps) {
-  const [open, setOpen] = useState(false);
-  const { categories } = useCategories();
+  const { formatCurrency, currency, getCurrencySymbol } = useCurrency();
+  const { categories, loading } = useCategories();
   const { accounts } = useAccounts();
+
+  const [open, setOpen] = useState(false);
 
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
@@ -154,17 +157,22 @@ export function TransactionForm({ onSubmit, trigger, initialData, onDialogClose 
               name="amount"
               render={({ field }: { field: any }) => (
                 <FormItem>
-                  <FormLabel>Amount</FormLabel>
+                  <FormLabel>Amount ({getCurrencySymbol(currency)})</FormLabel>
                   <FormControl>
                     <Input
                       type="number"
                       step="0.01"
-                      placeholder="0.00"
+                      placeholder={`0.00 ${getCurrencySymbol(currency)}`}
                       {...field}
                       onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
                     />
                   </FormControl>
                   <FormMessage />
+                  {field.value && field.value > 0 && (
+                    <p className="text-xs text-muted-foreground">
+                      Preview: {formatCurrency(field.value)}
+                    </p>
+                  )}
                 </FormItem>
               )}
             />

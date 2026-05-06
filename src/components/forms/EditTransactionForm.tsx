@@ -12,6 +12,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { createTransactionSchema } from '@/lib/schema';
 import { useCategories } from '@/hooks/useCategories';
 import { useAccounts } from '@/hooks/useAccounts';
+import { useCurrency } from '@/contexts/CurrencyContext';
 import { Transaction } from '@/lib/types';
 import { Edit } from 'lucide-react';
 
@@ -29,6 +30,7 @@ interface EditTransactionFormProps {
 }
 
 export function EditTransactionForm({ transaction, open, onClose, onSubmit }: EditTransactionFormProps) {
+  const { formatCurrency, currency, getCurrencySymbol } = useCurrency();
   const { categories } = useCategories();
   const { accounts } = useAccounts();
 
@@ -117,17 +119,22 @@ export function EditTransactionForm({ transaction, open, onClose, onSubmit }: Ed
               name="amount"
               render={({ field }: { field: any }) => (
                 <FormItem>
-                  <FormLabel>Amount</FormLabel>
+                  <FormLabel>Amount ({getCurrencySymbol(currency)})</FormLabel>
                   <FormControl>
                     <Input
                       type="number"
                       step="0.01"
-                      placeholder="0.00"
+                      placeholder={`0.00 ${getCurrencySymbol(currency)}`}
                       {...field}
                       onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
                     />
                   </FormControl>
                   <FormMessage />
+                  {field.value && field.value > 0 && (
+                    <p className="text-xs text-muted-foreground">
+                      Preview: {formatCurrency(field.value)}
+                    </p>
+                  )}
                 </FormItem>
               )}
             />

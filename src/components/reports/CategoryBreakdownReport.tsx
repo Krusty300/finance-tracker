@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { DashboardStats } from '@/lib/types';
-import { formatCurrency } from '@/lib/utils';
+import { useCurrency } from '@/contexts/CurrencyContext';
 import { useCategories } from '@/hooks/useCategories';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
 import { TrendingUp, PieChart as PieChartIcon, BarChart3 } from 'lucide-react';
@@ -20,6 +20,7 @@ const COLORS = [
 
 export function CategoryBreakdownReport({ categoryBreakdown }: CategoryBreakdownReportProps) {
   const { categories } = useCategories();
+  const { formatCurrency } = useCurrency();
   
   if (!categoryBreakdown || categoryBreakdown.length === 0) {
     return (

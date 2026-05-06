@@ -20,7 +20,7 @@ import {
   ArrowDownRight,
   MoreHorizontal
 } from 'lucide-react';
-import { formatCurrency } from '@/lib/utils';
+import { useCurrency } from '@/contexts/CurrencyContext';
 import { Account, Transaction } from '@/lib/types';
 import { useBankIntegration } from '@/hooks/useBankIntegration';
 
@@ -37,6 +37,7 @@ export function AccountDashboard({
   selectedAccount, 
   onAccountSelect 
 }: AccountDashboardProps) {
+  const { formatCurrency } = useCurrency();
   const [timeRange, setTimeRange] = useState<'week' | 'month' | 'quarter' | 'year'>('month');
   const { bankFeedStatus } = useBankIntegration();
 

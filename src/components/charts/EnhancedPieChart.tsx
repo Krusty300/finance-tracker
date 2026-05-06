@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { TrendingUp, TrendingDown, ArrowLeft } from 'lucide-react';
-import { formatCurrency } from '@/lib/utils';
+import { useCurrency } from '@/contexts/CurrencyContext';
 
 interface EnhancedPieChartProps {
   data: Array<{
@@ -36,6 +36,7 @@ export function EnhancedPieChart({
   onDrillDown,
   showDrillDown = true 
 }: EnhancedPieChartProps) {
+  const { formatCurrency } = useCurrency();
   const [selectedSegment, setSelectedSegment] = useState<string | undefined>(undefined);
   const [hoveredSegment, setHoveredSegment] = useState<string | undefined>(undefined);
 

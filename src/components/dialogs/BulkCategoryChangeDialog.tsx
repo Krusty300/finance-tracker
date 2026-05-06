@@ -37,6 +37,12 @@ export function BulkCategoryChangeDialog({
 
   const selectedTransactions = transactions.filter(t => selectedIds.includes(t.id));
   const currentCategories = [...new Set(selectedTransactions.map(t => t.category))];
+  
+  // Helper function to get category name by ID
+  const getCategoryName = (categoryId: string) => {
+    const category = categories.find(cat => cat.id === categoryId);
+    return category ? category.name : categoryId;
+  };
 
   const handleUpdate = async () => {
     if (!selectedCategory) {
@@ -79,7 +85,7 @@ export function BulkCategoryChangeDialog({
             <div className="flex flex-wrap gap-1 mt-1">
               {currentCategories.map(category => (
                 <Badge key={category} variant="outline" className="text-xs">
-                  {category}
+                  {getCategoryName(category)}
                 </Badge>
               ))}
             </div>

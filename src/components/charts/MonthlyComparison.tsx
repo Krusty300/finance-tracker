@@ -7,7 +7,8 @@ import { LineChart } from './LineChart';
 import { PieChart } from './PieChart';
 import { SparklineChart } from './SparklineChart';
 import { Transaction } from '@/lib/types';
-import { formatCurrency } from '@/lib/utils';
+import { useCurrency } from '@/contexts/CurrencyContext';
+import { useFormatting } from '@/contexts/FormattingContext';
 import { useCategories } from '@/hooks/useCategories';
 
 interface MonthlyComparisonProps {
@@ -16,6 +17,8 @@ interface MonthlyComparisonProps {
 }
 
 export function MonthlyComparison({ transactions, className }: MonthlyComparisonProps) {
+  const { formatCurrency } = useCurrency();
+  const { formatDate } = useFormatting();
   const { categories } = useCategories();
 
   if (!transactions || transactions.length === 0) {
@@ -91,7 +94,7 @@ export function MonthlyComparison({ transactions, className }: MonthlyComparison
 
   // Line chart data
   const lineChartData = sortedMonths.map(m => ({
-    label: new Date(m.month + '-01').toLocaleDateString('en-US', { month: 'short' }),
+    label: formatDate(m.month + '-01'),
     income: m.income,
     expenses: m.expenses
   }));

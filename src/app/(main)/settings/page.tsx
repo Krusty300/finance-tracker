@@ -27,20 +27,28 @@ import { seedSampleData } from '@/lib/seedData';
 import { db } from '@/lib/db';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useOnboarding } from '@/contexts/OnboardingContext';
+import { useCurrency } from '@/contexts/CurrencyContext';
+import { useFormatting } from '@/contexts/FormattingContext';
 import { OnboardingProgress } from '@/components/onboarding/OnboardingProgress';
+import { CurrencyConverter } from '@/components/settings/CurrencyConverter';
+import { FormattingPreview } from '@/components/settings/FormattingPreview';
+import { FinancialCalculator } from '@/components/settings/FinancialCalculator';
+import { ThemeSettings } from '@/components/settings/ThemeSettings';
 import { toast } from 'sonner';
 
 export default function SettingsPage() {
-  const { theme, setTheme } = useTheme();
   const { resetOnboarding, progress } = useOnboarding();
-  
-  // Theme Settings
-  const [selectedTheme, setSelectedTheme] = useState(theme);
-  
-  // Currency & Formatting Settings
-  const [currency, setCurrency] = useState('USD');
-  const [dateFormat, setDateFormat] = useState('MM/DD/YYYY');
-  const [numberFormat, setNumberFormat] = useState('1,234.56');
+  const { currency, setCurrency, formatCurrency, availableCurrencies, getCurrencySymbol } = useCurrency();
+  const { 
+    dateFormat, 
+    setDateFormat, 
+    numberFormat, 
+    setNumberFormat, 
+    formatDate: formatDateString,
+    formatNumber,
+    availableDateFormats,
+    availableNumberFormats
+  } = useFormatting();
   
   // Import/Export Settings
   const [exportFormat, setExportFormat] = useState('json');
@@ -266,16 +274,7 @@ export default function SettingsPage() {
     input.click();
   };
 
-  const handleThemeChange = (newTheme: string) => {
-    if (!['light', 'dark', 'system'].includes(newTheme)) {
-      console.warn('Invalid theme value:', newTheme);
-      return;
-    }
-    const themeValue = newTheme as 'light' | 'dark' | 'system';
-    setTheme(themeValue);
-    setSelectedTheme(themeValue);
-  };
-
+  
   const handleClearCache = () => {
     try {
       // Clear application cache but preserve data
@@ -342,46 +341,12 @@ export default function SettingsPage() {
         {/* Onboarding Progress */}
         <OnboardingProgress />
         
+        {/* Financial Calculator */}
+        <FinancialCalculator />
+        
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Theme Settings */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center">
-              <Monitor className="mr-2 h-5 w-5" />
-              Appearance
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="theme">Theme</Label>
-              <Select value={selectedTheme} onValueChange={handleThemeChange}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select theme" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="light">
-                    <div className="flex items-center gap-2">
-                      <Sun className="h-4 w-4" />
-                      <span>Light</span>
-                    </div>
-                  </SelectItem>
-                  <SelectItem value="dark">
-                    <div className="flex items-center gap-2">
-                      <Moon className="h-4 w-4" />
-                      <span>Dark</span>
-                    </div>
-                  </SelectItem>
-                  <SelectItem value="system">
-                    <div className="flex items-center gap-2">
-                      <Monitor className="h-4 w-4" />
-                      <span>System</span>
-                    </div>
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </CardContent>
-        </Card>
+        {/* Enhanced Theme Settings */}
+        <ThemeSettings />
 
         {/* Currency & Formatting */}
         <Card>
@@ -399,12 +364,16 @@ export default function SettingsPage() {
                     <SelectValue placeholder="Select currency" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="USD">USD - US Dollar ($)</SelectItem>
-                    <SelectItem value="EUR">EUR - Euro (€)</SelectItem>
-                    <SelectItem value="GBP">GBP - British Pound (£)</SelectItem>
-                    <SelectItem value="JPY">JPY - Japanese Yen (¥)</SelectItem>
-                    <SelectItem value="CAD">CAD - Canadian Dollar (C$)</SelectItem>
-                    <SelectItem value="AUD">AUD - Australian Dollar (A$)</SelectItem>
+                    {availableCurrencies.map((curr) => (
+                      <SelectItem key={curr} value={curr}>
+                        {curr} - {curr === 'USD' ? 'US Dollar' : 
+                               curr === 'EUR' ? 'Euro' :
+                               curr === 'GBP' ? 'British Pound' :
+                               curr === 'JPY' ? 'Japanese Yen' :
+                               curr === 'CAD' ? 'Canadian Dollar' :
+                               curr === 'AUD' ? 'Australian Dollar' : curr} ({getCurrencySymbol(curr)})
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -415,10 +384,11 @@ export default function SettingsPage() {
                     <SelectValue placeholder="Select format" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="MM/DD/YYYY">MM/DD/YYYY</SelectItem>
-                    <SelectItem value="DD/MM/YYYY">DD/MM/YYYY</SelectItem>
-                    <SelectItem value="YYYY-MM-DD">YYYY-MM-DD</SelectItem>
-                    <SelectItem value="DD-MM-YYYY">DD-MM-YYYY</SelectItem>
+                    {availableDateFormats.map((format) => (
+                      <SelectItem key={format} value={format}>
+                        {format}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -429,16 +399,23 @@ export default function SettingsPage() {
                     <SelectValue placeholder="Select format" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="1,234.56">1,234.56 (US)</SelectItem>
-                    <SelectItem value="1.234,56">1.234,56 (EU)</SelectItem>
-                    <SelectItem value="1 234.56">1 234.56 (Space)</SelectItem>
-                    <SelectItem value="1234.56">1234.56 (No separator)</SelectItem>
+                    {availableNumberFormats.map((format) => (
+                      <SelectItem key={format} value={format}>
+                        {format}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
             </div>
           </CardContent>
         </Card>
+
+        {/* Formatting Preview */}
+        <FormattingPreview />
+
+        {/* Currency Converter */}
+        <CurrencyConverter />
 
         {/* Import/Export */}
         <Card>

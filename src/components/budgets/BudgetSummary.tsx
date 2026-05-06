@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { Budget } from '@/lib/types';
-import { formatCurrency } from '@/lib/utils';
+import { useCurrency } from '@/contexts/CurrencyContext';
 import { TrendingUp, AlertCircle, Target } from 'lucide-react';
 
 interface BudgetSummaryProps {
@@ -22,6 +22,7 @@ export function BudgetSummary({
   overBudgetCount,
   nearLimitCount,
 }: BudgetSummaryProps) {
+  const { formatCurrency } = useCurrency();
   // Guard against invalid data
   const safeTotalSpent = Number(totalSpent) || 0;
   const safeTotalBudget = Number(totalBudget) || 0;

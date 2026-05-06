@@ -13,6 +13,7 @@ import { PopupSelector, SelectorOption } from '@/components/ui/popup-selector';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useCategories } from '@/hooks/useCategories';
+import { useCurrency } from '@/contexts/CurrencyContext';
 import { Budget } from '@/lib/types';
 import { Calendar, CalendarDays, CalendarRange, CalendarClock, Calendar as CalendarIcon } from 'lucide-react';
 
@@ -125,6 +126,7 @@ const periodOptions: Array<SelectorOption<'weekly' | 'biweekly' | 'monthly' | 'q
 ];
 
 export function BudgetForm({ budget, onSubmit, onCancel }: BudgetFormProps) {
+  const { formatCurrency, currency, getCurrencySymbol } = useCurrency();
   const { categories, loading } = useCategories();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -346,19 +348,24 @@ export function BudgetForm({ budget, onSubmit, onCancel }: BudgetFormProps) {
               name="amount"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel htmlFor="budget-amount">Budget Amount</FormLabel>
+                  <FormLabel htmlFor="budget-amount">Budget Amount ({getCurrencySymbol(currency)})</FormLabel>
                   <FormControl>
                     <Input
                       id="budget-amount"
                       type="number"
                       step="0.01"
-                      placeholder="0.00"
+                      placeholder={`0.00 ${getCurrencySymbol(currency)}`}
                       aria-describedby={form.formState.errors.amount ? 'amount-error' : undefined}
                       {...field}
                       onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
                     />
                   </FormControl>
                   <FormMessage />
+                  {field.value && field.value > 0 && (
+                    <p className="text-xs text-muted-foreground">
+                      Preview: {formatCurrency(field.value)}
+                    </p>
+                  )}
                   {form.formState.errors.amount && (
                     <span id="amount-error" className="sr-only">
                       Amount error: {form.formState.errors.amount.message}

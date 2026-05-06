@@ -20,23 +20,31 @@ export function ThemeProvider({
   children: React.ReactNode;
   defaultTheme?: Theme;
 }) {
-  const [theme, setTheme] = useState<Theme>(() => {
-    if (typeof window !== 'undefined') {
+  const [isLoaded, setIsLoaded] = useState(false);
+  const [theme, setTheme] = useState<Theme>(defaultTheme);
+  const [resolvedTheme, setResolvedTheme] = useState<'dark' | 'light'>('light');
+
+  // Load theme from localStorage on mount
+  useEffect(() => {
+    const loadTheme = () => {
       try {
         const saved = localStorage.getItem('theme');
         if (saved && ['light', 'dark', 'system'].includes(saved)) {
-          return saved as Theme;
+          setTheme(saved as Theme);
         }
       } catch (error) {
         console.warn('Failed to load theme from localStorage:', error);
+      } finally {
+        setIsLoaded(true);
       }
-    }
-    return defaultTheme;
-  });
+    };
 
-  const [resolvedTheme, setResolvedTheme] = useState<'dark' | 'light'>('light');
+    loadTheme();
+  }, []);
 
   useEffect(() => {
+    if (!isLoaded) return;
+    
     const root = window.document.documentElement;
     
     const applyTheme = (theme: Theme) => {
@@ -66,7 +74,7 @@ export function ThemeProvider({
 
     mediaQuery.addEventListener('change', handleChange);
     return () => mediaQuery.removeEventListener('change', handleChange);
-  }, [theme]);
+  }, [theme, isLoaded]);
 
   useEffect(() => {
     try {
@@ -90,6 +98,11 @@ export function ThemeProvider({
     resolvedTheme,
     toggleTheme,
   };
+
+  // Prevent rendering until theme is loaded to avoid flash
+  if (!isLoaded) {
+    return null;
+  }
 
   return (
     <ThemeContext.Provider value={value}>

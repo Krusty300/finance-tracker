@@ -25,7 +25,7 @@ import {
   ArrowDownRight,
   Minus
 } from 'lucide-react';
-import { formatCurrency } from '@/lib/utils';
+import { useCurrency } from '@/contexts/CurrencyContext';
 import { Account, Transaction } from '@/lib/types';
 
 interface WaterfallData {
@@ -48,6 +48,7 @@ export function AccountBalanceWaterfall({
   period = 'month',
   title = "Account Balance Waterfall"
 }: AccountBalanceWaterfallProps) {
+  const { formatCurrency } = useCurrency();
   const [selectedPeriod, setSelectedPeriod] = useState(period);
 
   // Calculate waterfall data

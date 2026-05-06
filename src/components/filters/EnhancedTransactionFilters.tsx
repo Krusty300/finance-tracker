@@ -26,7 +26,8 @@ import {
 import { Transaction } from '@/lib/types';
 import { useCategories } from '@/hooks/useCategories';
 import { useAccounts } from '@/hooks/useAccounts';
-import { formatDate } from '@/lib/utils';
+import { useFormatting } from '@/contexts/FormattingContext';
+import { useCurrency } from '@/contexts/CurrencyContext';
 import { toast } from 'sonner';
 
 interface FilterState {
@@ -57,68 +58,69 @@ interface EnhancedTransactionFiltersProps {
 const quickPresets = [
   {
     name: 'This Week',
-    getDateRange: () => {
+    getDateRange: (formatDate: (date: Date) => string) => {
       const now = new Date();
       const startOfWeek = new Date(now.setDate(now.getDate() - now.getDay()));
       return {
         start: formatDate(startOfWeek),
-        end: formatDate(new Date())
-      };
-    }
-  },
-  {
-    name: 'Last 7 Days',
-    getDateRange: () => {
-      const now = new Date();
-      const sevenDaysAgo = new Date(now.setDate(now.getDate() - 7));
-      return {
-        start: formatDate(sevenDaysAgo),
-        end: formatDate(new Date())
-      };
-    }
-  },
-  {
-    name: 'Last 30 Days',
-    getDateRange: () => {
-      const now = new Date();
-      const thirtyDaysAgo = new Date(now.setDate(now.getDate() - 30));
-      return {
-        start: formatDate(thirtyDaysAgo),
-        end: formatDate(new Date())
+        end: formatDate(now)
       };
     }
   },
   {
     name: 'This Month',
-    getDateRange: () => {
+    getDateRange: (formatDate: (date: Date) => string) => {
       const now = new Date();
       const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
       return {
         start: formatDate(startOfMonth),
-        end: formatDate(new Date())
+        end: formatDate(now)
       };
     }
   },
   {
-    name: 'Last Month',
-    getDateRange: () => {
+    name: 'Last 30 Days',
+    getDateRange: (formatDate: (date: Date) => string) => {
       const now = new Date();
-      const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-      const endOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0);
+      const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
       return {
-        start: formatDate(lastMonth),
-        end: formatDate(endOfLastMonth)
+        start: formatDate(thirtyDaysAgo),
+        end: formatDate(now)
+      };
+    }
+  },
+  {
+    name: 'Last 3 Months',
+    getDateRange: (formatDate: (date: Date) => string) => {
+      const now = new Date();
+      const threeMonthsAgo = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+      return {
+        start: formatDate(threeMonthsAgo),
+        end: formatDate(now)
       };
     }
   },
   {
     name: 'This Year',
-    getDateRange: () => {
+    getDateRange: (formatDate: (date: Date) => string) => {
       const now = new Date();
       const startOfYear = new Date(now.getFullYear(), 0, 1);
       return {
         start: formatDate(startOfYear),
-        end: formatDate(new Date())
+        end: formatDate(now)
+      };
+    }
+  },
+  {
+    name: 'Last Year',
+    getDateRange: (formatDate: (date: Date) => string) => {
+      const now = new Date();
+      const lastYear = now.getFullYear() - 1;
+      const startOfLastYear = new Date(lastYear, 0, 1);
+      const endOfLastYear = new Date(lastYear, 11, 31);
+      return {
+        start: formatDate(startOfLastYear),
+        end: formatDate(endOfLastYear)
       };
     }
   }
@@ -131,6 +133,10 @@ export function EnhancedTransactionFilters({
   accounts, 
   transactions 
 }: EnhancedTransactionFiltersProps) {
+  const { formatDate } = useFormatting();
+  const { formatCurrency } = useCurrency();
+  const { categories: allCategories } = useCategories();
+  const { accounts: allAccounts } = useAccounts();
   const [savedFilters, setSavedFilters] = useState<SavedFilter[]>([]);
   const [showSaveDialog, setShowSaveDialog] = useState(false);
   const [filterName, setFilterName] = useState('');
@@ -166,7 +172,7 @@ export function EnhancedTransactionFilters({
   };
 
   const handleQuickPreset = (preset: typeof quickPresets[0]) => {
-    const dateRange = preset.getDateRange();
+    const dateRange = preset.getDateRange(formatDate);
     onFiltersChange({
       ...filters,
       dateRange
@@ -475,12 +481,12 @@ export function EnhancedTransactionFilters({
 
           {/* Amount Range Slider */}
           <div>
-            <Label>Amount Range: ${filters.amountRange.min} - ${filters.amountRange.max}</Label>
+            <Label>Amount Range: {formatCurrency(filters.amountRange.min)} - {formatCurrency(filters.amountRange.max)}</Label>
             <Slider
               value={[filters.amountRange.min, filters.amountRange.max]}
-              onValueChange={([min, max]: [number, number]) => onFiltersChange({ 
+              onValueChange={(value: number[]) => onFiltersChange({ 
                 ...filters, 
-                amountRange: { min, max } 
+                amountRange: { min: value[0], max: value[1] } 
               })}
               min={minAmount}
               max={maxAmount}
@@ -556,7 +562,7 @@ export function EnhancedTransactionFilters({
               )}
               {(filters.amountRange.min !== minAmount || filters.amountRange.max !== maxAmount) && (
                 <Badge variant="secondary">
-                  Amount: ${filters.amountRange.min} - ${filters.amountRange.max}
+                  Amount: {formatCurrency(filters.amountRange.min)} - {formatCurrency(filters.amountRange.max)}
                 </Badge>
               )}
             </div>

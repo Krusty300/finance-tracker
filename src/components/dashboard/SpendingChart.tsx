@@ -1,6 +1,9 @@
 'use client';
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Progress } from '@/components/ui/progress';
+import { useCurrency } from '@/contexts/CurrencyContext';
+import { TrendingUp, TrendingDown, DollarSign } from 'lucide-react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
 import { useCategories } from '@/hooks/useCategories';
 
@@ -18,6 +21,7 @@ const COLORS = [
 ];
 
 export function SpendingChart({ data }: SpendingChartProps) {
+  const { formatCurrency } = useCurrency();
   const { categories } = useCategories();
 
   const chartData = data.map(item => {
@@ -36,7 +40,7 @@ export function SpendingChart({ data }: SpendingChartProps) {
         <div className="bg-background border rounded-lg p-2 shadow-lg">
           <p className="font-medium">{payload[0].name}</p>
           <p className="text-sm text-muted-foreground">
-            ${payload[0].value.toFixed(2)}
+            {formatCurrency(payload[0].value)}
           </p>
         </div>
       );
@@ -101,7 +105,7 @@ export function SpendingChart({ data }: SpendingChartProps) {
                 <span className="text-sm">{item.name}</span>
               </div>
               <span className="text-sm font-medium">
-                ${item.value.toFixed(2)}
+                {formatCurrency(item.value)}
               </span>
             </div>
           ))}

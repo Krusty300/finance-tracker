@@ -34,7 +34,7 @@ import {
   BarChart3,
   AreaChart as AreaChartIcon
 } from 'lucide-react';
-import { formatCurrency } from '@/lib/utils';
+import { useCurrency } from '@/contexts/CurrencyContext';
 
 interface BudgetData {
   category: string;
@@ -61,6 +61,7 @@ export function BudgetComparisonChart({
   showComparison = true,
   period = 'current'
 }: BudgetComparisonChartProps) {
+  const { formatCurrency } = useCurrency();
   const [selectedChart, setSelectedChart] = useState(chartType);
   const [hoveredCategory, setHoveredCategory] = useState<string | null>(null);
 

@@ -11,7 +11,7 @@ import {
   ArrowRight,
   Target
 } from 'lucide-react';
-import { formatCurrency } from '@/lib/utils';
+import { useCurrency } from '@/contexts/CurrencyContext';
 import { DashboardStats } from '@/lib/types';
 import { useRouter } from 'next/navigation';
 
@@ -20,6 +20,7 @@ interface BudgetAlertsProps {
 }
 
 export function BudgetAlerts({ stats }: BudgetAlertsProps) {
+  const { formatCurrency } = useCurrency();
   const router = useRouter();
   const { budgetBreakdown, budgetHealth } = stats;
 

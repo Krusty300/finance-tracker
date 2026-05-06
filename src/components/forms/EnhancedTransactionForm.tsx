@@ -33,7 +33,7 @@ import {
   Layout,
   Camera
 } from 'lucide-react';
-import { formatCurrency } from '@/lib/utils';
+import { useCurrency } from '@/contexts/CurrencyContext';
 
 interface EnhancedTransactionFormProps {
   onSubmit: (transaction: Omit<Transaction, 'id'>) => void;
@@ -54,6 +54,7 @@ export function EnhancedTransactionForm({
   submitText = 'Add Transaction',
   className
 }: EnhancedTransactionFormProps) {
+  const { formatCurrency, currency, getCurrencySymbol } = useCurrency();
   const { categories } = useCategories();
   const { accounts } = useAccounts();
   const { templates, getQuickAddTemplates, getMostUsedTemplates, useTemplate } = useTransactionTemplates();
@@ -251,16 +252,21 @@ export function EnhancedTransactionForm({
         {/* Basic Fields */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-2">
-            <Label htmlFor="amount">Amount *</Label>
+            <Label htmlFor="amount">Amount ({getCurrencySymbol(currency)}) *</Label>
             <Input
               id="amount"
               type="number"
               step="0.01"
-              placeholder="0.00"
+              placeholder={`0.00 ${getCurrencySymbol(currency)}`}
               value={formData.amount}
               onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
               required
             />
+            {formData.amount && (
+              <p className="text-xs text-muted-foreground">
+                Preview: {formatCurrency(parseFloat(formData.amount) || 0)}
+              </p>
+            )}
           </div>
           
           <div className="space-y-2">
@@ -398,7 +404,7 @@ export function EnhancedTransactionForm({
                       </SelectContent>
                     </Select>
                     <Input
-                      placeholder="Amount"
+                      placeholder={`0.00 ${getCurrencySymbol(currency)}`}
                       type="number"
                       step="0.01"
                       value={newSplit.amount}

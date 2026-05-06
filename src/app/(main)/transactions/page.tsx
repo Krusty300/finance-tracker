@@ -14,7 +14,8 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Search, Filter, Download, Calendar, X, RotateCcw } from 'lucide-react';
-import { formatDate, formatCurrency } from '@/lib/utils';
+import { useCurrency } from '@/contexts/CurrencyContext';
+import { useFormatting } from '@/contexts/FormattingContext';
 import { toast } from 'sonner';
 import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
 import { DeleteConfirmDialog } from '@/components/dialogs/DeleteConfirmDialog';
@@ -55,6 +56,8 @@ interface FilterState {
 }
 
 export default function TransactionsPage() {
+  const { formatCurrency } = useCurrency();
+  const { formatDate } = useFormatting();
   const searchParams = useSearchParams();
   const { transactions, addTransaction, deleteTransaction, updateTransaction } = useTransactions();
   const { categories } = useCategories();
@@ -337,12 +340,25 @@ export default function TransactionsPage() {
     return transaction?.description || 'Unknown transaction';
   };
 
+  const getTransactionDisplay = (id: string) => {
+    const transaction = transactions.find(t => t.id === id);
+    if (!transaction) return '';
+    
+    const amount = transaction.type === 'income' 
+      ? `+${formatCurrency(transaction.amount)}` 
+      : `-${formatCurrency(transaction.amount)}`;
+    const date = formatDate(transaction.date);
+    return `${amount} • ${date}`;
+  };
+
   const getTransactionDetails = (id: string) => {
     const transaction = transactions.find(t => t.id === id);
     if (!transaction) return '';
     
-    const amount = transaction.type === 'income' ? `+$${transaction.amount.toFixed(2)}` : `-$${transaction.amount.toFixed(2)}`;
-    const date = new Date(transaction.date).toLocaleDateString();
+    const amount = transaction.type === 'income' 
+      ? `+${formatCurrency(transaction.amount)}` 
+      : `-${formatCurrency(transaction.amount)}`;
+    const date = formatDate(transaction.date);
     return `${amount} • ${date}`;
   };
 
@@ -358,8 +374,8 @@ export default function TransactionsPage() {
     }, 0);
 
     const details = [];
-    if (totalIncome > 0) details.push(`Income: +$${totalIncome.toFixed(2)}`);
-    if (totalExpense > 0) details.push(`Expenses: -$${totalExpense.toFixed(2)}`);
+    if (totalIncome > 0) details.push(`Income: +${formatCurrency(totalIncome)}`);
+    if (totalExpense > 0) details.push(`Expenses: -${formatCurrency(totalExpense)}`);
     
     return details.join(' • ');
   };
@@ -708,7 +724,7 @@ export default function TransactionsPage() {
               <div className="flex items-center justify-between mb-3">
                 <div>
                   <div className="text-2xl font-bold text-green-600">
-                    +${calculateTotalIncome(filteredTransactions).toFixed(2)}
+                    +{formatCurrency(calculateTotalIncome(filteredTransactions))}
                   </div>
                   <p className="text-xs text-muted-foreground">Total Income</p>
                 </div>
@@ -732,7 +748,7 @@ export default function TransactionsPage() {
             <div className="flex items-center justify-between mb-3">
               <div>
                 <div className="text-2xl font-bold text-red-600">
-                  -${calculateTotalExpenses(filteredTransactions).toFixed(2)}
+                  -{formatCurrency(calculateTotalExpenses(filteredTransactions))}
                 </div>
                 <p className="text-xs text-muted-foreground">Total Expenses</p>
               </div>
@@ -756,7 +772,7 @@ export default function TransactionsPage() {
             <div className="flex items-center justify-between mb-3">
               <div>
                 <div className={`text-2xl font-bold ${calculateNet(filteredTransactions) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                  ${calculateNet(filteredTransactions).toFixed(2)}
+                  {formatCurrency(calculateNet(filteredTransactions))}
                 </div>
                 <p className="text-xs text-muted-foreground">Net</p>
               </div>

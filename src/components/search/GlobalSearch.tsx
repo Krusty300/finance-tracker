@@ -10,7 +10,8 @@ import { useCategories } from '@/hooks/useCategories';
 import { useAccounts } from '@/hooks/useAccounts';
 import { useBudgets } from '@/hooks/useBudgets';
 import { Transaction, Category, Account, Budget } from '@/lib/types';
-import { formatCurrency, formatDate } from '@/lib/utils';
+import { useCurrency } from '@/contexts/CurrencyContext';
+import { useFormatting } from '@/contexts/FormattingContext';
 import { 
   Search, 
   Receipt, 
@@ -40,6 +41,8 @@ export function GlobalSearch() {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
   const router = useRouter();
+  const { formatCurrency } = useCurrency();
+  const { formatDate } = useFormatting();
   
   const { transactions } = useTransactions();
   const { categories } = useCategories();

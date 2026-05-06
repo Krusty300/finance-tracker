@@ -3,7 +3,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { DashboardStats } from '@/lib/types';
-import { formatCurrency } from '@/lib/utils';
+import { useCurrency } from '@/contexts/CurrencyContext';
 import { TrendingUp, TrendingDown, Minus, Calendar } from 'lucide-react';
 import {
   LineChart,
@@ -23,6 +23,8 @@ interface MonthlyTrendsReportProps {
 }
 
 export function MonthlyTrendsReport({ monthlyTrend }: MonthlyTrendsReportProps) {
+  const { formatCurrency } = useCurrency();
+  
   if (!monthlyTrend || !Array.isArray(monthlyTrend) || monthlyTrend.length === 0) {
     return (
       <Card>

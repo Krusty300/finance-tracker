@@ -2,7 +2,7 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { TrendingUp, TrendingDown, DollarSign, Wallet } from 'lucide-react';
-import { formatCurrency } from '@/lib/utils';
+import { useCurrency } from '@/contexts/CurrencyContext';
 
 interface DashboardCardsProps {
   totalBalance: number;
@@ -17,6 +17,7 @@ export function DashboardCards({
   monthlyExpenses,
   netWorth,
 }: DashboardCardsProps) {
+  const { formatCurrency } = useCurrency();
   // Validate numeric values
   const safeTotalBalance = typeof totalBalance === 'number' && !isNaN(totalBalance) ? totalBalance : 0;
   const safeMonthlyIncome = typeof monthlyIncome === 'number' && !isNaN(monthlyIncome) ? monthlyIncome : 0;

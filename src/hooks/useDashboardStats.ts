@@ -5,6 +5,8 @@ import { useCategories } from './useCategories';
 import { useBudgets } from './useBudgets';
 import { useAccounts } from './useAccounts';
 import { useRealtime } from './useRealtime';
+import { useCurrency } from '@/contexts/CurrencyContext';
+import { useCurrencyConversion } from './useCurrencyConversion';
 import { getMonthStart, getMonthEnd } from '@/lib/utils';
 import { calculatePeriodSpending, getPeriodDisplayText } from '@/utils/period-aware-calculations';
 
@@ -14,6 +16,8 @@ export function useDashboardStats() {
   const { budgets } = useBudgets();
   const { accounts, getTotalBalance } = useAccounts();
   const { subscribe } = useRealtime();
+  const { formatCurrency, currency: baseCurrency } = useCurrency();
+  const { convertAmount } = useCurrencyConversion();
   
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);

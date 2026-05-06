@@ -26,7 +26,7 @@ import {
   AlertTriangle,
   Loader2
 } from 'lucide-react';
-import { formatCurrency } from '@/lib/utils';
+import { useCurrency } from '@/contexts/CurrencyContext';
 import { toast } from 'sonner';
 import { validateTemplateData, sanitizeTags, parseAmount, validateTemplateUsage, TemplateValidationError } from '@/utils/templateValidation';
 import { LoadingIndicator } from '@/components/ui/LoadingIndicator';
@@ -46,6 +46,7 @@ export function TemplateManager({ onUseTemplate }: TemplateManagerProps) {
     getMostUsedTemplates 
   } = useTransactionTemplates();
   
+  const { formatCurrency } = useCurrency();
   const { categories } = useCategories();
   const { accounts } = useAccounts();
 

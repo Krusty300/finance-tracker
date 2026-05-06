@@ -10,7 +10,7 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Budget } from '@/lib/types';
-import { formatCurrency } from '@/lib/utils';
+import { useCurrency } from '@/contexts/CurrencyContext';
 import { useCategories } from '@/hooks/useCategories';
 import { AlertTriangle } from 'lucide-react';
 
@@ -27,6 +27,7 @@ export function DeleteBudgetDialog({
   budget,
   onConfirm,
 }: DeleteBudgetDialogProps) {
+  const { formatCurrency } = useCurrency();
   const { categories } = useCategories();
   
   if (!budget) return null;

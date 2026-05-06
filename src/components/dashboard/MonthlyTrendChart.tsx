@@ -1,6 +1,7 @@
 'use client';
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { useCurrency } from '@/contexts/CurrencyContext';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 
 interface MonthlyTrendChartProps {
@@ -11,23 +12,24 @@ interface MonthlyTrendChartProps {
   }>;
 }
 
-const CustomTooltip = ({ active, payload, label }: any) => {
-  if (active && payload && payload.length) {
-    return (
-      <div className="bg-background border rounded-lg p-3 shadow-lg">
-        <p className="font-medium mb-2">{label}</p>
-        {payload.map((entry: any, index: number) => (
-          <p key={index} className="text-sm" style={{ color: entry.color }}>
-            {entry.name}: ${entry.value.toFixed(2)}
-          </p>
-        ))}
-      </div>
-    );
-  }
-  return null;
-};
-
 export function MonthlyTrendChart({ data }: MonthlyTrendChartProps) {
+  const { formatCurrency } = useCurrency();
+  
+  const CustomTooltipWithCurrency = ({ active, payload, label }: any) => {
+    if (active && payload && payload.length) {
+      return (
+        <div className="bg-background border rounded-lg p-3 shadow-lg">
+          <p className="font-medium mb-2">{label}</p>
+          {payload.map((entry: any, index: number) => (
+            <p key={index} className="text-sm" style={{ color: entry.color }}>
+              {entry.name}: {formatCurrency(entry.value)}
+            </p>
+          ))}
+        </div>
+      );
+    }
+    return null;
+  };
   if (data.length === 0) {
     return (
       <Card>
@@ -59,9 +61,9 @@ export function MonthlyTrendChart({ data }: MonthlyTrendChartProps) {
               />
               <YAxis 
                 tick={{ fontSize: 12 }}
-                tickFormatter={(value) => `$${value}`}
+                tickFormatter={(value) => formatCurrency(value)}
               />
-              <Tooltip content={<CustomTooltip />} />
+              <Tooltip content={<CustomTooltipWithCurrency />} />
               <Legend />
               <Line
                 type="monotone"

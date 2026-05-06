@@ -5,7 +5,7 @@ import { Transaction } from '@/lib/types';
 import { TransactionTable } from './TransactionTable';
 import { Button } from '@/components/ui/button';
 import { Loader2 } from 'lucide-react';
-import { formatCurrency } from '@/lib/utils';
+import { useCurrency } from '@/contexts/CurrencyContext';
 
 interface InfiniteScrollTransactionsProps {
   transactions: Transaction[];
@@ -26,6 +26,7 @@ export function InfiniteScrollTransactions({
   onDelete,
   onDuplicate
 }: InfiniteScrollTransactionsProps) {
+  const { formatCurrency } = useCurrency();
   const [displayedCount, setDisplayedCount] = useState(20);
   const [isLoading, setIsLoading] = useState(false);
   const observer = useRef<IntersectionObserver | null>(null);

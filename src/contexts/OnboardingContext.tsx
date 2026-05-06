@@ -108,34 +108,42 @@ const DEFAULT_STEPS: OnboardingStep[] = [
 ];
 
 export function OnboardingProvider({ children }: { children: ReactNode }) {
+  const [isLoaded, setIsLoaded] = useState(false);
   const [isActive, setIsActive] = useState(false);
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [steps, setSteps] = useState<OnboardingStep[]>(DEFAULT_STEPS);
 
   // Load onboarding state from localStorage
   useEffect(() => {
-    const savedState = localStorage.getItem('onboarding-state');
-    if (savedState) {
-      try {
-        const parsed = JSON.parse(savedState);
-        setSteps(parsed.steps || DEFAULT_STEPS);
-        setCurrentStepIndex(parsed.currentStepIndex || 0);
-        setIsActive(parsed.isActive || false);
-      } catch (error) {
-        console.error('Failed to load onboarding state:', error);
+    const loadState = () => {
+      const savedState = localStorage.getItem('onboarding-state');
+      if (savedState) {
+        try {
+          const parsed = JSON.parse(savedState);
+          setSteps(parsed.steps || DEFAULT_STEPS);
+          setCurrentStepIndex(parsed.currentStepIndex || 0);
+          setIsActive(parsed.isActive || false);
+        } catch (error) {
+          console.error('Failed to load onboarding state:', error);
+        }
       }
-    }
+      setIsLoaded(true);
+    };
+
+    loadState();
   }, []);
 
   // Save onboarding state to localStorage whenever it changes
   useEffect(() => {
+    if (!isLoaded) return;
+    
     const stateToSave = {
       isActive,
       currentStepIndex,
       steps,
     };
     localStorage.setItem('onboarding-state', JSON.stringify(stateToSave));
-  }, [isActive, currentStepIndex, steps]);
+  }, [isActive, currentStepIndex, steps, isLoaded]);
 
   // Calculate progress
   const progress: OnboardingProgress = {
@@ -208,6 +216,11 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
       step.id === stepId ? { ...step, completed } : step
     ));
   };
+
+  // Prevent rendering until onboarding state is loaded to avoid flash
+  if (!isLoaded) {
+    return null;
+  }
 
   return (
     <OnboardingContext.Provider

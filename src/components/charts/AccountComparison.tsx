@@ -30,7 +30,7 @@ import {
   Target,
   Scale
 } from 'lucide-react';
-import { formatCurrency } from '@/lib/utils';
+import { useCurrency } from '@/contexts/CurrencyContext';
 import { Account, Transaction } from '@/lib/types';
 
 interface ComparisonData {
@@ -56,6 +56,7 @@ export function AccountComparison({
   metric = 'balance',
   chartType = 'bar'
 }: AccountComparisonProps) {
+  const { formatCurrency } = useCurrency();
   const [selectedMetric, setSelectedMetric] = useState(metric);
   const [selectedChartType, setSelectedChartType] = useState(chartType);
 

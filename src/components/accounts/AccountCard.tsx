@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Account } from '@/lib/types';
-import { formatCurrency } from '@/lib/utils';
+import { useCurrency } from '@/contexts/CurrencyContext';
 import { Edit, Trash2, TrendingUp, TrendingDown, Minus } from 'lucide-react';
 
 interface AccountCardProps {
@@ -32,6 +32,8 @@ export function AccountCard({
   onViewTransactions,
   onViewDetails,
 }: AccountCardProps) {
+  const { formatCurrency } = useCurrency();
+  
   // Validate account data
   if (!account) {
     console.warn('Invalid account data provided to AccountCard');

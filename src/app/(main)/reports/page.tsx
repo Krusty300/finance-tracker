@@ -36,10 +36,11 @@ import {
   Mail,
   Calendar
 } from 'lucide-react';
+import { useCurrency } from '@/contexts/CurrencyContext';
 import { toast } from 'sonner';
-import { formatCurrency } from '@/lib/utils';
 
 export default function ReportsPage() {
+  const { formatCurrency } = useCurrency();
   const { stats, loading, refreshStats } = useDashboardStats();
   const { transactions } = useTransactions();
   const { goals, addGoal, updateGoal, deleteGoal } = useGoals();

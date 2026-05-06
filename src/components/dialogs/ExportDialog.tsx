@@ -16,7 +16,8 @@ import {
 } from '@/components/ui/dialog';
 import { Download, FileDown, FileSpreadsheet, FileText } from 'lucide-react';
 import { Transaction, Category, Account } from '@/lib/types';
-import { formatDate, formatCurrency } from '@/lib/utils';
+import { useCurrency } from '@/contexts/CurrencyContext';
+import { useFormatting } from '@/contexts/FormattingContext';
 
 interface ExportDialogProps {
   open: boolean;
@@ -39,6 +40,8 @@ interface ExportOptions {
 }
 
 export function ExportDialog({ open, onOpenChange, transactions, selectedIds = [], onExportComplete, categories = [], accounts = [] }: ExportDialogProps) {
+  const { formatCurrency } = useCurrency();
+  const { formatDate } = useFormatting();
   const [options, setOptions] = useState<ExportOptions>({
     format: 'json',
     includeHeaders: true,
@@ -90,8 +93,8 @@ export function ExportDialog({ open, onOpenChange, transactions, selectedIds = [
       const baseFileName = options.customFileName 
         ? sanitizeFileName(options.customFileName)
         : selectedIds.length > 0 
-          ? `selected-transactions-${formatDate(new Date(), 'yyyy-MM-dd')}`
-          : `transactions-${formatDate(new Date(), 'yyyy-MM-dd')}`;
+          ? `selected-transactions-${formatDate(new Date())}`
+          : `transactions-${formatDate(new Date())}`;
 
       switch (options.format) {
         case 'json':
@@ -247,7 +250,7 @@ export function ExportDialog({ open, onOpenChange, transactions, selectedIds = [
       'Date,Description,Category,Type,Amount,Account,Tags,Notes\n' : '';
     
     const rows = transactionsToExport.map(t => {
-      const date = formatDate(t.date, 'yyyy-MM-dd');
+      const date = formatDate(t.date);
       const description = `"${(t.description || '').replace(/"/g, '""')}"`;
       const categoryName = `"${getCategoryName(t.category || '').replace(/"/g, '""')}"`;
       const type = t.type;

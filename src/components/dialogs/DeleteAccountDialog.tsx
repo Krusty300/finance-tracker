@@ -10,7 +10,7 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Account } from '@/lib/types';
-import { formatCurrency } from '@/lib/utils';
+import { useCurrency } from '@/contexts/CurrencyContext';
 import { AlertTriangle, CreditCard, Wallet, DollarSign, Smartphone } from 'lucide-react';
 
 interface DeleteAccountDialogProps {
@@ -33,6 +33,7 @@ export function DeleteAccountDialog({
   account,
   onConfirm,
 }: DeleteAccountDialogProps) {
+  const { formatCurrency } = useCurrency();
   if (!account) return null;
 
   const Icon = accountTypeIcons[account.type];

@@ -18,7 +18,7 @@ import {
   TrendingUp,
   TrendingDown
 } from 'lucide-react';
-import { formatCurrency } from '@/lib/utils';
+import { useCurrency } from '@/contexts/CurrencyContext';
 import { BankTransaction, ReconciliationReport } from '@/lib/types';
 import { useBankIntegration } from '@/hooks/useBankIntegration';
 
@@ -36,6 +36,7 @@ export function TransactionReconciliation({ bankAccountId }: TransactionReconcil
     loading 
   } = useBankIntegration();
 
+  const { formatCurrency } = useCurrency();
   const [selectedPeriod, setSelectedPeriod] = useState('current-month');
   const [generatingReport, setGeneratingReport] = useState(false);
 

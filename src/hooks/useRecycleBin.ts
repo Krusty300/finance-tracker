@@ -1,8 +1,10 @@
 import { useState, useEffect, useCallback } from 'react';
 import { RecycleBinItem } from '@/lib/types';
 import { db } from '@/lib/db';
+import { useCurrency } from '@/contexts/CurrencyContext';
 
 export function useRecycleBin() {
+  const { formatCurrency } = useCurrency();
   const [items, setItems] = useState<RecycleBinItem[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -79,21 +81,21 @@ export function useRecycleBin() {
       case 'transaction':
         const transaction = item.data;
         const amount = transaction.type === 'income' 
-          ? `+$${transaction.amount.toFixed(2)}` 
-          : `-$${transaction.amount.toFixed(2)}`;
+          ? `+${formatCurrency(transaction.amount)}` 
+          : `-${formatCurrency(transaction.amount)}`;
         return `${transaction.description} (${amount})`;
       case 'category':
         return `${item.data.name} (${item.data.type})`;
       case 'budget':
-        return `${item.data.category} - $${item.data.amount.toFixed(2)}`;
+        return `${item.data.category} - ${formatCurrency(item.data.amount)}`;
       case 'account':
-        return `${item.data.name} - $${item.data.balance.toFixed(2)}`;
+        return `${item.data.name} - ${formatCurrency(item.data.balance)}`;
       case 'template':
-        return `${item.data.name} - $${item.data.amount.toFixed(2)}`;
+        return `${item.data.name} - ${formatCurrency(item.data.amount)}`;
       default:
         return 'Unknown item';
     }
-  }, []);
+  }, [formatCurrency]);
 
   const getItemTypeLabel = useCallback((type: string) => {
     switch (type) {

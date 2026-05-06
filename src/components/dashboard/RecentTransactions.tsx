@@ -8,7 +8,8 @@ import { Transaction } from '@/lib/types';
 import { useCategories } from '@/hooks/useCategories';
 import { useAccounts } from '@/hooks/useAccounts';
 import { useTransactions } from '@/hooks/useTransactions';
-import { formatDate, formatCurrency } from '@/lib/utils';
+import { useCurrency } from '@/contexts/CurrencyContext';
+import { useFormatting } from '@/contexts/FormattingContext';
 import { ArrowUpRight, ArrowDownRight, Plus } from 'lucide-react';
 
 interface RecentTransactionsProps {
@@ -19,6 +20,8 @@ export function RecentTransactions({ transactions }: RecentTransactionsProps) {
   const { categories } = useCategories();
   const { accounts } = useAccounts();
   const { addTransaction } = useTransactions();
+  const { formatCurrency } = useCurrency();
+  const { formatDate } = useFormatting();
 
   // Validate transactions data and memoize to prevent re-renders
   const safeTransactions = useMemo(() => {

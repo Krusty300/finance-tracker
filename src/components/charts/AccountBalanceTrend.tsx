@@ -5,7 +5,7 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { TrendingUp, TrendingDown, Activity } from 'lucide-react';
-import { formatCurrency } from '@/lib/utils';
+import { useCurrency } from '@/contexts/CurrencyContext';
 import { Account, Transaction } from '@/lib/types';
 
 interface TrendData {
@@ -16,6 +16,7 @@ interface TrendData {
 }
 
 export function AccountBalanceTrend({ account, transactions }: { account: Account; transactions: Transaction[] }) {
+  const { formatCurrency } = useCurrency();
   const trendData = useMemo(() => {
     const now = new Date();
     const startDate = new Date(now.getFullYear(), now.getMonth(), 1);

@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Calendar, TrendingUp, TrendingDown } from 'lucide-react';
-import { formatCurrency } from '@/lib/utils';
+import { useCurrency } from '@/contexts/CurrencyContext';
 import { useCategories } from '@/hooks/useCategories';
 
 interface SpendingData {
@@ -29,6 +29,7 @@ export function SpendingHeatMap({
   title = "Spending Patterns", 
   period = 'month' 
 }: SpendingHeatMapProps) {
+  const { formatCurrency } = useCurrency();
   const { categories } = useCategories();
   const { heatmapData, maxValue, insights, categories: uniqueCategories } = useMemo(() => {
     // Process data for heatmap

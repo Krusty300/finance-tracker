@@ -5,7 +5,7 @@ import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Budget } from '@/lib/types';
-import { formatCurrency } from '@/lib/utils';
+import { useCurrency } from '@/contexts/CurrencyContext';
 import { Edit, Trash2, AlertCircle, TrendingUp, TrendingDown, Calendar } from 'lucide-react';
 import { useCategories } from '@/hooks/useCategories';
 import { getPeriodDisplayText } from '@/utils/period-aware-calculations';
@@ -28,6 +28,7 @@ export const BudgetCard = memo(function BudgetCard({
   onEdit, 
   onDelete 
 }: BudgetCardProps) {
+  const { formatCurrency } = useCurrency();
   const { categories } = useCategories();
   const isOverBudget = percentageUsed > 100;
   const isNearLimit = percentageUsed >= 80 && percentageUsed <= 100;

@@ -20,7 +20,7 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { TrendingUp, TrendingDown, Calendar, ArrowRight } from 'lucide-react';
-import { formatCurrency } from '@/lib/utils';
+import { useCurrency } from '@/contexts/CurrencyContext';
 
 interface ComparisonChartProps {
   data: Array<{
@@ -39,6 +39,7 @@ export function ComparisonChart({
   type = 'bar',
   comparisonType = 'month-over-month'
 }: ComparisonChartProps) {
+  const { formatCurrency } = useCurrency();
   const [chartType, setChartType] = useState<'bar' | 'line' | 'area'>(type);
   const [showVariance, setShowVariance] = useState(false);
 

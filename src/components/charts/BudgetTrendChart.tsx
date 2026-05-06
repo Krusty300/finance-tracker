@@ -25,7 +25,7 @@ import {
   DollarSign,
   AlertCircle
 } from 'lucide-react';
-import { formatCurrency } from '@/lib/utils';
+import { useCurrency } from '@/contexts/CurrencyContext';
 
 interface BudgetTrendData {
   month: string;
@@ -49,6 +49,7 @@ export function BudgetTrendChart({
   showProjection = true,
   categories = []
 }: BudgetTrendChartProps) {
+  const { formatCurrency } = useCurrency();
   // Validate data
   const validatedData = useMemo(() => {
     if (!Array.isArray(data)) return [];

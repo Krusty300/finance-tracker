@@ -20,7 +20,8 @@ import {
   Copy,
   FileDown
 } from 'lucide-react';
-import { formatDate, formatCurrency } from '@/lib/utils';
+import { useCurrency } from '@/contexts/CurrencyContext';
+import { useFormatting } from '@/contexts/FormattingContext';
 import { useCategories } from '@/hooks/useCategories';
 import { useAccounts } from '@/hooks/useAccounts';
 import { DuplicateTransactionDialog } from '@/components/dialogs/DuplicateTransactionDialog';
@@ -55,6 +56,8 @@ export function EnhancedTransactionTable({
   onBulkCategoryChange,
   onBulkDateEdit
 }: EnhancedTransactionTableProps) {
+  const { formatCurrency } = useCurrency();
+  const { formatDate } = useFormatting();
   const { categories } = useCategories();
   const { accounts } = useAccounts();
 

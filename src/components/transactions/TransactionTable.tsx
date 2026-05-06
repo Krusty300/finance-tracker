@@ -8,7 +8,8 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { MoreHorizontal, Edit, Trash2, ArrowUpRight, ArrowDownRight, Copy } from 'lucide-react';
-import { formatDate, formatCurrency } from '@/lib/utils';
+import { useCurrency } from '@/contexts/CurrencyContext';
+import { useFormatting } from '@/contexts/FormattingContext';
 import { useCategories } from '@/hooks/useCategories';
 import { useAccounts } from '@/hooks/useAccounts';
 
@@ -20,6 +21,8 @@ interface TransactionTableProps {
 }
 
 export function TransactionTable({ transactions, onEdit, onDelete, onDuplicate }: TransactionTableProps) {
+  const { formatCurrency } = useCurrency();
+  const { formatDate } = useFormatting();
   const { categories } = useCategories();
   const { accounts } = useAccounts();
 

@@ -3,7 +3,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Account } from '@/lib/types';
-import { formatCurrency } from '@/lib/utils';
+import { useCurrency } from '@/contexts/CurrencyContext';
 import { Wallet, TrendingUp, CreditCard, Smartphone, DollarSign, AlertCircle } from 'lucide-react';
 
 interface AccountSummaryProps {
@@ -37,6 +37,7 @@ export function AccountSummary({
   overdrawnAccounts,
   creditDebtAccounts,
 }: AccountSummaryProps) {
+  const { formatCurrency } = useCurrency();
   const hasIssues = lowBalanceAccounts > 0 || overdrawnAccounts > 0 || creditDebtAccounts > 0;
   
   const getAccountTypeBreakdown = () => {

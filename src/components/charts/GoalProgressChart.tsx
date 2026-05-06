@@ -5,6 +5,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
+import { useCurrency } from '@/contexts/CurrencyContext';
+import { useFormatting } from '@/contexts/FormattingContext';
 import { 
   Target, 
   TrendingUp, 
@@ -16,7 +18,6 @@ import {
   Edit,
   Trash2
 } from 'lucide-react';
-import { formatCurrency } from '@/lib/utils';
 
 interface Goal {
   id: string;
@@ -42,6 +43,8 @@ export function GoalProgressChart({
   showAddGoal = true,
   onGoalAction 
 }: GoalProgressChartProps) {
+  const { formatCurrency } = useCurrency();
+  const { formatDate } = useFormatting();
   const [selectedGoal, setSelectedGoal] = useState<string | null>(null);
 
   const calculateProgress = (goal: Goal) => {
@@ -292,7 +295,7 @@ export function GoalProgressChart({
                   {/* Target Date */}
                   <div className="flex items-center justify-between text-xs text-muted-foreground pt-2 border-t">
                     <span>Target Date</span>
-                    <span>{new Date(goal.deadline).toLocaleDateString()}</span>
+                    <span>{formatDate(goal.deadline)}</span>
                   </div>
                 </div>
               );

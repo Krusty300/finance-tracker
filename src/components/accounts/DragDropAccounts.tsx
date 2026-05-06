@@ -14,7 +14,7 @@ import {
   ArrowDown,
   Copy
 } from 'lucide-react';
-import { formatCurrency } from '@/lib/utils';
+import { useCurrency } from '@/contexts/CurrencyContext';
 import { Account } from '@/lib/types';
 
 interface DragDropAccountsProps {
@@ -36,6 +36,7 @@ export function DragDropAccounts({
   selectedAccounts = [],
   onSelectionChange
 }: DragDropAccountsProps) {
+  const { formatCurrency } = useCurrency();
   const [draggedAccount, setDraggedAccount] = useState<Account | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');

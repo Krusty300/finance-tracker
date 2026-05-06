@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { PopupSelector, SelectorOption } from '@/components/ui/popup-selector';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { useCurrency } from '@/contexts/CurrencyContext';
 import { Account } from '@/lib/types';
 import { CreditCard, Wallet, Smartphone, DollarSign } from 'lucide-react';
 
@@ -54,6 +55,7 @@ const currencies = [
 ];
 
 export function AccountForm({ account, onSubmit, onCancel }: AccountFormProps) {
+  const { formatCurrency, currency, getCurrencySymbol } = useCurrency();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const form = useForm<AccountFormData>({
@@ -135,7 +137,7 @@ export function AccountForm({ account, onSubmit, onCancel }: AccountFormProps) {
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>
-                    Current Balance
+                    Current Balance ({getCurrencySymbol(currency)})
                     {selectedType === 'credit' && (
                       <span className="text-xs text-muted-foreground ml-2">
                         (positive = debt, negative = credit)
@@ -146,12 +148,17 @@ export function AccountForm({ account, onSubmit, onCancel }: AccountFormProps) {
                     <Input
                       type="number"
                       step="0.01"
-                      placeholder="0.00"
+                      placeholder={`0.00 ${getCurrencySymbol(currency)}`}
                       {...field}
                       onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
                     />
                   </FormControl>
                   <FormMessage />
+                  {field.value && field.value !== 0 && (
+                    <p className="text-xs text-muted-foreground">
+                      Preview: {formatCurrency(field.value)}
+                    </p>
+                  )}
                 </FormItem>
               )}
             />

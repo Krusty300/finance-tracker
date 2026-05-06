@@ -16,31 +16,39 @@ export default function MainLayout({
 }: {
   children: React.ReactNode;
 }) {
+  const [isLoaded, setIsLoaded] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [showSidebarIcons, setShowSidebarIcons] = useState(true);
 
   // Load sidebar state from localStorage on mount
   useEffect(() => {
-    const savedState = localStorage.getItem('sidebar-collapsed');
-    if (savedState !== null) {
-      setIsSidebarCollapsed(JSON.parse(savedState));
-    }
-    
-    const savedIconsState = localStorage.getItem('sidebar-show-icons');
-    if (savedIconsState !== null) {
-      setShowSidebarIcons(JSON.parse(savedIconsState));
-    }
+    const loadState = () => {
+      const savedState = localStorage.getItem('sidebar-collapsed');
+      if (savedState !== null) {
+        setIsSidebarCollapsed(JSON.parse(savedState));
+      }
+      
+      const savedIconsState = localStorage.getItem('sidebar-show-icons');
+      if (savedIconsState !== null) {
+        setShowSidebarIcons(JSON.parse(savedIconsState));
+      }
+      setIsLoaded(true);
+    };
+
+    loadState();
   }, []);
 
   // Save sidebar state to localStorage when it changes
   useEffect(() => {
+    if (!isLoaded) return;
     localStorage.setItem('sidebar-collapsed', JSON.stringify(isSidebarCollapsed));
-  }, [isSidebarCollapsed]);
+  }, [isSidebarCollapsed, isLoaded]);
 
   // Save icons state to localStorage when it changes
   useEffect(() => {
+    if (!isLoaded) return;
     localStorage.setItem('sidebar-show-icons', JSON.stringify(showSidebarIcons));
-  }, [showSidebarIcons]);
+  }, [showSidebarIcons, isLoaded]);
 
   // Add keyboard shortcut for toggling sidebar (Ctrl/Cmd + B)
   useEffect(() => {
@@ -62,6 +70,17 @@ export default function MainLayout({
   const toggleIcons = () => {
     setShowSidebarIcons(!showSidebarIcons);
   };
+
+  // Prevent rendering until localStorage state is loaded to avoid flash
+  if (!isLoaded) {
+    return (
+      <div className="flex h-screen bg-background">
+        <div className="flex-1 flex items-center justify-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-screen bg-background">

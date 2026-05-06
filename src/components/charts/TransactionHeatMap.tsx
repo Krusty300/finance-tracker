@@ -13,6 +13,7 @@ import {
   Grid3X3
 } from 'lucide-react';
 import { Account, Transaction } from '@/lib/types';
+import { useCurrency } from '@/contexts/CurrencyContext';
 
 interface HeatMapData {
   date: string;
@@ -31,6 +32,7 @@ export function TransactionHeatMap({
   account: Account; 
   transactions: Transaction[] 
 }) {
+  const { formatCurrency } = useCurrency();
   const [selectedMetric, setSelectedMetric] = useState<'count' | 'amount'>('count');
 
   const heatMapData = useMemo(() => {
@@ -252,7 +254,7 @@ export function TransactionHeatMap({
                       <div
                         key={dayIndex}
                         className={`w-8 h-8 rounded-sm flex items-center justify-center text-xs cursor-pointer hover:ring-2 hover:ring-blue-400 ${getIntensityColor(dayData.intensity)} ${getIntensityTextColor(dayData.intensity)}`}
-                        title={`${dayData.date}: ${dayData.count} transactions, ${dayData.amount.toFixed(2)}`}
+                        title={`${dayData.date}: ${dayData.count} transactions, ${formatCurrency(dayData.amount)}`}
                       >
                         {dayData.day}
                       </div>
