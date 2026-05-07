@@ -31,7 +31,7 @@ export function useBudgets() {
     return () => {
       window.removeEventListener('storage', handleStorageChange);
     };
-  }, [loadBudgets]);
+  }, []);
 
   const addBudget = useCallback((budget: Omit<Budget, 'id'>) => {
     try {

@@ -41,14 +41,14 @@ export default function NotificationsPage() {
     if (filterStatus === 'read' && !notification.read) return false;
     
     // Category filter
-    if (filterCategory !== 'all' && notification.category !== filterCategory) return false;
+    if (filterCategory !== 'all' && notification?.category !== filterCategory) return false;
     
     // Search filter
     if (searchTerm) {
       const searchLower = searchTerm.toLowerCase();
       return (
-        notification.title.toLowerCase().includes(searchLower) ||
-        notification.message.toLowerCase().includes(searchLower)
+        notification?.title?.toLowerCase().includes(searchLower) ||
+        notification?.message?.toLowerCase().includes(searchLower)
       );
     }
     
@@ -56,7 +56,8 @@ export default function NotificationsPage() {
   });
 
   const getNotificationIcon = (type: string) => {
-    switch (type) {
+    const safeType = type || 'info';
+    switch (safeType) {
       case 'success':
         return <CheckCircle className="h-5 w-5 text-green-500" />;
       case 'warning':
@@ -83,8 +84,10 @@ export default function NotificationsPage() {
     }
   };
 
-  const formatTimestamp = (timestamp: number) => {
+  const formatTimestamp = (timestamp: number | undefined) => {
+    if (!timestamp) return 'Unknown time';
     const date = new Date(timestamp);
+    if (isNaN(date.getTime())) return 'Invalid date';
     return date.toLocaleString();
   };
 
@@ -322,7 +325,7 @@ export default function NotificationsPage() {
                               </Badge>
                             )}
                             <span className="text-xs text-muted-foreground">
-                              {formatTimestamp(notification.timestamp)}
+                              {notification?.timestamp ? formatTimestamp(notification.timestamp) : 'Unknown time'}
                             </span>
                           </div>
                           

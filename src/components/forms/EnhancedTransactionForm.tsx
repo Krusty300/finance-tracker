@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Transaction, TransactionSplit, TransactionAttachment, RecurringTransactionRule } from '@/lib/types';
 import { useCategories } from '@/hooks/useCategories';
 import { useAccounts } from '@/hooks/useAccounts';
@@ -89,6 +89,18 @@ export function EnhancedTransactionForm({
     description: ''
   });
 
+  // Sanitize input to prevent XSS attacks
+  const sanitizeInput = (input: string): string => {
+    return input
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#x27;')
+      .replace(/\//g, '&#x2F;')
+      .replace(/javascript:/gi, '')
+      .replace(/on\w+=/gi, '');
+  };
+
   useEffect(() => {
     if (initialData) {
       setFormData({
@@ -121,38 +133,72 @@ export function EnhancedTransactionForm({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.amount || !formData.category || !formData.description) {
+    const amount = parseFloat(formData.amount);
+    if (!formData.amount || !formData.category || !formData.description || isNaN(amount)) {
       return;
     }
 
-    const transaction: Omit<Transaction, 'id'> = {
-      amount: parseFloat(formData.amount),
+    if (!validateDate(formData.date)) {
+      console.error('Invalid date provided');
+      return;
+    }
+
+    // Build transaction object with consistent optional field handling
+    const transactionData: Omit<Transaction, 'id'> = {
+      amount: amount,
       type: formData.type,
       category: formData.category,
       date: formData.date,
       description: formData.description,
-      account: formData.account || undefined,
-      tags: formData.tags ? formData.tags.split(',').map(tag => tag.trim()).filter(Boolean) : undefined,
-      notes: formData.notes || undefined,
-      splits: isSplit && splits.length > 0 ? splits : undefined,
-      attachments: attachments.length > 0 ? attachments : undefined,
     };
 
+    // Only add optional fields when they have meaningful values
+    if (formData.account) {
+      transactionData.account = formData.account;
+    }
+
+    if (formData.tags) {
+      const tagArray = formData.tags.split(',').map(tag => tag.trim()).filter(Boolean);
+      if (tagArray.length > 0) {
+        transactionData.tags = tagArray;
+      }
+    }
+
+    if (formData.notes) {
+      transactionData.notes = formData.notes;
+    }
+
+    if (isSplit && splits.length > 0) {
+      transactionData.splits = splits;
+    }
+
+    if (attachments.length > 0) {
+      transactionData.attachments = attachments;
+    }
+
+    if (isRecurring) {
+      transactionData.isRecurring = true;
+      transactionData.recurringRule = recurringRule;
+    }
+
     if (isRecurring && onSubmitRecurring) {
-      onSubmitRecurring(transaction, recurringRule);
+      onSubmitRecurring(transactionData, recurringRule);
     } else if (isSplit && onSubmitSplit && splits.length > 0) {
-      onSubmitSplit(transaction, splits);
+      onSubmitSplit(transactionData, splits);
     } else {
-      onSubmit(transaction);
+      onSubmit(transactionData);
     }
   };
 
   const handleAddSplit = () => {
     if (!newSplit.category || !newSplit.amount) return;
     
+    const amount = parseFloat(newSplit.amount);
+    if (isNaN(amount) || amount <= 0) return;
+    
     const split: TransactionSplit = {
       category: newSplit.category,
-      amount: parseFloat(newSplit.amount),
+      amount: amount,
       description: newSplit.description || undefined,
     };
     
@@ -168,21 +214,75 @@ export function EnhancedTransactionForm({
     const files = e.target.files;
     if (!files) return;
 
+    const readers: FileReader[] = [];
+    const allowedTypes = {
+      'image/jpeg': 'image',
+      'image/jpg': 'image',
+      'image/png': 'image',
+      'image/gif': 'image',
+      'image/webp': 'image',
+      'application/pdf': 'document',
+      'text/plain': 'document',
+      'application/msword': 'document',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'document',
+      'application/vnd.ms-excel': 'document',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': 'document'
+    };
+
     Array.from(files).forEach(file => {
+      // Validate file size (max 5MB for security)
+      const maxSize = 5 * 1024 * 1024;
+      if (file.size > maxSize) {
+        console.error(`File ${file.name} is too large. Maximum size is 5MB.`);
+        return;
+      }
+
+      // Validate file type
+      const fileType = allowedTypes[file.type as keyof typeof allowedTypes];
+      if (!fileType) {
+        console.error(`File ${file.name} has unsupported type: ${file.type}`);
+        return;
+      }
+
+      // Sanitize filename
+      const sanitizedName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
+      
       const reader = new FileReader();
+      readers.push(reader);
+      
       reader.onload = (event) => {
+        const result = event.target?.result;
+        if (!result || typeof result !== 'string') {
+          console.error(`Failed to read file ${file.name}: Invalid result`);
+          return;
+        }
+        
         const attachment: TransactionAttachment = {
           id: crypto.randomUUID(),
-          name: file.name,
-          type: file.type.startsWith('image/') ? 'image' : 'document',
-          data: event.target?.result as string,
+          name: sanitizedName,
+          type: fileType as 'image' | 'document',
+          data: result,
           size: file.size,
           createdAt: new Date().toISOString(),
         };
-        setAttachments([...attachments, attachment]);
+        setAttachments(prev => [...prev, attachment]);
       };
+      
+      reader.onerror = () => {
+        console.error(`Failed to read file ${file.name}`);
+      };
+      
       reader.readAsDataURL(file);
     });
+
+    // Cleanup function to abort readers if component unmounts
+    return () => {
+      readers.forEach(reader => {
+        if (reader.readyState === FileReader.LOADING) {
+          reader.abort();
+        }
+      });
+    };
   };
 
   const handleAddNote = () => {
@@ -221,8 +321,35 @@ export function EnhancedTransactionForm({
     setShowTemplateDialog(false);
   };
 
-  const totalSplitAmount = splits.reduce((sum, split) => sum + split.amount, 0);
-  const isValidSplit = !formData.amount || totalSplitAmount === parseFloat(formData.amount);
+  // Validate date to prevent invalid transaction dates
+  const validateDate = (dateString: string): boolean => {
+    if (!dateString) return false;
+    
+    const date = new Date(dateString);
+    const now = new Date();
+    const oneYearFromNow = new Date(now.getFullYear() + 1, now.getMonth(), now.getDate());
+    
+    // Check if date is valid
+    if (isNaN(date.getTime())) return false;
+    
+    // Check if date is not too far in the future (max 1 year)
+    if (date > oneYearFromNow) return false;
+    
+    // Check if date is not too far in the past (min 10 years)
+    const tenYearsAgo = new Date(now.getFullYear() - 10, now.getMonth(), now.getDate());
+    if (date < tenYearsAgo) return false;
+    
+    return true;
+  };
+
+  const totalSplitAmount = useMemo(() => 
+    splits.reduce((sum, split) => sum + split.amount, 0), 
+    [splits]
+  );
+  const mainAmount = parseFloat(formData.amount);
+  const hasValidMainAmount = formData.amount && !isNaN(mainAmount) && mainAmount > 0;
+  const isValidSplit = !isSplit || !hasValidMainAmount || totalSplitAmount === mainAmount;
+  const isValidDate = validateDate(formData.date);
 
   const filteredCategories = categories.filter(cat => cat.type === formData.type);
 
@@ -277,7 +404,13 @@ export function EnhancedTransactionForm({
               value={formData.date}
               onChange={(e) => setFormData({ ...formData, date: e.target.value })}
               required
+              max={new Date().toISOString().split('T')[0]}
             />
+            {!isValidDate && formData.date && (
+              <p className="text-xs text-destructive">
+                Please enter a valid date (within the past 10 years and not more than 1 year in the future)
+              </p>
+            )}
           </div>
         </div>
 
@@ -287,7 +420,7 @@ export function EnhancedTransactionForm({
             id="description"
             placeholder="What was this transaction for?"
             value={formData.description}
-            onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+            onChange={(e) => setFormData({ ...formData, description: sanitizeInput(e.target.value) })}
             required
           />
         </div>
@@ -352,7 +485,7 @@ export function EnhancedTransactionForm({
                 id="notes"
                 placeholder="Add any additional notes..."
                 value={formData.notes}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, notes: e.target.value })}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, notes: sanitizeInput(e.target.value) })}
               />
             </div>
           </TabsContent>
@@ -413,16 +546,16 @@ export function EnhancedTransactionForm({
                     <Input
                       placeholder="Description (optional)"
                       value={newSplit.description}
-                      onChange={(e) => setNewSplit({ ...newSplit, description: e.target.value })}
+                      onChange={(e) => setNewSplit({ ...newSplit, description: sanitizeInput(e.target.value) })}
                     />
                     <Button type="button" onClick={handleAddSplit} disabled={!newSplit.category || !newSplit.amount}>
                       <Plus className="h-4 w-4" />
                     </Button>
                   </div>
 
-                  {!isValidSplit && (
+                  {!isValidSplit && isSplit && hasValidMainAmount && (
                     <p className="text-sm text-destructive">
-                      Split amounts must equal total: {formatCurrency(totalSplitAmount)} / {formatCurrency(parseFloat(formData.amount) || 0)}
+                      Split amounts must equal total: {formatCurrency(totalSplitAmount)} / {formatCurrency(mainAmount)}
                     </p>
                   )}
                 </CardContent>
@@ -516,7 +649,7 @@ export function EnhancedTransactionForm({
                 id="file-upload"
                 type="file"
                 multiple
-                accept="image/*,.pdf,.doc,.docx,.txt"
+                accept="image/jpeg,image/jpg,image/png,image/gif,image/webp,application/pdf,text/plain,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                 onChange={handleFileUpload}
                 className="hidden"
               />
@@ -557,7 +690,7 @@ export function EnhancedTransactionForm({
               Cancel
             </Button>
           )}
-          <Button type="submit" disabled={!isValidSplit}>
+          <Button type="submit" disabled={!isValidSplit || !isValidDate}>
             {submitText}
           </Button>
         </div>

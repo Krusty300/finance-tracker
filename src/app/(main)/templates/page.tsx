@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import { TemplateManager } from '@/components/templates/TemplateManager';
 import { TransactionTemplate } from '@/lib/types';
 import { useTransactionTemplates } from '@/hooks/useTransactionTemplates';
@@ -11,9 +12,17 @@ import { validateTemplateUsage } from '@/utils/templateValidation';
 export default function TemplatesPage() {
   const { useTemplate } = useTransactionTemplates();
   const router = useRouter();
+  const [loadingTemplateId, setLoadingTemplateId] = useState<string | null>(null);
 
   const handleUseTemplate = async (template: TransactionTemplate) => {
+    // Prevent duplicate clicks
+    if (loadingTemplateId === template.id) {
+      return;
+    }
+
     try {
+      setLoadingTemplateId(template.id);
+      
       // Validate template before usage
       const errors = validateTemplateUsage(template);
       if (errors.length > 0) {
@@ -39,6 +48,8 @@ export default function TemplatesPage() {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
       toast.error('Failed to use template: ' + errorMessage);
       console.error('Template usage error:', error);
+    } finally {
+      setLoadingTemplateId(null);
     }
   };
 
