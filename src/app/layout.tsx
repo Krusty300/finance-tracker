@@ -7,7 +7,7 @@ import { FormattingProvider } from "@/contexts/FormattingContext";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Finance Tracker",
+  title: "Sprint Financial",
   description: "A personal finance app to track income, expenses, budgets, and visualize financial health",
 };
 
