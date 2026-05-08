@@ -32,8 +32,7 @@ import { NotificationCenter } from '@/components/notifications/NotificationCente
 export default function NotificationsPage() {
   console.log('NotificationsPage: Component rendering');
   const { resolvedTheme } = useTheme();
-  const { notifications, markAllAsRead, clearAll, unreadCount } = useNotifications();
-  const { addNotification, removeNotification, markAsRead, setNotifications } = useNotifications();
+  const { notifications, markAllAsRead, clearAll, unreadCount, addNotification, removeNotification, markAsRead } = useNotifications();
   const { subscribe } = useRealtime();
   const [activeTab, setActiveTab] = useState('notifications');
   const [searchTerm, setSearchTerm] = useState('');
@@ -61,32 +60,7 @@ export default function NotificationsPage() {
     return true;
   });
 
-  // Listen for real-time notification events
-  useEffect(() => {
-    console.log('Notifications: Setting up real-time event listeners');
-    
-    const unsubscribe = subscribe('notification', (event) => {
-      console.log('Notifications: Real-time notification event received', event);
-      
-      // Refresh notifications from localStorage when events occur
-      setTimeout(() => {
-        try {
-          const savedNotifications = localStorage.getItem('notifications');
-          if (savedNotifications && savedNotifications !== 'undefined') {
-            const parsed = JSON.parse(savedNotifications);
-            if (setNotifications && typeof setNotifications === 'function') {
-              setNotifications(parsed);
-            }
-          }
-        } catch (error) {
-          console.error('Failed to reload notifications:', error);
-        }
-      }, 100); // Small delay to ensure localStorage is updated
-    });
-
-    return unsubscribe;
-  }, [subscribe]);
-
+  
   const getNotificationIcon = (type: string) => {
     const safeType = type || 'info';
     switch (safeType) {
@@ -176,48 +150,48 @@ export default function NotificationsPage() {
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <Card>
               <CardContent className="p-4">
-                <div className="flex items-center gap-2">
-                  <Bell className="h-4 w-4 text-primary" />
-                  <div>
-                    <p className="text-2xl font-bold">{stats.total}</p>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Bell className="h-4 w-4 text-primary" />
                     <p className="text-sm text-muted-foreground">Total</p>
                   </div>
+                  <p className="text-2xl font-bold">{stats.total}</p>
                 </div>
               </CardContent>
             </Card>
             
             <Card>
               <CardContent className="p-4">
-                <div className="flex items-center gap-2">
-                  <div className="h-4 w-4 bg-primary rounded-full" />
-                  <div>
-                    <p className="text-2xl font-bold">{stats.unread}</p>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="h-4 w-4 bg-primary rounded-full" />
                     <p className="text-sm text-muted-foreground">Unread</p>
                   </div>
+                  <p className="text-2xl font-bold">{stats.unread}</p>
                 </div>
               </CardContent>
             </Card>
             
             <Card>
               <CardContent className="p-4">
-                <div className="flex items-center gap-2">
-                  <CheckCircle className="h-4 w-4 text-success" />
-                  <div>
-                    <p className="text-2xl font-bold">{stats.read}</p>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle className="h-4 w-4 text-success" />
                     <p className="text-sm text-muted-foreground">Read</p>
                   </div>
+                  <p className="text-2xl font-bold">{stats.read}</p>
                 </div>
               </CardContent>
             </Card>
             
             <Card>
               <CardContent className="p-4">
-                <div className="flex items-center gap-2">
-                  <Clock className="h-4 w-4 text-info" />
-                  <div>
-                    <p className="text-2xl font-bold">{Object.keys(stats.byCategory).length}</p>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Clock className="h-4 w-4 text-info" />
                     <p className="text-sm text-muted-foreground">Categories</p>
                   </div>
+                  <p className="text-2xl font-bold">{Object.keys(stats.byCategory).length}</p>
                 </div>
               </CardContent>
             </Card>

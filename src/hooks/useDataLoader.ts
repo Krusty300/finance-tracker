@@ -53,7 +53,7 @@ export class DataLoader {
     } = options;
 
     // Check cache first
-    const cached = this.getCachedData(name);
+    const cached = this.getCachedData<T>(name);
     if (cached !== null) {
       onProgress?.(100, 'Loaded from cache');
       onSuccess?.(cached);
@@ -176,7 +176,7 @@ export class DataLoader {
    */
   private static getCachedData<T>(key: string): T | null {
     const cached = this.cache[key];
-    if (!cached) return null;
+    if (!cached || cached.data === undefined) return null;
     
     const now = Date.now();
     if (now - cached.timestamp > cached.ttl) {
