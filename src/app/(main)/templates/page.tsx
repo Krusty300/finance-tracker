@@ -47,7 +47,6 @@ export default function TemplatesPage() {
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
       toast.error('Failed to use template: ' + errorMessage);
-      console.error('Template usage error:', error);
     } finally {
       setLoadingTemplateId(null);
     }

@@ -45,7 +45,6 @@ export default function AccountsPage() {
   const accountAnalytics = useMemo(() => {
     // Validate inputs
     if (!Array.isArray(accounts) || !Array.isArray(transactions)) {
-      console.warn('Invalid data for account analytics:', { accounts, transactions });
       return {
         accountTypeDistribution: {},
         lowBalanceAccounts: 0,

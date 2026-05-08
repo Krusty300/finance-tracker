@@ -6,9 +6,11 @@ import { BankLinking } from '@/components/banking/BankLinking';
 import { TransactionReconciliation } from '@/components/banking/TransactionReconciliation';
 import { CSVImport } from '@/components/banking/CSVImport';
 import { useBankIntegration } from '@/hooks/useBankIntegration';
+import { useTheme } from '@/contexts/ThemeContext';
 
 export default function BankingPage() {
   const { bankFeedStatus } = useBankIntegration();
+  const { resolvedTheme } = useTheme();
   const [selectedAccountId, setSelectedAccountId] = useState<string>('');
 
   return (
@@ -33,8 +35,8 @@ export default function BankingPage() {
           </div>
           <div className="flex items-center gap-2">
             <div className={`w-2 h-2 rounded-full ${
-              bankFeedStatus.status === 'active' ? 'bg-green-500' :
-              bankFeedStatus.status === 'error' ? 'bg-red-500' : 'bg-gray-500'
+              bankFeedStatus.status === 'active' ? 'bg-success' :
+              bankFeedStatus.status === 'error' ? 'bg-destructive' : 'bg-muted'
             }`} />
             <span className="text-sm font-medium capitalize">{bankFeedStatus.status}</span>
           </div>

@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
+import { useTheme } from 'next-themes';
 
 // Memoized Navigation Item
 interface NavigationItemProps {
@@ -32,6 +33,8 @@ export const NavigationItem = memo(function NavigationItem({
   showIcons = true,
   onClick,
 }: NavigationItemProps) {
+  const { resolvedTheme } = useTheme();
+  
   const handleClick = useCallback((e: React.MouseEvent) => {
     // If onClick is provided, call it (for custom handling)
     if (onClick) {
@@ -50,19 +53,13 @@ export const NavigationItem = memo(function NavigationItem({
         name === 'Settings' ? 'settings-nav' :
         undefined
       }
-      variant={isActive ? 'secondary' : 'ghost'}
+      variant={isActive ? 'default' : 'ghost'}
       className={cn(
         'w-full justify-start relative transition-all duration-300 ease-out',
-        'hover:scale-[1.02] hover:shadow-md active:scale-[0.98]',
-        'before:absolute before:inset-0 before:rounded-md before:opacity-0 before:transition-opacity before:duration-200',
-        'hover:before:opacity-10 hover:before:bg-gradient-to-r hover:before:from-primary/20 hover:before:to-primary/10',
-        isActive && [
-          `border-l-4 border-l-${color?.replace('text-', '')}`,
-          'bg-gradient-to-r from-secondary/50 to-secondary/30',
-          'shadow-md'
-        ],
-        !isActive && 'hover:border-l-2 hover:border-l-gray-300',
-        'h-10 sm:h-9 px-2 sm:px-3'
+        'active:scale-[0.98]',
+        isActive && 'bg-primary text-primary-foreground',
+        'h-10 sm:h-9 px-2 sm:px-3',
+        isCollapsed && 'h-auto py-2 sm:h-10 sm:py-1'
       )}
       onClick={handleClick}
       title={isCollapsed ? `${name}: ${description}` : description}
@@ -75,24 +72,16 @@ export const NavigationItem = memo(function NavigationItem({
             <Icon
               className={cn(
                 'h-4 w-4 sm:h-4 sm:w-4 transition-all duration-300 ease-out',
-                'group-hover:scale-110 group-hover:rotate-12 group-hover:text-primary',
                 'flex-shrink-0',
-                !isCollapsed && 'mr-2 sm:mr-3',
-                color
+                !isCollapsed && 'mr-2 sm:mr-3'
               )}
             />
             {isCollapsed && badge && (
-              <div
+              <Badge
+                variant={isActive ? 'default' : 'secondary'}
                 className={cn(
-                  'absolute -top-1 -right-1 h-3 w-3 rounded-full text-[10px] font-bold',
-                  'flex items-center justify-center transition-all duration-200',
-                  'group-hover:scale-110 group-hover:shadow-md',
-                  'animate-pulse',
-                  badge === '!'
-                    ? 'bg-red-500 text-white shadow-red-500/50'
-                    : parseInt(badge) > 0
-                    ? 'bg-blue-500 text-white shadow-blue-500/50'
-                    : 'bg-gray-400 text-white shadow-gray-400/50'
+                  'absolute -top-1 -right-1 h-3 w-3 text-[10px] font-bold p-0',
+                  'transition-all duration-200'
                 )}
               >
                 {badge === '!'
@@ -102,41 +91,38 @@ export const NavigationItem = memo(function NavigationItem({
                   : parseInt(badge) > 0
                   ? badge
                   : ''}
-              </div>
+              </Badge>
             )}
           </div>
         ) : showIcons ? (
-          <div className="h-4 w-4 mr-3 bg-gray-300 rounded">
+          <div className={cn(
+            "h-4 w-4 mr-3 rounded",
+            resolvedTheme === 'dark' ? "bg-gray-600" : "bg-gray-300"
+          )}>
             <div className="w-2 h-2 bg-current rounded-full" />
           </div>
         ) : null}
       </div>
-      {!isCollapsed && (
-        <div className="flex items-center flex-1">
-          <span className={cn(
-            'font-medium transition-all duration-200 ease-out',
-            'group-hover:text-foreground group-hover:translate-x-1',
-            'group-hover:font-semibold'
-          )}>
-            {name}
-          </span>
-          {badge && (
-            <Badge
-              variant={
-                badge === '!'
-                  ? 'destructive'
-                  : 'secondary'
-              }
-              className={cn(
-                'ml-2 transition-all duration-200',
-                'group-hover:scale-105 group-hover:shadow-sm'
-              )}
-            >
-              {badge}
-            </Badge>
-          )}
-        </div>
-      )}
+      <div className="flex items-center flex-1">
+        <span className={cn(
+          'font-medium transition-all duration-200 ease-out',
+          isCollapsed ? 'text-xs opacity-80 sm:text-xs' : 'text-sm',
+          'truncate' // Prevent text overflow on mobile
+        )}>
+          {name}
+        </span>
+        {!isCollapsed && badge && (
+          <Badge
+            variant={isActive ? 'default' : 'secondary'}
+            className={cn(
+              'ml-2 transition-all duration-200',
+              'group-hover:scale-105'
+            )}
+          >
+            {badge}
+          </Badge>
+        )}
+      </div>
       </Link>
     </Button>
   );

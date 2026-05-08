@@ -2,6 +2,7 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useCurrency } from '@/contexts/CurrencyContext';
+import { useTheme } from '@/contexts/ThemeContext';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 
 interface MonthlyTrendChartProps {
@@ -14,6 +15,11 @@ interface MonthlyTrendChartProps {
 
 export function MonthlyTrendChart({ data }: MonthlyTrendChartProps) {
   const { formatCurrency } = useCurrency();
+  const { resolvedTheme } = useTheme();
+  
+  // Theme-aware chart colors
+  const incomeColor = resolvedTheme === 'dark' ? '#22c55e' : '#16a34a';
+  const expenseColor = resolvedTheme === 'dark' ? '#ef4444' : '#dc2626';
   
   const CustomTooltipWithCurrency = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
@@ -52,7 +58,7 @@ export function MonthlyTrendChart({ data }: MonthlyTrendChartProps) {
       </CardHeader>
       <CardContent>
         <div className="h-80">
-          <ResponsiveContainer width="100%" height="100%">
+          <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={undefined}>
             <LineChart data={data}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis 
@@ -68,18 +74,18 @@ export function MonthlyTrendChart({ data }: MonthlyTrendChartProps) {
               <Line
                 type="monotone"
                 dataKey="income"
-                stroke="#10b981"
+                stroke={incomeColor}
                 strokeWidth={2}
                 name="Income"
-                dot={{ fill: '#10b981', strokeWidth: 2, r: 4 }}
+                dot={{ fill: incomeColor, strokeWidth: 2, r: 4 }}
               />
               <Line
                 type="monotone"
                 dataKey="expenses"
-                stroke="#ef4444"
+                stroke={expenseColor}
                 strokeWidth={2}
                 name="Expenses"
-                dot={{ fill: '#ef4444', strokeWidth: 2, r: 4 }}
+                dot={{ fill: expenseColor, strokeWidth: 2, r: 4 }}
               />
             </LineChart>
           </ResponsiveContainer>

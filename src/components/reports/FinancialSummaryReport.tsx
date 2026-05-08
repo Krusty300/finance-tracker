@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { useCurrency } from '@/contexts/CurrencyContext';
 import { useFormatting } from '@/contexts/FormattingContext';
+import { useTheme } from '@/contexts/ThemeContext';
 import { DashboardStats } from '@/lib/types';
 
 interface FinancialSummaryReportProps {
@@ -24,10 +25,10 @@ interface FinancialSummaryReportProps {
 export function FinancialSummaryReport({ stats }: FinancialSummaryReportProps) {
   const { formatCurrency } = useCurrency();
   const { formatDate } = useFormatting();
+  const { resolvedTheme } = useTheme();
   
   // Validate stats data
   if (!stats || typeof stats !== 'object') {
-    console.warn('Invalid stats data provided to FinancialSummaryReport:', stats);
     return (
       <Card>
         <CardHeader>
@@ -60,40 +61,40 @@ export function FinancialSummaryReport({ stats }: FinancialSummaryReportProps) {
     // Savings rate (40% weight)
     if (savingsRate >= 20) {
       score += 40;
-      factors.push({ label: 'Excellent savings rate', color: 'text-green-600' });
+      factors.push({ label: 'Excellent savings rate', color: 'text-success' });
     } else if (savingsRate >= 10) {
       score += 30;
-      factors.push({ label: 'Good savings rate', color: 'text-blue-600' });
+      factors.push({ label: 'Good savings rate', color: 'text-primary' });
     } else if (savingsRate >= 0) {
       score += 20;
-      factors.push({ label: 'Low savings rate', color: 'text-yellow-600' });
+      factors.push({ label: 'Low savings rate', color: 'text-warning' });
     } else {
       score += 0;
-      factors.push({ label: 'Negative savings', color: 'text-red-600' });
+      factors.push({ label: 'Negative savings', color: 'text-destructive' });
     }
 
     // Income vs expenses (30% weight)
     if (monthlyIncome > monthlyExpenses * 1.5) {
       score += 30;
-      factors.push({ label: 'Strong income position', color: 'text-green-600' });
+      factors.push({ label: 'Strong income position', color: 'text-success' });
     } else if (monthlyIncome > monthlyExpenses) {
       score += 20;
-      factors.push({ label: 'Positive cash flow', color: 'text-blue-600' });
+      factors.push({ label: 'Positive cash flow', color: 'text-primary' });
     } else {
       score += 0;
-      factors.push({ label: 'Negative cash flow', color: 'text-red-600' });
+      factors.push({ label: 'Negative cash flow', color: 'text-destructive' });
     }
 
     // Net worth (30% weight)
     if (netWorth > 10000) {
       score += 30;
-      factors.push({ label: 'Strong net worth', color: 'text-green-600' });
+      factors.push({ label: 'Strong net worth', color: 'text-success' });
     } else if (netWorth > 0) {
       score += 20;
-      factors.push({ label: 'Positive net worth', color: 'text-blue-600' });
+      factors.push({ label: 'Positive net worth', color: 'text-primary' });
     } else {
       score += 0;
-      factors.push({ label: 'Negative net worth', color: 'text-red-600' });
+      factors.push({ label: 'Negative net worth', color: 'text-destructive' });
     }
 
     return { score, factors };
@@ -106,10 +107,10 @@ export function FinancialSummaryReport({ stats }: FinancialSummaryReportProps) {
                       financialHealth.score >= 20 ? 'D' : 'F';
 
   const getHealthColor = (score: number) => {
-    if (score >= 80) return 'text-green-600 bg-green-100 dark:bg-green-900/20';
-    if (score >= 60) return 'text-blue-600 bg-blue-100 dark:bg-blue-900/20';
-    if (score >= 40) return 'text-yellow-600 bg-yellow-100 dark:bg-yellow-900/20';
-    return 'text-red-600 bg-red-100 dark:bg-red-900/20';
+    if (score >= 80) return `text-success ${resolvedTheme === 'dark' ? 'bg-success/20' : 'bg-success/10'}`;
+    if (score >= 60) return `text-primary ${resolvedTheme === 'dark' ? 'bg-primary/20' : 'bg-primary/10'}`;
+    if (score >= 40) return `text-warning ${resolvedTheme === 'dark' ? 'bg-warning/20' : 'bg-warning/10'}`;
+    return `text-destructive ${resolvedTheme === 'dark' ? 'bg-destructive/20' : 'bg-destructive/10'}`;
   };
 
   const getHealthText = (score: number) => {
@@ -171,13 +172,13 @@ export function FinancialSummaryReport({ stats }: FinancialSummaryReportProps) {
 
       {/* Key Metrics */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
+        <Card className="hover:shadow-lg transition-all duration-200 hover:scale-[1.02] hover:border-primary/20">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Monthly Income</CardTitle>
-            <TrendingUp className="h-4 w-4 text-green-600" />
+            <TrendingUp className="h-4 w-4 text-success" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-600">
+            <div className="text-2xl font-bold text-success">
               {formatCurrency(stats.monthlyIncome)}
             </div>
             <p className="text-xs text-muted-foreground">
@@ -186,13 +187,13 @@ export function FinancialSummaryReport({ stats }: FinancialSummaryReportProps) {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="hover:shadow-lg transition-all duration-200 hover:scale-[1.02] hover:border-primary/20">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Monthly Expenses</CardTitle>
-            <TrendingDown className="h-4 w-4 text-red-600" />
+            <TrendingDown className="h-4 w-4 text-destructive" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-red-600">
+            <div className="text-2xl font-bold text-destructive">
               {formatCurrency(stats.monthlyExpenses)}
             </div>
             <p className="text-xs text-muted-foreground">
@@ -201,12 +202,12 @@ export function FinancialSummaryReport({ stats }: FinancialSummaryReportProps) {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="hover:shadow-lg transition-all duration-200 hover:scale-[1.02] hover:border-primary/20">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Monthly Savings</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className={`text-2xl font-bold ${monthlySavings >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+            <div className={`text-2xl font-bold ${monthlySavings >= 0 ? 'text-success' : 'text-destructive'}`}>
               {formatCurrency(monthlySavings)}
             </div>
             <p className="text-xs text-muted-foreground">
@@ -215,13 +216,13 @@ export function FinancialSummaryReport({ stats }: FinancialSummaryReportProps) {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="hover:shadow-lg transition-all duration-200 hover:scale-[1.02] hover:border-primary/20">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Net Worth</CardTitle>
-            <Target className="h-4 w-4 text-purple-600" />
+            <Target className="h-4 w-4 text-info" />
           </CardHeader>
           <CardContent>
-            <div className={`text-2xl font-bold ${stats.netWorth >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+            <div className={`text-2xl font-bold ${stats.netWorth >= 0 ? 'text-success' : 'text-destructive'}`}>
               {formatCurrency(stats.netWorth)}
             </div>
             <p className="text-xs text-muted-foreground">

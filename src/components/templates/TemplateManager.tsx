@@ -27,6 +27,7 @@ import {
   Loader2
 } from 'lucide-react';
 import { useCurrency } from '@/contexts/CurrencyContext';
+import { useTheme } from '@/contexts/ThemeContext';
 import { toast } from 'sonner';
 import { validateTemplateData, sanitizeTags, parseAmount, validateTemplateUsage, TemplateValidationError } from '@/utils/templateValidation';
 import { LoadingIndicator } from '@/components/ui/LoadingIndicator';
@@ -48,6 +49,7 @@ export function TemplateManager({ onUseTemplate }: TemplateManagerProps) {
   } = useTransactionTemplates();
   
   const { formatCurrency } = useCurrency();
+  const { resolvedTheme } = useTheme();
   const { categories } = useCategories();
   const { accounts } = useAccounts();
 
@@ -129,7 +131,6 @@ export function TemplateManager({ onUseTemplate }: TemplateManagerProps) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
       setOperationErrors([errorMessage]);
       toast.error('Failed to create template');
-      console.error('Template creation error:', error);
     } finally {
       setIsSubmitting(false);
     }
@@ -178,7 +179,6 @@ export function TemplateManager({ onUseTemplate }: TemplateManagerProps) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
       setOperationErrors([errorMessage]);
       toast.error('Failed to update template');
-      console.error('Template update error:', error);
     } finally {
       setIsSubmitting(false);
     }
@@ -190,7 +190,6 @@ export function TemplateManager({ onUseTemplate }: TemplateManagerProps) {
       toast.success(`Template "${template.name}" deleted successfully`);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-      console.error('Error deleting template:', error);
       toast.error(`Failed to delete template: ${errorMessage}`);
     }
   };
@@ -210,7 +209,6 @@ export function TemplateManager({ onUseTemplate }: TemplateManagerProps) {
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
       toast.error('Failed to use template: ' + errorMessage);
-      console.error('Template usage error:', error);
     }
   }, [onUseTemplate]);
 
@@ -367,7 +365,7 @@ export function TemplateManager({ onUseTemplate }: TemplateManagerProps) {
             {quickAddTemplates.map((template) => (
               <Card 
                 key={template.id} 
-                className="cursor-pointer hover:shadow-md transition-shadow"
+                className="cursor-pointer hover:shadow-lg transition-all duration-200 hover:scale-[1.02] hover:border-primary/20"
                 role="button"
                 tabIndex={0}
                 aria-label={`Quick add template: ${template.name}, amount ${formatCurrency(template.amount)}, category ${template.category}`}
@@ -418,7 +416,7 @@ export function TemplateManager({ onUseTemplate }: TemplateManagerProps) {
             {mostUsedTemplates.map((template) => (
               <Card 
                 key={template.id} 
-                className="cursor-pointer hover:shadow-md transition-shadow"
+                className="cursor-pointer hover:shadow-lg transition-all duration-200 hover:scale-[1.02] hover:border-primary/20"
                 role="button"
                 tabIndex={0}
                 aria-label={`Most used template: ${template.name}, amount ${formatCurrency(template.amount)}, category ${template.category}, used ${template.usageCount} times`}
@@ -503,7 +501,7 @@ export function TemplateManager({ onUseTemplate }: TemplateManagerProps) {
             {otherTemplates.map((template) => (
               <Card 
                 key={template.id} 
-                className="cursor-pointer hover:shadow-md transition-shadow"
+                className="cursor-pointer hover:shadow-lg transition-all duration-200 hover:scale-[1.02] hover:border-primary/20"
                 role="button"
                 tabIndex={0}
                 aria-label={`Template: ${template.name}, amount ${formatCurrency(template.amount)}, category ${template.category}${template.lastUsed ? `, last used ${new Date(template.lastUsed).toLocaleDateString()}` : ''}`}
@@ -584,7 +582,7 @@ export function TemplateManager({ onUseTemplate }: TemplateManagerProps) {
       )}
 
       {templates.length === 0 && (
-        <Card className="text-center py-12">
+        <Card className="text-center py-12 hover:shadow-lg transition-all duration-200 hover:scale-[1.02] hover:border-primary/20">
           <CardContent>
             <Layout className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
             <h3 className="text-lg font-semibold mb-2">No templates yet</h3>
@@ -644,7 +642,7 @@ export function TemplateManager({ onUseTemplate }: TemplateManagerProps) {
                 type="button"
                 variant={formData.type === 'income' ? 'default' : 'outline'}
                 onClick={() => setFormData({ ...formData, type: 'income', category: '' })}
-                className="flex-1"
+                className={`flex-1 ${formData.type === 'income' ? 'bg-success hover:bg-success/90' : ''}`}
               >
                 Income
               </Button>
@@ -652,7 +650,7 @@ export function TemplateManager({ onUseTemplate }: TemplateManagerProps) {
                 type="button"
                 variant={formData.type === 'expense' ? 'default' : 'outline'}
                 onClick={() => setFormData({ ...formData, type: 'expense', category: '' })}
-                className="flex-1"
+                className={`flex-1 ${formData.type === 'expense' ? 'bg-destructive hover:bg-destructive/90' : ''}`}
               >
                 Expense
               </Button>

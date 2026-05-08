@@ -19,6 +19,7 @@ import {
   TrendingDown
 } from 'lucide-react';
 import { useCurrency } from '@/contexts/CurrencyContext';
+import { useTheme } from '@/contexts/ThemeContext';
 import { BankTransaction, ReconciliationReport } from '@/lib/types';
 import { useBankIntegration } from '@/hooks/useBankIntegration';
 
@@ -37,6 +38,7 @@ export function TransactionReconciliation({ bankAccountId }: TransactionReconcil
   } = useBankIntegration();
 
   const { formatCurrency } = useCurrency();
+  const { resolvedTheme } = useTheme();
   const [selectedPeriod, setSelectedPeriod] = useState('current-month');
   const [generatingReport, setGeneratingReport] = useState(false);
 
@@ -80,28 +82,28 @@ export function TransactionReconciliation({ bankAccountId }: TransactionReconcil
 
   const getStatusIcon = (status: string) => {
     switch (status) {
-      case 'matched': return <CheckCircle className="h-4 w-4 text-green-600" />;
-      case 'unmatched': return <AlertTriangle className="h-4 w-4 text-yellow-600" />;
-      case 'discrepancy': return <XCircle className="h-4 w-4 text-red-600" />;
-      default: return <AlertTriangle className="h-4 w-4 text-gray-600" />;
+      case 'matched': return <CheckCircle className="h-4 w-4 text-success" />;
+      case 'unmatched': return <AlertTriangle className="h-4 w-4 text-warning" />;
+      case 'discrepancy': return <XCircle className="h-4 w-4 text-destructive" />;
+      default: return <AlertTriangle className="h-4 w-4 text-muted-foreground" />;
     }
   };
 
   const getStatusBadge = (status: string) => {
     switch (status) {
-      case 'matched': return <Badge className="bg-green-100 text-green-800">Matched</Badge>;
-      case 'unmatched': return <Badge className="bg-yellow-100 text-yellow-800">Unmatched</Badge>;
-      case 'discrepancy': return <Badge className="bg-red-100 text-red-800">Discrepancy</Badge>;
-      default: return <Badge className="bg-gray-100 text-gray-800">Unknown</Badge>;
+      case 'matched': return <Badge className="bg-success/20 text-success">Matched</Badge>;
+      case 'unmatched': return <Badge className="bg-warning/20 text-warning">Unmatched</Badge>;
+      case 'discrepancy': return <Badge className="bg-destructive/20 text-destructive">Discrepancy</Badge>;
+      default: return <Badge className="bg-muted/20 text-muted-foreground">Unknown</Badge>;
     }
   };
 
   const getReportStatusBadge = (status: string) => {
     switch (status) {
-      case 'balanced': return <Badge className="bg-green-100 text-green-800">Balanced</Badge>;
-      case 'discrepancy': return <Badge className="bg-red-100 text-red-800">Discrepancy</Badge>;
-      case 'pending': return <Badge className="bg-yellow-100 text-yellow-800">Pending</Badge>;
-      default: return <Badge className="bg-gray-100 text-gray-800">Unknown</Badge>;
+      case 'balanced': return <Badge className="bg-success/20 text-success">Balanced</Badge>;
+      case 'discrepancy': return <Badge className="bg-destructive/20 text-destructive">Discrepancy</Badge>;
+      case 'pending': return <Badge className="bg-warning/20 text-warning">Pending</Badge>;
+      default: return <Badge className="bg-muted/20 text-muted-foreground">Unknown</Badge>;
     }
   };
 
@@ -130,46 +132,46 @@ export function TransactionReconciliation({ bankAccountId }: TransactionReconcil
 
       {/* Reconciliation Statistics */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-        <Card>
+        <Card className="hover:shadow-lg transition-all duration-200 hover:scale-[1.02] hover:border-primary/20">
           <CardContent className="pt-6">
             <div className="text-center">
-              <div className="text-2xl font-bold text-blue-600">{reconciliationStats.total}</div>
+              <div className="text-2xl font-bold text-primary">{reconciliationStats.total}</div>
               <div className="text-sm text-muted-foreground">Total Transactions</div>
             </div>
           </CardContent>
         </Card>
         
-        <Card>
+        <Card className="hover:shadow-lg transition-all duration-200 hover:scale-[1.02] hover:border-primary/20">
           <CardContent className="pt-6">
             <div className="text-center">
-              <div className="text-2xl font-bold text-green-600">{reconciliationStats.matched}</div>
+              <div className="text-2xl font-bold text-success">{reconciliationStats.matched}</div>
               <div className="text-sm text-muted-foreground">Matched</div>
             </div>
           </CardContent>
         </Card>
         
-        <Card>
+        <Card className="hover:shadow-lg transition-all duration-200 hover:scale-[1.02] hover:border-primary/20">
           <CardContent className="pt-6">
             <div className="text-center">
-              <div className="text-2xl font-bold text-yellow-600">{reconciliationStats.unmatched}</div>
+              <div className="text-2xl font-bold text-warning">{reconciliationStats.unmatched}</div>
               <div className="text-sm text-muted-foreground">Unmatched</div>
             </div>
           </CardContent>
         </Card>
         
-        <Card>
+        <Card className="hover:shadow-lg transition-all duration-200 hover:scale-[1.02] hover:border-primary/20">
           <CardContent className="pt-6">
             <div className="text-center">
-              <div className="text-2xl font-bold text-red-600">{reconciliationStats.discrepancies}</div>
+              <div className="text-2xl font-bold text-destructive">{reconciliationStats.discrepancies}</div>
               <div className="text-sm text-muted-foreground">Discrepancies</div>
             </div>
           </CardContent>
         </Card>
         
-        <Card>
+        <Card className="hover:shadow-lg transition-all duration-200 hover:scale-[1.02] hover:border-primary/20">
           <CardContent className="pt-6">
             <div className="text-center">
-              <div className="text-2xl font-bold text-purple-600">{reconciliationStats.duplicates}</div>
+              <div className="text-2xl font-bold text-info">{reconciliationStats.duplicates}</div>
               <div className="text-sm text-muted-foreground">Duplicates</div>
             </div>
           </CardContent>
@@ -177,7 +179,7 @@ export function TransactionReconciliation({ bankAccountId }: TransactionReconcil
       </div>
 
       {/* Progress Overview */}
-      <Card>
+      <Card className="hover:shadow-lg transition-all duration-200 hover:scale-[1.02] hover:border-primary/20">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <TrendingUp className="h-5 w-5" />
@@ -196,19 +198,19 @@ export function TransactionReconciliation({ bankAccountId }: TransactionReconcil
             
             <div className="grid grid-cols-4 gap-4 text-sm">
               <div className="flex items-center gap-2">
-                <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                <div className="w-3 h-3 bg-success rounded-full"></div>
                 <span>Matched ({reconciliationStats.matched})</span>
               </div>
               <div className="flex items-center gap-2">
-                <div className="w-3 h-3 bg-yellow-500 rounded-full"></div>
+                <div className="w-3 h-3 bg-warning rounded-full"></div>
                 <span>Unmatched ({reconciliationStats.unmatched})</span>
               </div>
               <div className="flex items-center gap-2">
-                <div className="w-3 h-3 bg-red-500 rounded-full"></div>
+                <div className="w-3 h-3 bg-destructive rounded-full"></div>
                 <span>Discrepancies ({reconciliationStats.discrepancies})</span>
               </div>
               <div className="flex items-center gap-2">
-                <div className="w-3 h-3 bg-purple-500 rounded-full"></div>
+                <div className="w-3 h-3 bg-info rounded-full"></div>
                 <span>Duplicates ({reconciliationStats.duplicates})</span>
               </div>
             </div>
@@ -250,7 +252,7 @@ export function TransactionReconciliation({ bankAccountId }: TransactionReconcil
                     </div>
                     <div className="text-right">
                       <div className={`font-medium ${
-                        transaction.type === 'income' ? 'text-green-600' : 'text-red-600'
+                        transaction.type === 'income' ? 'text-success' : 'text-destructive'
                       }`}>
                         {transaction.type === 'income' ? '+' : '-'}{formatCurrency(transaction.amount)}
                       </div>
@@ -326,7 +328,7 @@ export function TransactionReconciliation({ bankAccountId }: TransactionReconcil
                         <div>
                           <div className="text-muted-foreground">Difference</div>
                           <div className={`font-medium ${
-                            report.difference >= 0 ? 'text-green-600' : 'text-red-600'
+                            report.difference >= 0 ? 'text-success' : 'text-destructive'
                           }`}>
                             {formatCurrency(report.difference)}
                           </div>

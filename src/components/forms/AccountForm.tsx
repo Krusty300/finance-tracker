@@ -13,7 +13,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useCurrency } from '@/contexts/CurrencyContext';
 import { Account } from '@/lib/types';
-import { CreditCard, Wallet, Smartphone, DollarSign } from 'lucide-react';
+import { CreditCard, Wallet, Smartphone, DollarSign, Loader2 } from 'lucide-react';
 
 const accountSchema = z.object({
   name: z.string()
@@ -194,7 +194,16 @@ export function AccountForm({ account, onSubmit, onCancel }: AccountFormProps) {
                 className="flex-1"
                 disabled={isSubmitting}
               >
-                {isSubmitting ? 'Saving...' : account ? 'Update' : 'Create'}
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    {account ? 'Update' : 'Create'}
+                  </>
+                )}
               </Button>
               <Button
                 type="button"

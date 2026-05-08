@@ -21,6 +21,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { TrendingUp, TrendingDown, Calendar, ArrowRight } from 'lucide-react';
 import { useCurrency } from '@/contexts/CurrencyContext';
+import { useTheme } from '@/contexts/ThemeContext';
 
 interface ComparisonChartProps {
   data: Array<{
@@ -40,6 +41,7 @@ export function ComparisonChart({
   comparisonType = 'month-over-month'
 }: ComparisonChartProps) {
   const { formatCurrency } = useCurrency();
+  const { resolvedTheme } = useTheme();
   const [chartType, setChartType] = useState<'bar' | 'line' | 'area'>(type);
   const [showVariance, setShowVariance] = useState(false);
 
@@ -68,19 +70,19 @@ export function ComparisonChart({
           <div className="space-y-1 text-sm">
             <div className="flex justify-between gap-4">
               <span>Income:</span>
-              <span className="text-green-600 font-medium">
+              <span className="text-success font-medium">
                 +{formatCurrency(data.income)}
               </span>
             </div>
             <div className="flex justify-between gap-4">
               <span>Expenses:</span>
-              <span className="text-red-600 font-medium">
+              <span className="text-destructive font-medium">
                 -{formatCurrency(data.expenses)}
               </span>
             </div>
             <div className="flex justify-between gap-4">
               <span>Net:</span>
-              <span className={`font-medium ${data.net >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+              <span className={`font-medium ${data.net >= 0 ? 'text-success' : 'text-destructive'}`}>
                 {data.net >= 0 ? '+' : ''}{formatCurrency(data.net)}
               </span>
             </div>
@@ -94,13 +96,13 @@ export function ComparisonChart({
               <>
                 <div className="flex justify-between gap-4">
                   <span>Income Change:</span>
-                  <span className={`font-medium ${data.incomeVariance >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  <span className={`font-medium ${data.incomeVariance >= 0 ? 'text-success' : 'text-destructive'}`}>
                     {data.incomeVariance >= 0 ? '+' : ''}{data.incomeVariance.toFixed(1)}%
                   </span>
                 </div>
                 <div className="flex justify-between gap-4">
                   <span>Expenses Change:</span>
-                  <span className={`font-medium ${data.expensesVariance >= 0 ? 'text-red-600' : 'text-green-600'}`}>
+                  <span className={`font-medium ${data.expensesVariance >= 0 ? 'text-warning' : 'text-success'}`}>
                     {data.expensesVariance >= 0 ? '+' : ''}{data.expensesVariance.toFixed(1)}%
                   </span>
                 </div>
@@ -131,21 +133,21 @@ export function ComparisonChart({
             <Line 
               type="monotone" 
               dataKey="income" 
-              stroke="#10b981" 
+              stroke={resolvedTheme === 'dark' ? '#22c55e' : '#16a34a'} 
               strokeWidth={2}
               name="Income"
             />
             <Line 
               type="monotone" 
               dataKey="expenses" 
-              stroke="#ef4444" 
+              stroke={resolvedTheme === 'dark' ? '#ef4444' : '#dc2626'} 
               strokeWidth={2}
               name="Expenses"
             />
             <Line 
               type="monotone" 
               dataKey="net" 
-              stroke="#3b82f6" 
+              stroke={resolvedTheme === 'dark' ? '#3b82f6' : '#2563eb'} 
               strokeWidth={2}
               name="Net"
             />
@@ -163,8 +165,8 @@ export function ComparisonChart({
               type="monotone" 
               dataKey="income" 
               stackId="1"
-              stroke="#10b981" 
-              fill="#10b981" 
+              stroke={resolvedTheme === 'dark' ? '#22c55e' : '#16a34a'} 
+              fill={resolvedTheme === 'dark' ? '#22c55e' : '#16a34a'} 
               fillOpacity={0.6}
               name="Income"
             />
@@ -172,8 +174,8 @@ export function ComparisonChart({
               type="monotone" 
               dataKey="expenses" 
               stackId="2"
-              stroke="#ef4444" 
-              fill="#ef4444" 
+              stroke={resolvedTheme === 'dark' ? '#ef4444' : '#dc2626'} 
+              fill={resolvedTheme === 'dark' ? '#ef4444' : '#dc2626'} 
               fillOpacity={0.6}
               name="Expenses"
             />
@@ -187,8 +189,8 @@ export function ComparisonChart({
             <YAxis />
             <Tooltip content={<CustomTooltip />} />
             <Legend />
-            <Bar dataKey="income" fill="#10b981" name="Income" />
-            <Bar dataKey="expenses" fill="#ef4444" name="Expenses" />
+            <Bar dataKey="income" fill={resolvedTheme === 'dark' ? '#22c55e' : '#16a34a'} name="Income" />
+            <Bar dataKey="expenses" fill={resolvedTheme === 'dark' ? '#ef4444' : '#dc2626'} name="Expenses" />
           </BarChart>
         );
     }
@@ -226,45 +228,67 @@ export function ComparisonChart({
       </CardHeader>
       <CardContent>
         <div className="h-[320px] w-full">
-          <ResponsiveContainer width="100%" height="100%">
+          <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={undefined}>
             {renderChart()}
           </ResponsiveContainer>
         </div>
 
         {/* Summary Statistics */}
         <div className="mt-4 grid grid-cols-3 gap-4">
-          <div className="text-center p-3 bg-green-50 dark:bg-green-950/20 rounded-lg">
-            <div className="text-sm text-green-600 dark:text-green-400 font-medium">
+          <div className={`text-center p-3 rounded-lg ${
+            resolvedTheme === 'dark' ? 'bg-success/20 text-success' : 'bg-success/10 text-success'
+          }`}>
+            <div className={`text-sm font-medium ${
+              resolvedTheme === 'dark' ? 'text-success' : 'text-success'
+            }`}>
               Avg Income
             </div>
-            <div className="text-lg font-bold text-green-700 dark:text-green-300">
+            <div className={`text-lg font-bold ${
+              resolvedTheme === 'dark' ? 'text-success' : 'text-success'
+            }`}>
               {formatCurrency(averageIncome)}
             </div>
-            <div className="text-xs text-green-600 dark:text-green-400">
+            <div className={`text-xs ${
+              resolvedTheme === 'dark' ? 'text-success' : 'text-success'
+            }`}>
               Per month
             </div>
           </div>
           
-          <div className="text-center p-3 bg-red-50 dark:bg-red-950/20 rounded-lg">
-            <div className="text-sm text-red-600 dark:text-red-400 font-medium">
+          <div className={`text-center p-3 rounded-lg ${
+            resolvedTheme === 'dark' ? 'bg-destructive/20 text-destructive' : 'bg-destructive/10 text-destructive'
+          }`}>
+            <div className={`text-sm font-medium ${
+              resolvedTheme === 'dark' ? 'text-destructive' : 'text-destructive'
+            }`}>
               Avg Expenses
             </div>
-            <div className="text-lg font-bold text-red-700 dark:text-red-300">
+            <div className={`text-lg font-bold ${
+              resolvedTheme === 'dark' ? 'text-destructive' : 'text-destructive'
+            }`}>
               {formatCurrency(averageExpenses)}
             </div>
-            <div className="text-xs text-red-600 dark:text-red-400">
+            <div className={`text-xs ${
+              resolvedTheme === 'dark' ? 'text-destructive' : 'text-destructive'
+            }`}>
               Per month
             </div>
           </div>
           
-          <div className="text-center p-3 bg-blue-50 dark:bg-blue-950/20 rounded-lg">
-            <div className="text-sm text-blue-600 dark:text-blue-400 font-medium">
+          <div className={`text-center p-3 rounded-lg ${
+            resolvedTheme === 'dark' ? 'bg-primary/20 text-primary' : 'bg-primary/10 text-primary'
+          }`}>
+            <div className={`text-sm font-medium ${
+              resolvedTheme === 'dark' ? 'text-primary' : 'text-primary'
+            }`}>
               Avg Net
             </div>
-            <div className={`text-lg font-bold ${averageNet >= 0 ? 'text-blue-700 dark:text-blue-300' : 'text-red-700 dark:text-red-300'}`}>
+            <div className={`text-lg font-bold ${averageNet >= 0 ? 'text-success' : 'text-destructive'}`}>
               {averageNet >= 0 ? '+' : ''}{formatCurrency(averageNet)}
             </div>
-            <div className="text-xs text-blue-600 dark:text-blue-400">
+            <div className={`text-xs ${
+              resolvedTheme === 'dark' ? 'text-primary' : 'text-primary'
+            }`}>
               Per month
             </div>
           </div>
@@ -283,9 +307,9 @@ export function ComparisonChart({
           <div className="flex items-center gap-4 text-xs">
             <div className="flex items-center gap-1">
               {chartData[chartData.length - 1]?.net >= chartData[0]?.net ? (
-                <TrendingUp className="h-3 w-3 text-green-600" />
+                <TrendingUp className="h-3 w-3 text-success" />
               ) : (
-                <TrendingDown className="h-3 w-3 text-red-600" />
+                <TrendingDown className="h-3 w-3 text-destructive" />
               )}
               <span className="text-muted-foreground">
                 Net {chartData[chartData.length - 1]?.net >= chartData[0]?.net ? 'up' : 'down'}

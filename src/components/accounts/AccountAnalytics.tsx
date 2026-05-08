@@ -190,7 +190,7 @@ export function AccountAnalytics({ account, transactions }: AccountAnalyticsProp
         </CardHeader>
         <CardContent>
           {monthlyTrend.some(t => t.income > 0 || t.expenses > 0) ? (
-            <ResponsiveContainer width="100%" height={300}>
+            <ResponsiveContainer width="100%" height={300} minWidth={0} minHeight={undefined}>
               <LineChart data={monthlyTrend}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="month" />
@@ -238,7 +238,7 @@ export function AccountAnalytics({ account, transactions }: AccountAnalyticsProp
               {/* Pie Chart */}
               <div>
                 <h4 className="text-sm font-medium mb-4">Distribution</h4>
-                <ResponsiveContainer width="100%" height={200}>
+                <ResponsiveContainer width="100%" height={200} minWidth={0} minHeight={undefined}>
                   <PieChart>
                     <Pie
                       data={expensesByCategory}

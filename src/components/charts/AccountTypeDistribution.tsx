@@ -145,7 +145,7 @@ export function AccountTypeDistribution({
   };
 
   const renderPieChart = () => (
-    <ResponsiveContainer width="100%" height={300}>
+    <ResponsiveContainer width="100%" height={300} minWidth={0} minHeight={undefined}>
       <PieChart>
         <Pie
           data={accountTypeData}
@@ -172,7 +172,7 @@ export function AccountTypeDistribution({
   );
 
   const renderBarChart = () => (
-    <ResponsiveContainer width="100%" height={300}>
+    <ResponsiveContainer width="100%" height={300} minWidth={0} minHeight={undefined}>
       <BarChart data={accountTypeData}>
         <CartesianGrid strokeDasharray="3 3" />
         <XAxis dataKey="name" />

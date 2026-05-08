@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Account } from '@/lib/types';
 import { useCurrency } from '@/contexts/CurrencyContext';
+import { useTheme } from '@/contexts/ThemeContext';
 import { Wallet, TrendingUp, CreditCard, Smartphone, DollarSign, AlertCircle } from 'lucide-react';
 
 interface AccountSummaryProps {
@@ -38,6 +39,7 @@ export function AccountSummary({
   creditDebtAccounts,
 }: AccountSummaryProps) {
   const { formatCurrency } = useCurrency();
+  const { resolvedTheme } = useTheme();
   const hasIssues = lowBalanceAccounts > 0 || overdrawnAccounts > 0 || creditDebtAccounts > 0;
   
   const getAccountTypeBreakdown = () => {
@@ -59,12 +61,12 @@ export function AccountSummary({
 
   return (
     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-      <Card>
+      <Card className="hover:shadow-lg transition-all duration-200 hover:scale-[1.02] hover:border-primary/20">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-sm font-medium">Total Net Worth</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className={`text-2xl font-bold ${totalBalance < 0 ? 'text-red-600' : 'text-green-600'}`}>
+          <div className={`text-2xl font-bold ${totalBalance < 0 ? 'text-destructive' : 'text-success'}`}>
             {formatCurrency(totalBalance)}
           </div>
           <p className="text-xs text-muted-foreground">
@@ -73,7 +75,7 @@ export function AccountSummary({
         </CardContent>
       </Card>
 
-      <Card>
+      <Card className="hover:shadow-lg transition-all duration-200 hover:scale-[1.02] hover:border-primary/20">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-sm font-medium">Bank Accounts</CardTitle>
         </CardHeader>
@@ -87,7 +89,7 @@ export function AccountSummary({
         </CardContent>
       </Card>
 
-      <Card>
+      <Card className="hover:shadow-lg transition-all duration-200 hover:scale-[1.02] hover:border-primary/20">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-sm font-medium">Credit Cards</CardTitle>
         </CardHeader>
@@ -101,21 +103,21 @@ export function AccountSummary({
         </CardContent>
       </Card>
 
-      <Card>
+      <Card className="hover:shadow-lg transition-all duration-200 hover:scale-[1.02] hover:border-primary/20">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-sm font-medium">Account Health</CardTitle>
           {hasIssues ? (
-            <AlertCircle className="h-4 w-4 text-orange-500" />
+            <AlertCircle className="h-4 w-4 text-warning" />
           ) : (
-            <TrendingUp className="h-4 w-4 text-green-500" />
+            <TrendingUp className="h-4 w-4 text-success" />
           )}
         </CardHeader>
         <CardContent>
           <div className="text-2xl font-bold">
             {hasIssues ? (
-              <span className="text-orange-600">Issues</span>
+              <span className="text-warning">Issues</span>
             ) : (
-              <span className="text-green-600">Good</span>
+              <span className="text-success">Good</span>
             )}
           </div>
           <p className="text-xs text-muted-foreground">
@@ -151,7 +153,7 @@ export function AccountTypeDistribution({ accountTypeDistribution }: { accountTy
     });
 
   return (
-    <Card>
+    <Card className="hover:shadow-lg transition-all duration-200 hover:scale-[1.02] hover:border-primary/20">
       <CardHeader>
         <CardTitle>Account Distribution</CardTitle>
       </CardHeader>

@@ -115,7 +115,7 @@ export function CategoryBreakdownReport({ categoryBreakdown }: CategoryBreakdown
           <div className="grid gap-6 md:grid-cols-2">
             <div>
               <h3 className="text-lg font-semibold mb-4">Distribution</h3>
-              <ResponsiveContainer width="100%" height={300} minWidth={300} minHeight={300}>
+              <ResponsiveContainer width="100%" height={300} minWidth={0} minHeight={undefined}>
                 <PieChart>
                   <Pie
                     data={categoryBreakdown}
@@ -139,7 +139,7 @@ export function CategoryBreakdownReport({ categoryBreakdown }: CategoryBreakdown
             {/* Bar Chart */}
             <div>
               <h3 className="text-lg font-semibold mb-4">Comparison</h3>
-              <ResponsiveContainer width="100%" height={300} minWidth={300} minHeight={300}>
+              <ResponsiveContainer width="100%" height={300} minWidth={0} minHeight={undefined}>
                 <BarChart data={categoryBreakdown} layout="horizontal">
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis type="number" tickFormatter={(value) => `$${value}`} />

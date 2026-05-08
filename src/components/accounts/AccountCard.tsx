@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Account } from '@/lib/types';
 import { useCurrency } from '@/contexts/CurrencyContext';
+import { useTheme } from '@/contexts/ThemeContext';
 import { Edit, Trash2, TrendingUp, TrendingDown, Minus } from 'lucide-react';
 
 interface AccountCardProps {
@@ -33,10 +34,10 @@ export function AccountCard({
   onViewDetails,
 }: AccountCardProps) {
   const { formatCurrency } = useCurrency();
+  const { resolvedTheme } = useTheme();
   
   // Validate account data
   if (!account) {
-    console.warn('Invalid account data provided to AccountCard');
     return null;
   }
 
@@ -46,9 +47,9 @@ export function AccountCard({
 
   const getBalanceColor = () => {
     if (isCredit) {
-      return isPositive ? 'text-red-600' : 'text-green-600';
+      return isPositive ? 'text-destructive' : 'text-success';
     }
-    return isPositive ? 'text-green-600' : isZero ? 'text-muted-foreground' : 'text-red-600';
+    return isPositive ? 'text-success' : isZero ? 'text-muted-foreground' : 'text-destructive';
   };
 
   const getBalanceIcon = () => {
@@ -66,7 +67,7 @@ export function AccountCard({
   };
 
   return (
-    <Card className="relative">
+    <Card className="relative hover:shadow-lg transition-all duration-200 hover:scale-[1.02] hover:border-primary/20">
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -131,21 +132,27 @@ export function AccountCard({
         </div>
 
         {isCredit && isPositive && (
-          <div className="flex items-center gap-2 text-sm text-orange-600 bg-orange-50 dark:bg-orange-950/20 p-2 rounded">
+          <div className={`flex items-center gap-2 text-sm p-2 rounded ${
+            resolvedTheme === 'dark' ? 'bg-warning/20 text-warning' : 'bg-warning/10 text-warning'
+          }`}>
             <TrendingUp className="h-4 w-4" />
             <span>Credit card debt of {formatCurrency(typeof account.balance === 'number' ? account.balance : 0)}</span>
           </div>
         )}
 
         {!isCredit && typeof account.balance === 'number' && account.balance < 0 && (
-          <div className="flex items-center gap-2 text-sm text-red-600 bg-red-50 dark:bg-red-950/20 p-2 rounded">
+          <div className={`flex items-center gap-2 text-sm p-2 rounded ${
+            resolvedTheme === 'dark' ? 'bg-destructive/20 text-destructive' : 'bg-destructive/10 text-destructive'
+          }`}>
             <TrendingDown className="h-4 w-4" />
             <span>Account overdrawn by {formatCurrency(Math.abs(account.balance))}</span>
           </div>
         )}
 
         {!isCredit && typeof account.balance === 'number' && account.balance > 0 && account.balance < 100 && (
-          <div className="flex items-center gap-2 text-sm text-yellow-600 bg-yellow-50 dark:bg-yellow-950/20 p-2 rounded">
+          <div className={`flex items-center gap-2 text-sm p-2 rounded ${
+            resolvedTheme === 'dark' ? 'bg-warning/20 text-warning' : 'bg-warning/10 text-warning'
+          }`}>
             <Minus className="h-4 w-4" />
             <span>Low balance warning</span>
           </div>

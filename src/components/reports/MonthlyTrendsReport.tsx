@@ -172,7 +172,7 @@ export function MonthlyTrendsReport({ monthlyTrend }: MonthlyTrendsReportProps) 
           {/* Line Chart */}
           <div>
             <h3 className="text-lg font-semibold mb-4">Income vs Expenses Trend</h3>
-            <ResponsiveContainer width="100%" height={300}>
+            <ResponsiveContainer width="100%" height={300} minWidth={0} minHeight={undefined}>
               <LineChart data={monthlyTrend}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="month" />
@@ -200,7 +200,7 @@ export function MonthlyTrendsReport({ monthlyTrend }: MonthlyTrendsReportProps) 
           {/* Bar Chart */}
           <div>
             <h3 className="text-lg font-semibold mb-4">Monthly Comparison</h3>
-            <ResponsiveContainer width="100%" height={300}>
+            <ResponsiveContainer width="100%" height={300} minWidth={0} minHeight={undefined}>
               <BarChart data={monthlyTrend}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="month" />

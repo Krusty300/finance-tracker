@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useNotifications, NotificationCategory, NotificationPriority } from '@/hooks/useNotifications';
+import { useTheme } from '@/contexts/ThemeContext';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -47,20 +48,21 @@ const categoryIcons = {
 };
 
 const priorityColors = {
-  low: 'border-l-gray-300',
-  medium: 'border-l-blue-300',
-  high: 'border-l-orange-300',
-  critical: 'border-l-red-500',
+  low: 'border-l-muted',
+  medium: 'border-l-info',
+  high: 'border-l-warning',
+  critical: 'border-l-destructive',
 };
 
 const notificationStyles = {
-  success: 'bg-green-50 border-green-200 text-green-800 dark:bg-green-900/20 dark:border-green-800 dark:text-green-200',
-  error: 'bg-red-50 border-red-200 text-red-800 dark:bg-red-900/20 dark:border-red-800 dark:text-red-200',
-  warning: 'bg-yellow-50 border-yellow-200 text-yellow-800 dark:bg-yellow-900/20 dark:border-yellow-800 dark:text-yellow-200',
-  info: 'bg-blue-50 border-blue-200 text-blue-800 dark:bg-blue-900/20 dark:border-blue-800 dark:text-blue-200',
+  success: 'bg-success/10 border-success/20 text-success dark:bg-success/5 dark:border-success/10 dark:text-success',
+  error: 'bg-destructive/10 border-destructive/20 text-destructive dark:bg-destructive/5 dark:border-destructive/10 dark:text-destructive',
+  warning: 'bg-warning/10 border-warning/20 text-warning dark:bg-warning/5 dark:border-warning/10 dark:text-warning',
+  info: 'bg-primary/10 border-primary/20 text-primary dark:bg-primary/5 dark:border-primary/10 dark:text-primary',
 };
 
 export function NotificationSystem() {
+  const { resolvedTheme } = useTheme();
   const { notifications, removeNotification, markAsRead, markAllAsRead, clearAll, unreadCount } = useNotifications();
   const [showDropdown, setShowDropdown] = useState(false);
   const [expandedNotifications, setExpandedNotifications] = useState<Set<string>>(new Set());

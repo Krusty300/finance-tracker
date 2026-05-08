@@ -222,7 +222,7 @@ export function AccountBalanceWaterfall({
       </CardHeader>
       <CardContent>
         <div className="h-[320px] w-full">
-          <ResponsiveContainer width="100%" height="100%">
+          <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={undefined}>
             <BarChart data={data} layout="horizontal">
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="name" />

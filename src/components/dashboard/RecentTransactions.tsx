@@ -10,6 +10,7 @@ import { useAccounts } from '@/hooks/useAccounts';
 import { useTransactions } from '@/hooks/useTransactions';
 import { useCurrency } from '@/contexts/CurrencyContext';
 import { useFormatting } from '@/contexts/FormattingContext';
+import { useTheme } from '@/contexts/ThemeContext';
 import { ArrowUpRight, ArrowDownRight, Plus } from 'lucide-react';
 
 interface RecentTransactionsProps {
@@ -22,6 +23,7 @@ export function RecentTransactions({ transactions }: RecentTransactionsProps) {
   const { addTransaction } = useTransactions();
   const { formatCurrency } = useCurrency();
   const { formatDate } = useFormatting();
+  const { resolvedTheme } = useTheme();
 
   // Validate transactions data and memoize to prevent re-renders
   const safeTransactions = useMemo(() => {
@@ -91,11 +93,11 @@ export function RecentTransactions({ transactions }: RecentTransactionsProps) {
             return (
               <div key={transaction.id} className="flex items-center justify-between">
                 <div className="flex items-center space-x-3">
-                  <div className={`rounded-full p-2 ${isIncome ? 'bg-green-100' : 'bg-red-100'}`}>
+                  <div className={`rounded-full p-2 ${isIncome ? 'bg-success/20' : 'bg-destructive/20'}`}>
                     {isIncome ? (
-                      <ArrowUpRight className="h-4 w-4 text-green-600" />
+                      <ArrowUpRight className="h-4 w-4 text-success" />
                     ) : (
-                      <ArrowDownRight className="h-4 w-4 text-red-600" />
+                      <ArrowDownRight className="h-4 w-4 text-destructive" />
                     )}
                   </div>
                   <div>
@@ -113,7 +115,7 @@ export function RecentTransactions({ transactions }: RecentTransactionsProps) {
                     </div>
                   </div>
                 </div>
-                <div className={`font-medium ${isIncome ? 'text-green-600' : 'text-red-600'}`}>
+                <div className={`font-medium ${isIncome ? 'text-success' : 'text-destructive'}`}>
                   {isIncome ? '+' : '-'}{formatCurrency(transaction.amount)}
                 </div>
               </div>

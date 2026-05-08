@@ -7,13 +7,13 @@ import { z } from 'zod';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { createTransactionSchema } from '@/lib/schema';
 import { useCategories } from '@/hooks/useCategories';
 import { useAccounts } from '@/hooks/useAccounts';
 import { useCurrency } from '@/contexts/CurrencyContext';
-import { Plus } from 'lucide-react';
+import { Plus, Loader2 } from 'lucide-react';
 
 const formSchema = createTransactionSchema.extend({
   date: z.string().min(1, 'Date is required'),
@@ -34,6 +34,7 @@ export function TransactionForm({ onSubmit, trigger, initialData, onDialogClose 
   const { accounts } = useAccounts();
 
   const [open, setOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
@@ -94,9 +95,10 @@ export function TransactionForm({ onSubmit, trigger, initialData, onDialogClose 
     }
   }, [initialData, form]);
 
-  const handleSubmit = (data: FormData) => {
+  const handleSubmit = async (data: FormData) => {
+    setIsSubmitting(true);
     try {
-      onSubmit(data);
+      await onSubmit(data);
       // Delay form reset to allow parent to clear template data first
       setTimeout(() => {
         form.reset();
@@ -104,6 +106,8 @@ export function TransactionForm({ onSubmit, trigger, initialData, onDialogClose 
       }, 100);
     } catch (error) {
       console.error('Error submitting transaction:', error);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -127,6 +131,9 @@ export function TransactionForm({ onSubmit, trigger, initialData, onDialogClose 
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle>Add Transaction</DialogTitle>
+          <DialogDescription>
+            Add a new transaction to your records
+          </DialogDescription>
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
@@ -260,10 +267,23 @@ export function TransactionForm({ onSubmit, trigger, initialData, onDialogClose 
                 type="button"
                 variant="outline"
                 onClick={() => setOpen(false)}
+                disabled={isSubmitting}
               >
                 Cancel
               </Button>
-              <Button type="submit">Add Transaction</Button>
+              <Button type="submit" disabled={isSubmitting}>
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Adding...
+                  </>
+                ) : (
+                  <>
+                    <Plus className="mr-2 h-4 w-4" />
+                    Add Transaction
+                  </>
+                )}
+              </Button>
             </div>
           </form>
         </Form>

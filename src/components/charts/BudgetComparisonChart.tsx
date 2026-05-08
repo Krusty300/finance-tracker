@@ -35,6 +35,7 @@ import {
   AreaChart as AreaChartIcon
 } from 'lucide-react';
 import { useCurrency } from '@/contexts/CurrencyContext';
+import { useTheme } from '@/contexts/ThemeContext';
 
 interface BudgetData {
   category: string;
@@ -62,6 +63,7 @@ export function BudgetComparisonChart({
   period = 'current'
 }: BudgetComparisonChartProps) {
   const { formatCurrency } = useCurrency();
+  const { resolvedTheme } = useTheme();
   const [selectedChart, setSelectedChart] = useState(chartType);
   const [hoveredCategory, setHoveredCategory] = useState<string | null>(null);
 
@@ -83,9 +85,9 @@ export function BudgetComparisonChart({
 
   // Status distribution for pie chart
   const statusData = [
-    { name: 'On Track', value: validatedData.filter(d => d.status === 'on-track').length, color: '#10b981' },
-    { name: 'Near Limit', value: validatedData.filter(d => d.status === 'near-limit').length, color: '#f59e0b' },
-    { name: 'Over Budget', value: validatedData.filter(d => d.status === 'over-budget').length, color: '#ef4444' },
+    { name: 'On Track', value: validatedData.filter(d => d.status === 'on-track').length, color: resolvedTheme === 'dark' ? '#22c55e' : '#16a34a' },
+    { name: 'Near Limit', value: validatedData.filter(d => d.status === 'near-limit').length, color: resolvedTheme === 'dark' ? '#eab308' : '#ca8a04' },
+    { name: 'Over Budget', value: validatedData.filter(d => d.status === 'over-budget').length, color: resolvedTheme === 'dark' ? '#ef4444' : '#dc2626' },
   ];
 
   const CustomTooltip = ({ active, payload, label }: any) => {
@@ -97,30 +99,30 @@ export function BudgetComparisonChart({
           <div className="space-y-1 text-sm">
             <div className="flex justify-between gap-4">
               <span>Budget:</span>
-              <span className="font-medium text-blue-600">
+              <span className="font-medium text-primary">
                 {formatCurrency(data.budget)}
               </span>
             </div>
             <div className="flex justify-between gap-4">
               <span>Spent:</span>
               <span className={`font-medium ${
-                data.percentageUsed > 100 ? 'text-red-600' : 
-                data.percentageUsed >= 80 ? 'text-yellow-600' : 'text-green-600'
+                data.percentageUsed > 100 ? 'text-destructive' : 
+                data.percentageUsed >= 80 ? 'text-warning' : 'text-success'
               }`}>
                 {formatCurrency(data.spent)}
               </span>
             </div>
             <div className="flex justify-between gap-4">
               <span>Remaining:</span>
-              <span className="font-medium text-gray-600">
+              <span className="font-medium text-muted-foreground">
                 {formatCurrency(data.remaining)}
               </span>
             </div>
             <div className="flex justify-between gap-4">
               <span>Used:</span>
               <span className={`font-medium ${
-                data.percentageUsed > 100 ? 'text-red-600' : 
-                data.percentageUsed >= 80 ? 'text-yellow-600' : 'text-green-600'
+                data.percentageUsed > 100 ? 'text-destructive' : 
+                data.percentageUsed >= 80 ? 'text-warning' : 'text-success'
               }`}>
                 {data.percentageUsed.toFixed(1)}%
               </span>
@@ -150,14 +152,14 @@ export function BudgetComparisonChart({
             <Line 
               type="monotone" 
               dataKey="budget" 
-              stroke="#3b82f6" 
+              stroke={resolvedTheme === 'dark' ? '#60a5fa' : '#3b82f6'} 
               strokeWidth={2}
               name="Budget"
             />
             <Line 
               type="monotone" 
               dataKey="spent" 
-              stroke="#ef4444" 
+              stroke={resolvedTheme === 'dark' ? '#f87171' : '#ef4444'} 
               strokeWidth={2}
               name="Spent"
             />
@@ -174,16 +176,16 @@ export function BudgetComparisonChart({
             <Area 
               type="monotone" 
               dataKey="budget" 
-              stroke="#3b82f6" 
-              fill="#3b82f6" 
+              stroke={resolvedTheme === 'dark' ? '#60a5fa' : '#3b82f6'} 
+              fill={resolvedTheme === 'dark' ? '#60a5fa' : '#3b82f6'} 
               fillOpacity={0.3}
               name="Budget"
             />
             <Area 
               type="monotone" 
               dataKey="spent" 
-              stroke="#f59e0b" 
-              fill="#f59e0b" 
+              stroke={resolvedTheme === 'dark' ? '#fbbf24' : '#f59e0b'} 
+              fill={resolvedTheme === 'dark' ? '#fbbf24' : '#f59e0b'} 
               fillOpacity={0.1}
               strokeDasharray="5 5"
               name="Projected"
@@ -218,8 +220,8 @@ export function BudgetComparisonChart({
             <YAxis />
             <Tooltip content={<CustomTooltip />} />
             <Legend />
-            <Bar dataKey="budget" fill="#3b82f6" name="Budget" />
-            <Bar dataKey="spent" fill="#ef4444" name="Spent" />
+            <Bar dataKey="budget" fill={resolvedTheme === 'dark' ? '#60a5fa' : '#3b82f6'} name="Budget" />
+            <Bar dataKey="spent" fill={resolvedTheme === 'dark' ? '#f87171' : '#ef4444'} name="Spent" />
           </BarChart>
         );
     }
@@ -227,10 +229,10 @@ export function BudgetComparisonChart({
 
   const getStatusIcon = (status: string) => {
     switch (status) {
-      case 'on-track': return <CheckCircle className="h-4 w-4 text-green-600" />;
-      case 'near-limit': return <AlertCircle className="h-4 w-4 text-yellow-600" />;
-      case 'over-budget': return <TrendingDown className="h-4 w-4 text-red-600" />;
-      default: return <Target className="h-4 w-4 text-gray-600" />;
+      case 'on-track': return <CheckCircle className="h-4 w-4 text-success" />;
+      case 'near-limit': return <AlertCircle className="h-4 w-4 text-warning" />;
+      case 'over-budget': return <TrendingDown className="h-4 w-4 text-destructive" />;
+      default: return <Target className="h-4 w-4 text-muted-foreground" />;
     }
   };
 
@@ -302,57 +304,89 @@ export function BudgetComparisonChart({
       </CardHeader>
       <CardContent>
         <div className="h-[320px] w-full">
-          <ResponsiveContainer width="100%" height="100%">
+          <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={undefined}>
             {renderChart()}
           </ResponsiveContainer>
         </div>
 
         {/* Summary Statistics */}
         <div className="mt-4 grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div className="text-center p-3 bg-blue-50 dark:bg-blue-950/20 rounded-lg">
-            <div className="text-sm text-blue-600 dark:text-blue-400 font-medium">
+          <div className={`text-center p-3 rounded-lg ${
+            resolvedTheme === 'dark' ? 'bg-primary/20 text-primary' : 'bg-primary/10 text-primary'
+          }`}>
+            <div className={`text-sm font-medium ${
+              resolvedTheme === 'dark' ? 'text-primary' : 'text-primary'
+            }`}>
               Total Budget
             </div>
-            <div className="text-lg font-bold text-blue-700 dark:text-blue-300">
+            <div className={`text-lg font-bold ${
+              resolvedTheme === 'dark' ? 'text-primary' : 'text-primary'
+            }`}>
               {formatCurrency(totalBudget)}
             </div>
-            <div className="text-xs text-blue-600 dark:text-blue-400">
+            <div className={`text-xs ${
+              resolvedTheme === 'dark' ? 'text-primary' : 'text-primary'
+            }`}>
               Across {data.length} categories
             </div>
           </div>
           
-          <div className="text-center p-3 bg-red-50 dark:bg-red-950/20 rounded-lg">
-            <div className="text-sm text-red-600 dark:text-red-400 font-medium">
+          <div className={`text-center p-3 rounded-lg ${
+            resolvedTheme === 'dark' ? 'bg-destructive/20 text-destructive' : 'bg-destructive/10 text-destructive'
+          }`}>
+            <div className={`text-sm font-medium ${
+              resolvedTheme === 'dark' ? 'text-destructive' : 'text-destructive'
+            }`}>
               Total Spent
             </div>
-            <div className="text-lg font-bold text-red-700 dark:text-red-300">
+            <div className={`text-lg font-bold ${
+              resolvedTheme === 'dark' ? 'text-destructive' : 'text-destructive'
+            }`}>
               {formatCurrency(totalSpent)}
             </div>
-            <div className="text-xs text-red-600 dark:text-red-400">
+            <div className={`text-xs ${
+              resolvedTheme === 'dark' ? 'text-destructive' : 'text-destructive'
+            }`}>
               {overallPercentage.toFixed(1)}% used
             </div>
           </div>
           
-          <div className="text-center p-3 bg-green-50 dark:bg-green-950/20 rounded-lg">
-            <div className="text-sm text-green-600 dark:text-green-400 font-medium">
+          <div className={`text-center p-3 rounded-lg ${
+            resolvedTheme === 'dark' ? 'bg-success/20 text-success' : 'bg-success/10 text-success'
+          }`}>
+            <div className={`text-sm font-medium ${
+              resolvedTheme === 'dark' ? 'text-success' : 'text-success'
+            }`}>
               Remaining
             </div>
-            <div className="text-lg font-bold text-green-700 dark:text-green-300">
+            <div className={`text-lg font-bold ${
+              resolvedTheme === 'dark' ? 'text-success' : 'text-success'
+            }`}>
               {formatCurrency(totalRemaining)}
             </div>
-            <div className="text-xs text-green-600 dark:text-green-400">
+            <div className={`text-xs ${
+              resolvedTheme === 'dark' ? 'text-success' : 'text-success'
+            }`}>
               {((totalRemaining / totalBudget) * 100).toFixed(1)}% left
             </div>
           </div>
           
-          <div className="text-center p-3 bg-purple-50 dark:bg-purple-950/20 rounded-lg">
-            <div className="text-sm text-purple-600 dark:text-purple-400 font-medium">
+          <div className={`text-center p-3 rounded-lg ${
+            resolvedTheme === 'dark' ? 'bg-info/20 text-info' : 'bg-info/10 text-info'
+          }`}>
+            <div className={`text-sm font-medium ${
+              resolvedTheme === 'dark' ? 'text-info' : 'text-info'
+            }`}>
               Budget Health
             </div>
-            <div className="text-lg font-bold text-purple-700 dark:text-purple-300">
+            <div className={`text-lg font-bold ${
+              resolvedTheme === 'dark' ? 'text-info' : 'text-info'
+            }`}>
               {overallPercentage > 100 ? 'Over' : overallPercentage >= 80 ? 'Warning' : 'Good'}
             </div>
-            <div className="text-xs text-purple-600 dark:text-purple-400">
+            <div className={`text-xs ${
+              resolvedTheme === 'dark' ? 'text-info' : 'text-info'
+            }`}>
               {data.filter(d => d.status === 'over-budget').length} over budget
             </div>
           </div>
@@ -401,15 +435,15 @@ export function BudgetComparisonChart({
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4 text-sm">
               <div className="flex items-center gap-1">
-                <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                <div className={`w-3 h-3 rounded-full ${resolvedTheme === 'dark' ? 'bg-success' : 'bg-success'}`}></div>
                 <span>On Track: {validatedData.filter(d => d.status === 'on-track').length}</span>
               </div>
               <div className="flex items-center gap-1">
-                <div className="w-3 h-3 bg-yellow-500 rounded-full"></div>
+                <div className={`w-3 h-3 rounded-full ${resolvedTheme === 'dark' ? 'bg-warning' : 'bg-warning'}`}></div>
                 <span>Near Limit: {validatedData.filter(d => d.status === 'near-limit').length}</span>
               </div>
               <div className="flex items-center gap-1">
-                <div className="w-3 h-3 bg-red-500 rounded-full"></div>
+                <div className={`w-3 h-3 rounded-full ${resolvedTheme === 'dark' ? 'bg-destructive' : 'bg-destructive'}`}></div>
                 <span>Over Budget: {validatedData.filter(d => d.status === 'over-budget').length}</span>
               </div>
             </div>
@@ -418,8 +452,8 @@ export function BudgetComparisonChart({
                 Budget Performance
               </div>
               <div className={`text-sm font-medium ${
-                overallPercentage > 100 ? 'text-red-600' : 
-                overallPercentage >= 80 ? 'text-yellow-600' : 'text-green-600'
+                overallPercentage > 100 ? 'text-destructive' : 
+                overallPercentage >= 80 ? 'text-warning' : 'text-success'
               }`}>
                 {overallPercentage > 100 ? 'Over Budget' : 
                  overallPercentage >= 80 ? 'Near Limit' : 'On Track'}

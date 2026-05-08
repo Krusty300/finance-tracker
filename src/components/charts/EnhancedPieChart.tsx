@@ -114,7 +114,7 @@ export function EnhancedPieChart({
       </CardHeader>
       <CardContent>
         <div className="h-[320px] w-full">
-          <ResponsiveContainer width="100%" height="100%">
+          <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={undefined}>
             <PieChart>
               <Pie
                 data={chartData}

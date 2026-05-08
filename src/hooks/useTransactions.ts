@@ -59,9 +59,18 @@ export function useTransactions() {
           
           const newBalance = account.balance + balanceChange;
           console.log(`Updating account ${account.name} balance: ${account.balance} → ${newBalance} (${balanceChange > 0 ? '+' : ''}${balanceChange})`);
-          updateAccount(account.id, {
-            balance: newBalance
-          });
+          
+          try {
+            updateAccount(account.id, {
+              balance: newBalance
+            });
+          } catch (balanceError) {
+            console.error('Failed to update account balance:', balanceError);
+            // Don't throw error here - transaction was still added successfully
+            toast.warning('Transaction added but account balance update failed');
+          }
+        } else {
+          console.warn('Account not found for transaction:', transaction.account);
         }
       }
 

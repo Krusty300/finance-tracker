@@ -94,14 +94,12 @@ export default function SettingsPage() {
   }, []);
 
   const handleVerifyData = () => {
-    console.log('🔍 Manually verifying data...');
     verifyLocalStorage();
     const result = verifyDataPersistence();
     toast.success(`Data verification complete! Categories: ${result.categories}, Accounts: ${result.accounts}, Transactions: ${result.transactions}, Budgets: ${result.budgets}`);
   };
 
   const handleSeedData = () => {
-    console.log('🌱 Seeding sample data...');
     seedSampleData();
     toast.success('Sample data seeded successfully!');
   };
@@ -146,7 +144,6 @@ export default function SettingsPage() {
       
       toast.success('Data exported successfully!');
     } catch (error) {
-      console.error('Export error:', error);
       toast.error('Export failed. Please try again.');
     }
   };
@@ -255,7 +252,6 @@ export default function SettingsPage() {
               db.addTransaction(transaction);
               importCount++;
             } catch (error) {
-              console.error(`Error importing transaction ${index + 1}:`, error);
               errorCount++;
             }
           });
@@ -267,7 +263,6 @@ export default function SettingsPage() {
           toast.success(`Successfully imported ${importCount} transactions!`);
         }
       } catch (error) {
-        console.error('Import error:', error);
         toast.error(`Import failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
       }
     };
@@ -301,16 +296,16 @@ export default function SettingsPage() {
       case 'connected':
       case 'loaded':
       case 'active':
-        return 'bg-green-500';
+        return 'bg-success';
       case 'limited':
-        return 'bg-yellow-500';
+        return 'bg-warning';
       case 'unavailable':
       case 'error':
-        return 'bg-red-500';
+        return 'bg-destructive';
       case 'checking':
-        return 'bg-blue-500';
+        return 'bg-primary';
       default:
-        return 'bg-gray-500';
+        return 'bg-muted';
     }
   };
 
@@ -349,7 +344,7 @@ export default function SettingsPage() {
         <ThemeSettings />
 
         {/* Currency & Formatting */}
-        <Card>
+        <Card className="hover:shadow-lg transition-all duration-200 hover:scale-[1.02] hover:border-primary/20">
           <CardHeader>
             <CardTitle>
               Currency & Formatting
@@ -412,13 +407,133 @@ export default function SettingsPage() {
         </Card>
 
         {/* Formatting Preview */}
-        <FormattingPreview />
+        <Card className="hover:shadow-lg transition-all duration-200 hover:scale-[1.02] hover:border-primary/20">
+          <CardHeader>
+            <CardTitle>
+              Formatting Preview
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="currency">Currency</Label>
+                <Select value={currency} onValueChange={setCurrency}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select currency" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availableCurrencies.map((curr) => (
+                      <SelectItem key={curr} value={curr}>
+                        {curr} - {curr === 'USD' ? 'US Dollar' : 
+                               curr === 'EUR' ? 'Euro' :
+                               curr === 'GBP' ? 'British Pound' :
+                               curr === 'JPY' ? 'Japanese Yen' :
+                               curr === 'CAD' ? 'Canadian Dollar' :
+                               curr === 'AUD' ? 'Australian Dollar' : curr} ({getCurrencySymbol(curr)})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="dateFormat">Date Format</Label>
+                <Select value={dateFormat} onValueChange={setDateFormat}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select format" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availableDateFormats.map((format) => (
+                      <SelectItem key={format} value={format}>
+                        {format}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="numberFormat">Number Format</Label>
+                <Select value={numberFormat} onValueChange={setNumberFormat}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select format" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availableNumberFormats.map((format) => (
+                      <SelectItem key={format} value={format}>
+                        {format}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Currency Converter */}
-        <CurrencyConverter />
+        <Card className="hover:shadow-lg transition-all duration-200 hover:scale-[1.02] hover:border-primary/20">
+          <CardHeader>
+            <CardTitle>
+              Currency Converter
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="currency">Currency</Label>
+                <Select value={currency} onValueChange={setCurrency}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select currency" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availableCurrencies.map((curr) => (
+                      <SelectItem key={curr} value={curr}>
+                        {curr} - {curr === 'USD' ? 'US Dollar' : 
+                               curr === 'EUR' ? 'Euro' :
+                               curr === 'GBP' ? 'British Pound' :
+                               curr === 'JPY' ? 'Japanese Yen' :
+                               curr === 'CAD' ? 'Canadian Dollar' :
+                               curr === 'AUD' ? 'Australian Dollar' : curr} ({getCurrencySymbol(curr)})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="dateFormat">Date Format</Label>
+                <Select value={dateFormat} onValueChange={setDateFormat}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select format" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availableDateFormats.map((format) => (
+                      <SelectItem key={format} value={format}>
+                        {format}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="numberFormat">Number Format</Label>
+                <Select value={numberFormat} onValueChange={setNumberFormat}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select format" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availableNumberFormats.map((format) => (
+                      <SelectItem key={format} value={format}>
+                        {format}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Import/Export */}
-        <Card>
+        <Card className="hover:shadow-lg transition-all duration-200 hover:scale-[1.02] hover:border-primary/20">
           <CardHeader>
             <CardTitle className="flex items-center">
               <Download className="mr-2 h-5 w-5" />
@@ -478,7 +593,7 @@ export default function SettingsPage() {
         </Card>
 
         {/* Data Management */}
-        <Card>
+        <Card className="hover:shadow-lg transition-all duration-200 hover:scale-[1.02] hover:border-primary/20">
           <CardHeader>
             <CardTitle className="flex items-center">
               <Database className="mr-2 h-5 w-5" />
@@ -507,7 +622,7 @@ export default function SettingsPage() {
       </div>
 
       {/* Application Status */}
-      <Card>
+      <Card className="hover:shadow-lg transition-all duration-200 hover:scale-[1.02] hover:border-primary/20">
         <CardHeader>
           <CardTitle className="flex items-center">
             <SettingsIcon className="mr-2 h-5 w-5" />
@@ -555,14 +670,14 @@ export default function SettingsPage() {
               </div>
             </div>
             <div className="flex items-center space-x-2">
-              <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+              <div className="w-3 h-3 bg-success rounded-full"></div>
               <div>
                 <div className="font-medium">Recycle Bin</div>
                 <div className="text-sm text-muted-foreground">Active</div>
               </div>
             </div>
             <div className="flex items-center space-x-2">
-              <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+              <div className="w-3 h-3 bg-success rounded-full"></div>
               <div>
                 <div className="font-medium">Theme System</div>
                 <div className="text-sm text-muted-foreground">Active</div>

@@ -47,10 +47,10 @@ export function verifyDataPersistence() {
       const testTransaction = {
         amount: 100,
         type: 'expense' as const,
-        category: categories[0]?.id || '',
+        category: categories[0]?.id || 'test-category',
         date: new Date().toISOString().split('T')[0],
         description: 'Test Transaction',
-        account: accounts[0]?.id,
+        account: accounts[0]?.id || 'test-account',
       };
 
       const added = db.addTransaction(testTransaction);

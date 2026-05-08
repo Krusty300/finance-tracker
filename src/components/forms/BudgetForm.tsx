@@ -15,7 +15,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { useCategories } from '@/hooks/useCategories';
 import { useCurrency } from '@/contexts/CurrencyContext';
 import { Budget } from '@/lib/types';
-import { Calendar, CalendarDays, CalendarRange, CalendarClock, Calendar as CalendarIcon } from 'lucide-react';
+import { Calendar, CalendarDays, CalendarRange, CalendarClock, Calendar as CalendarIcon, Loader2 } from 'lucide-react';
 
 const budgetSchema = z.object({
   category: z.string().min(1, 'Category is required'),
@@ -469,7 +469,8 @@ export function BudgetForm({ budget, onSubmit, onCancel }: BudgetFormProps) {
               >
                 {isSubmitting ? (
                   <>
-                    <span className="animate-pulse">Saving...</span>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Saving...
                   </>
                 ) : budget ? (
                   'Update Budget'

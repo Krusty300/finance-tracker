@@ -16,6 +16,7 @@ import { Badge } from '@/components/ui/badge';
 import { Search, Filter, Download, Calendar, X, RotateCcw } from 'lucide-react';
 import { useCurrency } from '@/contexts/CurrencyContext';
 import { useFormatting } from '@/contexts/FormattingContext';
+import { useTheme } from '@/contexts/ThemeContext';
 import { toast } from 'sonner';
 import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
 import { DeleteConfirmDialog } from '@/components/dialogs/DeleteConfirmDialog';
@@ -58,6 +59,7 @@ interface FilterState {
 export default function TransactionsPage() {
   const { formatCurrency } = useCurrency();
   const { formatDate } = useFormatting();
+  const { resolvedTheme } = useTheme();
   const searchParams = useSearchParams();
   const { transactions, addTransaction, deleteTransaction, updateTransaction } = useTransactions();
   const { categories } = useCategories();
@@ -668,12 +670,6 @@ export default function TransactionsPage() {
             onDialogClose={() => setTemplateData(null)}
           />
         </div>
-        {/* Debug: Show templateData */}
-        {templateData && (
-          <div className="fixed top-4 right-4 bg-yellow-100 p-2 rounded text-xs">
-            Debug templateData: {JSON.stringify(templateData)}
-          </div>
-        )}
       </div>
 
       {/* Bulk Operation Progress */}
@@ -719,11 +715,11 @@ export default function TransactionsPage() {
         <EmptyTransactionsState />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Card>
+          <Card className="hover:shadow-lg transition-all duration-200 hover:scale-[1.02] hover:border-success/20">
             <CardContent className="pt-6">
               <div className="flex items-center justify-between mb-3">
                 <div>
-                  <div className="text-2xl font-bold text-green-600">
+                  <div className="text-2xl font-bold text-success">
                     +{formatCurrency(calculateTotalIncome(filteredTransactions))}
                   </div>
                   <p className="text-xs text-muted-foreground">Total Income</p>
@@ -736,7 +732,7 @@ export default function TransactionsPage() {
               </div>
               <SparklineChart 
                 data={getMonthlyTrendData(transactions.filter(t => t.type === 'income'))}
-                color="#10b981"
+                color={resolvedTheme === 'dark' ? '#22c55e' : '#16a34a'}
                 height={40}
                 positive={true}
               />
@@ -747,7 +743,7 @@ export default function TransactionsPage() {
           <CardContent className="pt-6">
             <div className="flex items-center justify-between mb-3">
               <div>
-                <div className="text-2xl font-bold text-red-600">
+                <div className="text-2xl font-bold text-destructive">
                   -{formatCurrency(calculateTotalExpenses(filteredTransactions))}
                 </div>
                 <p className="text-xs text-muted-foreground">Total Expenses</p>
@@ -760,7 +756,7 @@ export default function TransactionsPage() {
             </div>
             <SparklineChart 
               data={getMonthlyTrendData(transactions.filter(t => t.type === 'expense'))}
-              color="#ef4444"
+              color={resolvedTheme === 'dark' ? '#ef4444' : '#dc2626'}
               height={40}
               positive={false}
             />
@@ -771,7 +767,7 @@ export default function TransactionsPage() {
           <CardContent className="pt-6">
             <div className="flex items-center justify-between mb-3">
               <div>
-                <div className={`text-2xl font-bold ${calculateNet(filteredTransactions) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                <div className={`text-2xl font-bold ${calculateNet(filteredTransactions) >= 0 ? 'text-success' : 'text-destructive'}`}>
                   {formatCurrency(calculateNet(filteredTransactions))}
                 </div>
                 <p className="text-xs text-muted-foreground">Net</p>

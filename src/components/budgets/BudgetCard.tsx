@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Budget } from '@/lib/types';
 import { useCurrency } from '@/contexts/CurrencyContext';
+import { useTheme } from '@/contexts/ThemeContext';
 import { Edit, Trash2, AlertCircle, TrendingUp, TrendingDown, Calendar } from 'lucide-react';
 import { useCategories } from '@/hooks/useCategories';
 import { getPeriodDisplayText } from '@/utils/period-aware-calculations';
@@ -29,6 +30,7 @@ export const BudgetCard = memo(function BudgetCard({
   onDelete 
 }: BudgetCardProps) {
   const { formatCurrency } = useCurrency();
+  const { resolvedTheme } = useTheme();
   const { categories } = useCategories();
   const isOverBudget = percentageUsed > 100;
   const isNearLimit = percentageUsed >= 80 && percentageUsed <= 100;
@@ -59,7 +61,7 @@ export const BudgetCard = memo(function BudgetCard({
 
   
   return (
-    <Card className="relative">
+    <Card className="relative hover:shadow-lg transition-all duration-200 hover:scale-[1.02] hover:border-primary/20">
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <div className="space-y-1">
@@ -109,7 +111,7 @@ export const BudgetCard = memo(function BudgetCard({
           </div>
           <div className="flex justify-between text-sm">
             <span className="text-muted-foreground">Remaining</span>
-            <span className={`font-medium ${remaining < 0 ? 'text-destructive' : 'text-green-600'}`}>
+            <span className={`font-medium ${remaining < 0 ? 'text-destructive' : 'text-success'}`}>
               {formatCurrency(remaining)}
             </span>
           </div>
@@ -136,7 +138,9 @@ export const BudgetCard = memo(function BudgetCard({
         )}
 
         {isNearLimit && !isOverBudget && (
-          <div className="flex items-center gap-2 text-sm text-orange-600 bg-orange-50 dark:bg-orange-950/20 p-2 rounded">
+          <div className={`flex items-center gap-2 text-sm p-2 rounded ${
+            resolvedTheme === 'dark' ? 'bg-warning/20 text-warning' : 'bg-warning/10 text-warning'
+          }`}>
             <AlertCircle className="h-4 w-4" />
             <span>You have {formatCurrency(remaining)} remaining</span>
           </div>

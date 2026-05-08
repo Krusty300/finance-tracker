@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import { useCurrency } from '@/contexts/CurrencyContext';
 import { useFormatting } from '@/contexts/FormattingContext';
+import { useTheme } from '@/contexts/ThemeContext';
 import { useCategories } from '@/hooks/useCategories';
 import { useAccounts } from '@/hooks/useAccounts';
 import { DuplicateTransactionDialog } from '@/components/dialogs/DuplicateTransactionDialog';
@@ -58,6 +59,7 @@ export function EnhancedTransactionTable({
 }: EnhancedTransactionTableProps) {
   const { formatCurrency } = useCurrency();
   const { formatDate } = useFormatting();
+  const { resolvedTheme } = useTheme();
   const { categories } = useCategories();
   const { accounts } = useAccounts();
 
@@ -341,12 +343,12 @@ export function EnhancedTransactionTable({
                       <TableCell className="text-muted-foreground">
                         {account?.name || '-'}
                       </TableCell>
-                      <TableCell className={`text-right font-medium ${isIncome ? 'text-green-600' : 'text-red-600'}`}>
+                      <TableCell className={`text-right font-medium ${isIncome ? 'text-success' : 'text-destructive'}`}>
                         <div className="flex items-center justify-end">
                           {isIncome ? (
-                            <ArrowUpRight className="mr-1 h-4 w-4" />
+                            <ArrowUpRight className="mr-1 h-4 w-4 text-success" />
                           ) : (
-                            <ArrowDownRight className="mr-1 h-4 w-4" />
+                            <ArrowDownRight className="mr-1 h-4 w-4 text-destructive" />
                           )}
                           {formatCurrency(transaction.amount)}
                         </div>

@@ -24,6 +24,7 @@ import {
   DollarSign,
   ArrowUpDown,
   AlertCircle,
+  Bell,
 } from 'lucide-react';
 
 // Icon mapping for navigation items
@@ -53,6 +54,7 @@ export const iconMap: Record<string, React.ComponentType<{ className?: string }>
   DollarSign,
   ArrowUpDown,
   AlertCircle,
+  Bell,
 };
 
 // Helper function to get icon component by name

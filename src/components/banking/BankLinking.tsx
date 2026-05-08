@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { 
   Link, 
   Unlink, 
@@ -23,6 +23,7 @@ import {
 import { BankAccount, BankProvider } from '@/lib/types';
 import { useBankIntegration } from '@/hooks/useBankIntegration';
 import { useCurrency } from '@/contexts/CurrencyContext';
+import { useTheme } from '@/contexts/ThemeContext';
 
 interface BankLinkingProps {
   onAccountLinked?: (account: BankAccount) => void;
@@ -31,6 +32,7 @@ interface BankLinkingProps {
 export function BankLinking({ onAccountLinked }: BankLinkingProps) {
   const { bankAccounts, linkBankAccount, unlinkBankAccount, syncBankTransactions, loading } = useBankIntegration();
   const { formatCurrency } = useCurrency();
+  const { resolvedTheme } = useTheme();
   const [showLinkDialog, setShowLinkDialog] = useState(false);
   const [linking, setLinking] = useState(false);
   const [formData, setFormData] = useState({
@@ -111,21 +113,21 @@ export function BankLinking({ onAccountLinked }: BankLinkingProps) {
 
   const getStatusIcon = (status: string) => {
     switch (status) {
-      case 'connected': return <CheckCircle className="h-4 w-4 text-green-600" />;
-      case 'error': return <XCircle className="h-4 w-4 text-red-600" />;
-      case 'pending': return <Clock className="h-4 w-4 text-yellow-600" />;
-      case 'disconnected': return <XCircle className="h-4 w-4 text-gray-600" />;
-      default: return <AlertCircle className="h-4 w-4 text-gray-600" />;
+      case 'connected': return <CheckCircle className="h-4 w-4 text-success" />;
+      case 'error': return <XCircle className="h-4 w-4 text-destructive" />;
+      case 'pending': return <Clock className="h-4 w-4 text-warning" />;
+      case 'disconnected': return <XCircle className="h-4 w-4 text-muted-foreground" />;
+      default: return <AlertCircle className="h-4 w-4 text-muted-foreground" />;
     }
   };
 
   const getStatusBadge = (status: string) => {
     switch (status) {
-      case 'connected': return <Badge className="bg-green-100 text-green-800">Connected</Badge>;
-      case 'error': return <Badge className="bg-red-100 text-red-800">Error</Badge>;
-      case 'pending': return <Badge className="bg-yellow-100 text-yellow-800">Pending</Badge>;
-      case 'disconnected': return <Badge className="bg-gray-100 text-gray-800">Disconnected</Badge>;
-      default: return <Badge className="bg-gray-100 text-gray-800">Unknown</Badge>;
+      case 'connected': return <Badge className="bg-success/20 text-success">Connected</Badge>;
+      case 'error': return <Badge className="bg-destructive/20 text-destructive">Error</Badge>;
+      case 'pending': return <Badge className="bg-warning/20 text-warning">Pending</Badge>;
+      case 'disconnected': return <Badge className="bg-muted/20 text-muted-foreground">Disconnected</Badge>;
+      default: return <Badge className="bg-muted/20 text-muted-foreground">Unknown</Badge>;
     }
   };
 
@@ -146,6 +148,9 @@ export function BankLinking({ onAccountLinked }: BankLinkingProps) {
           <DialogContent className="sm:max-w-[500px]">
             <DialogHeader>
               <DialogTitle>Link Bank Account</DialogTitle>
+              <DialogDescription>
+                Connect your bank account to automatically sync transactions
+              </DialogDescription>
             </DialogHeader>
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
@@ -348,7 +353,7 @@ export function BankLinking({ onAccountLinked }: BankLinkingProps) {
                         variant="outline"
                         size="sm"
                         onClick={() => handleUnlinkAccount(account.id)}
-                        className="text-red-600 hover:text-red-700"
+                        className="text-destructive hover:text-destructive"
                       >
                         <Unlink className="h-4 w-4" />
                       </Button>

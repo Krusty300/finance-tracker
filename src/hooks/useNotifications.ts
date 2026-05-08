@@ -33,6 +33,114 @@ export function useNotifications() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const { subscribe } = useRealtime();
 
+  // Load notifications from localStorage on mount
+  useEffect(() => {
+    try {
+      const savedNotifications = localStorage.getItem('notifications');
+      if (savedNotifications) {
+        const parsed = JSON.parse(savedNotifications);
+        // Convert timestamp strings back to numbers if needed
+        const normalized = parsed.map((n: any) => ({
+          ...n,
+          timestamp: typeof n.timestamp === 'string' ? parseInt(n.timestamp) : n.timestamp
+        }));
+        
+        // Remove duplicates based on title, message, and type
+        const deduplicated = normalized.filter((notification: Notification, index: number, self: Notification[]) => 
+          index === self.findIndex((n: Notification) => 
+            n.title === notification.title && 
+            n.message === notification.message && 
+            n.type === notification.type
+          )
+        );
+        
+        // Ensure all IDs are unique by regenerating any duplicates
+        const uniqueIds = new Set();
+        const withUniqueIds = deduplicated.map((notification: Notification) => {
+          let newId = notification.id;
+          let counter = 1;
+          while (uniqueIds.has(newId)) {
+            newId = `${notification.id}-${counter}`;
+            counter++;
+          }
+          uniqueIds.add(newId);
+          return { ...notification, id: newId };
+        });
+        
+        setNotifications(withUniqueIds);
+      } else {
+        // Clear any existing sample flags and start fresh
+        localStorage.removeItem('finance-tracker-samples-added');
+        
+        // Add some sample notifications for testing with unique IDs
+        const sampleNotifications: Notification[] = [
+          {
+            id: 'sample-1-welcome',
+            type: 'info',
+            category: 'system',
+            priority: 'low',
+            title: 'Welcome to Finance Tracker',
+            message: 'Start managing your finances efficiently',
+            timestamp: Date.now() - 3600000, // 1 hour ago
+            read: false,
+            archived: false,
+            autoHide: false,
+            duration: 5000
+          },
+          {
+            id: 'sample-2-transaction',
+            type: 'success',
+            category: 'transaction',
+            priority: 'medium',
+            title: 'Sample Transaction',
+            message: 'A sample transaction was added',
+            timestamp: Date.now() - 7200000, // 2 hours ago
+            read: false,
+            archived: false,
+            autoHide: false,
+            duration: 5000
+          },
+          {
+            id: 'sample-3-budget',
+            type: 'warning',
+            category: 'budget',
+            priority: 'high',
+            title: 'Budget Reminder',
+            message: 'Check your budget spending',
+            timestamp: Date.now() - 86400000, // 1 day ago
+            read: true,
+            archived: false,
+            autoHide: false,
+            duration: 6000
+          }
+        ];
+        setNotifications(sampleNotifications);
+        // Save sample notifications to localStorage
+        localStorage.setItem('notifications', JSON.stringify(sampleNotifications));
+        localStorage.setItem('finance-tracker-samples-added', 'true');
+      }
+    } catch (error) {
+      console.error('Failed to load notifications from localStorage:', error);
+      // Clear corrupted data and start fresh
+      localStorage.removeItem('notifications');
+      localStorage.removeItem('finance-tracker-samples-added');
+    }
+  }, []);
+
+  // Remove a notification
+  const removeNotification = useCallback((id: string) => {
+    setNotifications(prev => {
+      const updated = prev.filter(n => n.id !== id);
+      // Update localStorage immediately
+      try {
+        localStorage.setItem('notifications', JSON.stringify(updated));
+      } catch (error) {
+        console.error('Failed to update notifications in localStorage:', error);
+      }
+      return updated;
+    });
+  }, []);
+
   // Add a new notification
   const addNotification = useCallback((notification: Omit<Notification, 'id' | 'timestamp' | 'read' | 'archived'>) => {
     const newNotification: Notification = {
@@ -45,17 +153,41 @@ export function useNotifications() {
       ...notification
     };
 
-    setNotifications(prev => [newNotification, ...prev]);
-
-    // Save to localStorage for persistence
-    try {
-      const savedNotifications = localStorage.getItem('notifications');
-      const existing = savedNotifications ? JSON.parse(savedNotifications) : [];
-      const updated = [newNotification, ...existing.slice(0, 99)]; // Keep max 100
-      localStorage.setItem('notifications', JSON.stringify(updated));
-    } catch (error) {
-      console.error('Failed to save notification to localStorage:', error);
-    }
+    setNotifications(prev => {
+      // Check if a notification with the same content already exists to prevent duplicates
+      const existingDuplicate = prev.find(n => 
+        n.title === newNotification.title && 
+        n.message === newNotification.message && 
+        n.type === newNotification.type
+      );
+      
+      if (existingDuplicate) {
+        console.warn('Duplicate notification prevented:', newNotification.title);
+        return prev; // Don't add duplicate
+      }
+      
+      const updated = [newNotification, ...prev];
+      // Save to localStorage for persistence
+      try {
+        const savedNotifications = localStorage.getItem('notifications');
+        const existing = savedNotifications ? JSON.parse(savedNotifications) : [];
+        
+        // Check for duplicates in localStorage too
+        const hasDuplicate = existing.some((n: any) => 
+          n.title === newNotification.title && 
+          n.message === newNotification.message && 
+          n.type === newNotification.type
+        );
+        
+        if (!hasDuplicate) {
+          const finalUpdated = [newNotification, ...existing.slice(0, 99)]; // Keep max 100
+          localStorage.setItem('notifications', JSON.stringify(finalUpdated));
+        }
+      } catch (error) {
+        console.error('Failed to save notification to localStorage:', error);
+      }
+      return updated;
+    });
 
     // Auto-hide if specified
     if (newNotification.autoHide && newNotification.duration && !newNotification.persistent) {
@@ -65,30 +197,47 @@ export function useNotifications() {
     }
 
     return newNotification.id;
-  }, []);
-
-  // Remove a notification
-  const removeNotification = useCallback((id: string) => {
-    setNotifications(prev => prev.filter(n => n.id !== id));
-  }, []);
+  }, [removeNotification]);
 
   // Mark as read
   const markAsRead = useCallback((id: string) => {
-    setNotifications(prev => 
-      prev.map(n => n.id === id ? { ...n, read: true } : n)
-    );
+    setNotifications(prev => {
+      const updated = prev.map(n => n.id === id ? { ...n, read: true } : n);
+      // Update localStorage immediately
+      try {
+        localStorage.setItem('notifications', JSON.stringify(updated));
+      } catch (error) {
+        console.error('Failed to update notifications in localStorage:', error);
+      }
+      return updated;
+    });
   }, []);
 
   // Mark all as read
   const markAllAsRead = useCallback(() => {
-    setNotifications(prev => 
-      prev.map(n => ({ ...n, read: true }))
-    );
+    setNotifications(prev => {
+      const updated = prev.map(n => ({ ...n, read: true }));
+      // Update localStorage immediately
+      try {
+        localStorage.setItem('notifications', JSON.stringify(updated));
+      } catch (error) {
+        console.error('Failed to update notifications in localStorage:', error);
+      }
+      return updated;
+    });
   }, []);
 
   // Clear all notifications
   const clearAll = useCallback(() => {
-    setNotifications([]);
+    setNotifications(prev => {
+      // Clear from localStorage
+      try {
+        localStorage.setItem('notifications', JSON.stringify([]));
+      } catch (error) {
+        console.error('Failed to clear notifications from localStorage:', error);
+      }
+      return [];
+    });
   }, []);
 
   // Get unread count

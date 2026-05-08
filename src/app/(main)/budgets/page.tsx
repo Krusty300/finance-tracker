@@ -20,9 +20,11 @@ import { Budget } from '@/lib/types';
 import { BudgetErrorBoundary, BudgetErrorFallback } from '@/components/error/BudgetErrorBoundary';
 import { Plus, PiggyBank, TrendingUp, AlertCircle, Target } from 'lucide-react';
 import { toast } from 'sonner';
+import { useTheme } from '@/contexts/ThemeContext';
 import { calculatePeriodSpending, getPeriodDisplayText } from '@/utils/period-aware-calculations';
 
 export default function BudgetsPage() {
+  const { resolvedTheme } = useTheme();
   const { budgets, loading, addBudget, updateBudget, deleteBudget, lastUpdate } = useBudgetSync();
   const { transactions } = useTransactions();
   const { categories } = useCategories();
@@ -54,10 +56,6 @@ export default function BudgetsPage() {
 
   // Calculate budget analytics
   const budgetAnalytics = useMemo(() => {
-    console.log('Recalculating budget analytics with:', {
-      budgetsCount: budgets.length,
-      transactionsCount: transactions.length
-    });
     // Validate inputs
     if (!Array.isArray(transactions) || !Array.isArray(budgets)) {
       console.warn('Invalid data for budget analytics:', { transactions, budgets });
@@ -166,15 +164,8 @@ export default function BudgetsPage() {
   const handleEditBudget = async (data: Omit<Budget, 'id'>) => {
     if (!selectedBudget) return;
     
-    console.log('Editing budget:', {
-      budgetId: selectedBudget.id,
-      originalData: selectedBudget,
-      newData: data
-    });
-    
     try {
       const updatedBudget = await updateBudget(selectedBudget.id, data);
-      console.log('Budget updated successfully:', updatedBudget);
       setShowEditDialog(false);
       setSelectedBudget(null);
       toast.success('Budget updated successfully');
@@ -199,7 +190,6 @@ export default function BudgetsPage() {
   };
 
   const openEditDialog = (budget: Budget) => {
-    console.log('Opening edit dialog for budget:', budget);
     setSelectedBudget(budget);
     setShowEditDialog(true);
   };

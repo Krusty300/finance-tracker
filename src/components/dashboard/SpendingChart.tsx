@@ -74,7 +74,7 @@ export function SpendingChart({ data }: SpendingChartProps) {
       </CardHeader>
       <CardContent>
         <div className="h-80">
-          <ResponsiveContainer width="100%" height="100%">
+          <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={undefined}>
             <PieChart>
               <Pie
                 data={chartData}

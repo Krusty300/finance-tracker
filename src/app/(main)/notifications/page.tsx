@@ -24,10 +24,12 @@ import {
   X
 } from 'lucide-react';
 import { useNotifications } from '@/hooks/useNotifications';
+import { useTheme } from '@/contexts/ThemeContext';
 import { NotificationSettings } from '@/components/notifications/NotificationSettings';
 import { NotificationCenter } from '@/components/notifications/NotificationCenter';
 
 export default function NotificationsPage() {
+  const { resolvedTheme } = useTheme();
   const { notifications, markAllAsRead, clearAll, unreadCount, markAsRead, removeNotification } = useNotifications();
   const [activeTab, setActiveTab] = useState('notifications');
   const [searchTerm, setSearchTerm] = useState('');
@@ -41,14 +43,14 @@ export default function NotificationsPage() {
     if (filterStatus === 'read' && !notification.read) return false;
     
     // Category filter
-    if (filterCategory !== 'all' && notification?.category !== filterCategory) return false;
+    if (filterCategory !== 'all' && notification.category !== filterCategory) return false;
     
     // Search filter
     if (searchTerm) {
       const searchLower = searchTerm.toLowerCase();
       return (
-        notification?.title?.toLowerCase().includes(searchLower) ||
-        notification?.message?.toLowerCase().includes(searchLower)
+        notification.title?.toLowerCase().includes(searchLower) ||
+        notification.message?.toLowerCase().includes(searchLower)
       );
     }
     
@@ -59,28 +61,28 @@ export default function NotificationsPage() {
     const safeType = type || 'info';
     switch (safeType) {
       case 'success':
-        return <CheckCircle className="h-5 w-5 text-green-500" />;
+        return <CheckCircle className="h-5 w-5 text-success" />;
       case 'warning':
-        return <AlertTriangle className="h-5 w-5 text-yellow-500" />;
+        return <AlertTriangle className="h-5 w-5 text-warning" />;
       case 'error':
-        return <XCircle className="h-5 w-5 text-red-500" />;
+        return <XCircle className="h-5 w-5 text-destructive" />;
       case 'info':
       default:
-        return <Info className="h-5 w-5 text-blue-500" />;
+        return <Info className="h-5 w-5 text-primary" />;
     }
   };
 
   const getPriorityColor = (priority: string) => {
     switch (priority) {
       case 'critical':
-        return 'bg-red-100 text-red-800 border-red-200';
+        return 'bg-destructive/20 text-destructive border-destructive/20';
       case 'high':
-        return 'bg-orange-100 text-orange-800 border-orange-200';
+        return 'bg-warning/20 text-warning border-warning/20';
       case 'medium':
-        return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+        return 'bg-info/20 text-info border-info/20';
       case 'low':
       default:
-        return 'bg-gray-100 text-gray-800 border-gray-200';
+        return 'bg-muted/20 text-muted-foreground border-muted/20';
     }
   };
 
@@ -105,9 +107,9 @@ export default function NotificationsPage() {
 
   const stats = {
     total: notifications.length,
-    unread: unreadCount,
-    read: notifications.filter(n => n.read).length,
-    byCategory: notifications.reduce((acc, n) => {
+    unread: filteredNotifications.filter(n => !n.read).length,
+    read: filteredNotifications.filter(n => n.read).length,
+    byCategory: filteredNotifications.reduce((acc, n) => {
       acc[n.category] = (acc[n.category] || 0) + 1;
       return acc;
     }, {} as Record<string, number>)
@@ -145,7 +147,7 @@ export default function NotificationsPage() {
             <Card>
               <CardContent className="p-4">
                 <div className="flex items-center gap-2">
-                  <Bell className="h-4 w-4 text-blue-500" />
+                  <Bell className="h-4 w-4 text-primary" />
                   <div>
                     <p className="text-2xl font-bold">{stats.total}</p>
                     <p className="text-sm text-muted-foreground">Total</p>
@@ -157,7 +159,7 @@ export default function NotificationsPage() {
             <Card>
               <CardContent className="p-4">
                 <div className="flex items-center gap-2">
-                  <div className="h-4 w-4 bg-blue-500 rounded-full" />
+                  <div className="h-4 w-4 bg-primary rounded-full" />
                   <div>
                     <p className="text-2xl font-bold">{stats.unread}</p>
                     <p className="text-sm text-muted-foreground">Unread</p>
@@ -169,7 +171,7 @@ export default function NotificationsPage() {
             <Card>
               <CardContent className="p-4">
                 <div className="flex items-center gap-2">
-                  <CheckCircle className="h-4 w-4 text-green-500" />
+                  <CheckCircle className="h-4 w-4 text-success" />
                   <div>
                     <p className="text-2xl font-bold">{stats.read}</p>
                     <p className="text-sm text-muted-foreground">Read</p>
@@ -181,7 +183,7 @@ export default function NotificationsPage() {
             <Card>
               <CardContent className="p-4">
                 <div className="flex items-center gap-2">
-                  <Clock className="h-4 w-4 text-purple-500" />
+                  <Clock className="h-4 w-4 text-info" />
                   <div>
                     <p className="text-2xl font-bold">{Object.keys(stats.byCategory).length}</p>
                     <p className="text-sm text-muted-foreground">Categories</p>
@@ -309,8 +311,8 @@ export default function NotificationsPage() {
                   {notifications.map((notification) => (
                     <div
                       key={notification.id}
-                      className={`p-4 transition-colors hover:bg-muted/50 ${
-                        !notification.read ? 'bg-blue-50/50' : ''
+                      className={`p-4 ${
+                        !notification.read ? 'bg-primary/5' : ''
                       }`}
                     >
                       <div className="flex items-center gap-3">

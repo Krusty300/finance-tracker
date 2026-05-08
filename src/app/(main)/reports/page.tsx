@@ -37,10 +37,12 @@ import {
   Calendar
 } from 'lucide-react';
 import { useCurrency } from '@/contexts/CurrencyContext';
+import { useTheme } from '@/contexts/ThemeContext';
 import { toast } from 'sonner';
 
 export default function ReportsPage() {
   const { formatCurrency } = useCurrency();
+  const { resolvedTheme } = useTheme();
   const { stats, loading, refreshStats } = useDashboardStats();
   const { transactions } = useTransactions();
   const { goals, addGoal, updateGoal, deleteGoal } = useGoals();
@@ -547,10 +549,12 @@ export default function ReportsPage() {
               <CardContent>
                 <div className="space-y-3">
                   {stats.monthlyExpenses > stats.monthlyIncome && (
-                    <div className="flex items-start gap-3 p-3 bg-red-50 dark:bg-red-950/20 rounded-lg">
-                      <Target className="h-5 w-5 text-red-600 mt-0.5" />
+                    <div className={`flex items-start gap-3 p-3 rounded-lg ${
+                      resolvedTheme === 'dark' ? 'bg-destructive/20 text-destructive' : 'bg-destructive/10 text-destructive'
+                    }`}>
+                      <Target className="h-5 w-5 text-destructive mt-0.5" />
                       <div>
-                        <h4 className="font-medium text-red-600">Reduce Expenses</h4>
+                        <h4 className="font-medium text-destructive">Reduce Expenses</h4>
                         <p className="text-sm text-muted-foreground">
                           Your expenses exceed income by {formatCurrency(stats.monthlyExpenses - stats.monthlyIncome)}. 
                           Create a budget to track and reduce unnecessary spending.
@@ -560,10 +564,12 @@ export default function ReportsPage() {
                   )}
 
                   {((stats.monthlyIncome - stats.monthlyExpenses) / stats.monthlyIncome * 100) < 10 && stats.monthlyIncome > 0 && (
-                    <div className="flex items-start gap-3 p-3 bg-yellow-50 dark:bg-yellow-950/20 rounded-lg">
-                      <Target className="h-5 w-5 text-yellow-600 mt-0.5" />
+                    <div className={`flex items-start gap-3 p-3 rounded-lg ${
+                      resolvedTheme === 'dark' ? 'bg-warning/20 text-warning' : 'bg-warning/10 text-warning'
+                    }`}>
+                      <Target className="h-5 w-5 text-warning mt-0.5" />
                       <div>
-                        <h4 className="font-medium text-yellow-600">Increase Savings</h4>
+                        <h4 className="font-medium text-warning">Increase Savings</h4>
                         <p className="text-sm text-muted-foreground">
                           Your savings rate is below the recommended 20%. 
                           Try to save at least {formatCurrency(Math.max(0, stats.monthlyIncome * 0.2 - (stats.monthlyIncome - stats.monthlyExpenses)))} more per month.
@@ -573,10 +579,12 @@ export default function ReportsPage() {
                   )}
 
                   {stats.categoryBreakdown.length > 0 && stats.categoryBreakdown[0].percentage > 40 && (
-                    <div className="flex items-start gap-3 p-3 bg-blue-50 dark:bg-blue-950/20 rounded-lg">
-                      <Target className="h-5 w-5 text-blue-600 mt-0.5" />
+                    <div className={`flex items-start gap-3 p-3 rounded-lg ${
+                      resolvedTheme === 'dark' ? 'bg-primary/20 text-primary' : 'bg-primary/10 text-primary'
+                    }`}>
+                      <Target className="h-5 w-5 text-primary mt-0.5" />
                       <div>
-                        <h4 className="font-medium text-blue-600">Diversify Spending</h4>
+                        <h4 className="font-medium text-primary">Diversify Spending</h4>
                         <p className="text-sm text-muted-foreground">
                           {stats.categoryBreakdown[0].category} represents {stats.categoryBreakdown[0].percentage}% of expenses. 
                           Consider diversifying your spending categories.
@@ -586,10 +594,12 @@ export default function ReportsPage() {
                   )}
 
                   {stats.netWorth < 0 && (
-                    <div className="flex items-start gap-3 p-3 bg-orange-50 dark:bg-orange-950/20 rounded-lg">
-                      <Target className="h-5 w-5 text-orange-600 mt-0.5" />
+                    <div className={`flex items-start gap-3 p-3 rounded-lg ${
+                      resolvedTheme === 'dark' ? 'bg-warning/20 text-warning' : 'bg-warning/10 text-warning'
+                    }`}>
+                      <Target className="h-5 w-5 text-warning mt-0.5" />
                       <div>
-                        <h4 className="font-medium text-orange-600">Build Emergency Fund</h4>
+                        <h4 className="font-medium text-warning">Build Emergency Fund</h4>
                         <p className="text-sm text-muted-foreground">
                           Focus on building an emergency fund of 3-6 months of expenses. 
                           Start with small, consistent savings.
@@ -600,10 +610,12 @@ export default function ReportsPage() {
 
                   {stats.monthlyIncome > 0 && stats.monthlyExpenses < stats.monthlyIncome && 
                    ((stats.monthlyIncome - stats.monthlyExpenses) / stats.monthlyIncome * 100) >= 20 && (
-                    <div className="flex items-start gap-3 p-3 bg-green-50 dark:bg-green-950/20 rounded-lg">
-                      <Target className="h-5 w-5 text-green-600 mt-0.5" />
+                    <div className={`flex items-start gap-3 p-3 rounded-lg ${
+                      resolvedTheme === 'dark' ? 'bg-success/20 text-success' : 'bg-success/10 text-success'
+                    }`}>
+                      <Target className="h-5 w-5 text-success mt-0.5" />
                       <div>
-                        <h4 className="font-medium text-green-600">Invest for Growth</h4>
+                        <h4 className="font-medium text-success">Invest for Growth</h4>
                         <p className="text-sm text-muted-foreground">
                           With a healthy savings rate, consider investing for long-term growth. 
                           Explore investment options that match your risk tolerance.

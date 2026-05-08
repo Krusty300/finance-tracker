@@ -1,6 +1,7 @@
 import { Transaction, Category, Budget, Account, TransactionTemplate, RecycleBinItem } from './types';
 import { 
   transactionSchema, 
+  transactionInputSchema,
   categorySchema, 
   budgetSchema, 
   accountSchema 
@@ -79,6 +80,12 @@ class LocalStorageDB {
   }
 
   addTransaction(transaction: Omit<Transaction, 'id'>): Transaction {
+    // Validate transaction data before adding (using input schema that doesn't require ID)
+    const validationResult = transactionInputSchema.safeParse(transaction);
+    if (!validationResult.success) {
+      throw new Error(`Invalid transaction data: ${validationResult.error.message}`);
+    }
+
     const newTransaction: Transaction = {
       ...transaction,
       id: crypto.randomUUID(),

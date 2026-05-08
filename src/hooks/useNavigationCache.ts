@@ -68,13 +68,22 @@ const DEFAULT_NAVIGATION: NavigationItem[] = [
     order: 3,
   },
   {
+    id: 'notifications',
+    name: 'Notifications',
+    href: '/notifications',
+    icon: 'Bell',
+    description: 'View and manage your notifications',
+    color: 'text-red-600',
+    order: 4,
+  },
+  {
     id: 'accounts',
     name: 'Accounts',
     href: '/accounts',
     icon: 'Wallet',
     description: 'Manage your bank accounts and cards',
     color: 'text-indigo-600',
-    order: 4,
+    order: 5,
   },
   {
     id: 'banking',
@@ -83,7 +92,7 @@ const DEFAULT_NAVIGATION: NavigationItem[] = [
     icon: 'CreditCard',
     description: 'Connect and sync bank accounts',
     color: 'text-cyan-600',
-    order: 5,
+    order: 6,
   },
   {
     id: 'templates',
@@ -92,7 +101,7 @@ const DEFAULT_NAVIGATION: NavigationItem[] = [
     icon: 'Layout',
     description: 'Create transaction and account templates',
     color: 'text-pink-600',
-    order: 6,
+    order: 7,
   },
   {
     id: 'recycle-bin',
@@ -101,7 +110,7 @@ const DEFAULT_NAVIGATION: NavigationItem[] = [
     icon: 'Trash2',
     description: 'View and restore deleted items',
     color: 'text-gray-600',
-    order: 7,
+    order: 8,
   },
   {
     id: 'settings',
@@ -110,7 +119,7 @@ const DEFAULT_NAVIGATION: NavigationItem[] = [
     icon: 'Settings',
     description: 'Configure app preferences and settings',
     color: 'text-slate-600',
-    order: 8,
+    order: 9,
   },
 ];
 

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Command } from 'cmdk';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { useTransactions } from '@/hooks/useTransactions';
 import { useCategories } from '@/hooks/useCategories';
 import { useAccounts } from '@/hooks/useAccounts';
@@ -12,6 +13,8 @@ import { useBudgets } from '@/hooks/useBudgets';
 import { Transaction, Category, Account, Budget } from '@/lib/types';
 import { useCurrency } from '@/contexts/CurrencyContext';
 import { useFormatting } from '@/contexts/FormattingContext';
+import { useTheme } from '@/contexts/ThemeContext';
+import { cn } from '@/lib/utils';
 import { 
   Search, 
   Receipt, 
@@ -22,7 +25,8 @@ import {
   ArrowRight,
   Plus,
   Filter,
-  FileText
+  FileText,
+  Command as CommandIcon
 } from 'lucide-react';
 
 interface SearchResult {
@@ -48,6 +52,18 @@ export function GlobalSearch() {
   const { categories } = useCategories();
   const { accounts } = useAccounts();
   const { budgets } = useBudgets();
+
+  // Haptic feedback for mobile devices
+  const handleHapticFeedback = () => {
+    if ('vibrate' in navigator && typeof navigator.vibrate === 'function') {
+      navigator.vibrate(10);
+    }
+  };
+
+  const handleSearchClick = () => {
+    handleHapticFeedback();
+    setOpen(true);
+  };
 
   // Navigation items
   const navigationItems = useMemo(() => [
@@ -242,7 +258,7 @@ export function GlobalSearch() {
     const down = (e: KeyboardEvent) => {
       if ((e.key === 'k' || e.key === 'K') && (e.metaKey || e.ctrlKey)) {
         e.preventDefault();
-        setOpen(open => !open);
+        setOpen(!open);
       }
       
       if (e.key === 'Escape') {
@@ -252,7 +268,7 @@ export function GlobalSearch() {
 
     document.addEventListener('keydown', down);
     return () => document.removeEventListener('keydown', down);
-  }, []);
+  }, [open]);
 
   const handleSelect = useCallback((result: SearchResult) => {
     result.action();
@@ -358,14 +374,18 @@ export function GlobalSearch() {
         </DialogContent>
       </Dialog>
       
-      {/* Floating search button for mobile */}
-      <button
-        onClick={() => setOpen(true)}
-        className="fixed bottom-6 right-6 z-50 bg-primary text-primary-foreground rounded-full p-4 shadow-lg hover:scale-110 transition-transform duration-200 md:hidden"
-        aria-label="Search"
-      >
-        <Search className="h-5 w-5" />
-      </button>
+      {/* Mobile Search Button */}
+      <div className="md:hidden">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleSearchClick}
+          className="fixed bottom-20 right-6 z-50 h-10 w-10 p-0 rounded-full"
+          aria-label="Search"
+        >
+          <Search className="h-4 w-4" />
+        </Button>
+      </div>
     </>
   );
 }

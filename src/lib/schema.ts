@@ -11,6 +11,17 @@ export const transactionSchema = z.object({
   tags: z.array(z.string()).optional(),
 });
 
+// Schema for validating transactions before adding (without ID)
+export const transactionInputSchema = z.object({
+  amount: z.number().positive('Amount must be positive'),
+  type: z.enum(['income', 'expense']),
+  category: z.string().min(1, 'Category is required'),
+  date: z.string().min(1, 'Date is required'),
+  description: z.string().min(1, 'Description is required'),
+  account: z.string().optional(),
+  tags: z.array(z.string()).optional(),
+});
+
 export const categorySchema = z.object({
   id: z.string().uuid(),
   name: z.string().min(1, 'Category name is required'),

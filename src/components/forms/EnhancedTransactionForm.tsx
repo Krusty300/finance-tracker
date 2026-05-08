@@ -17,6 +17,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
   Dialog, 
   DialogContent, 
+  DialogDescription,
   DialogHeader, 
   DialogTitle,
   DialogFooter
@@ -31,7 +32,8 @@ import {
   Repeat, 
   Calculator,
   Layout,
-  Camera
+  Camera,
+  Loader2
 } from 'lucide-react';
 import { useCurrency } from '@/contexts/CurrencyContext';
 
@@ -75,6 +77,7 @@ export function EnhancedTransactionForm({
   const [isRecurring, setIsRecurring] = useState(false);
   const [isSplit, setIsSplit] = useState(false);
   const [showTemplateDialog, setShowTemplateDialog] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   
   const [recurringRule, setRecurringRule] = useState<RecurringTransactionRule>({
     id: crypto.randomUUID(),
@@ -130,7 +133,7 @@ export function EnhancedTransactionForm({
     }
   }, [initialData]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     const amount = parseFloat(formData.amount);
@@ -143,50 +146,58 @@ export function EnhancedTransactionForm({
       return;
     }
 
-    // Build transaction object with consistent optional field handling
-    const transactionData: Omit<Transaction, 'id'> = {
-      amount: amount,
-      type: formData.type,
-      category: formData.category,
-      date: formData.date,
-      description: formData.description,
-    };
+    setIsSubmitting(true);
 
-    // Only add optional fields when they have meaningful values
-    if (formData.account) {
-      transactionData.account = formData.account;
-    }
+    try {
+      // Build transaction object with consistent optional field handling
+      const transactionData: Omit<Transaction, 'id'> = {
+        amount: amount,
+        type: formData.type,
+        category: formData.category,
+        date: formData.date,
+        description: formData.description,
+      };
 
-    if (formData.tags) {
-      const tagArray = formData.tags.split(',').map(tag => tag.trim()).filter(Boolean);
-      if (tagArray.length > 0) {
-        transactionData.tags = tagArray;
+      // Only add optional fields when they have meaningful values
+      if (formData.account) {
+        transactionData.account = formData.account;
       }
-    }
 
-    if (formData.notes) {
-      transactionData.notes = formData.notes;
-    }
+      if (formData.tags) {
+        const tagArray = formData.tags.split(',').map(tag => tag.trim()).filter(Boolean);
+        if (tagArray.length > 0) {
+          transactionData.tags = tagArray;
+        }
+      }
 
-    if (isSplit && splits.length > 0) {
-      transactionData.splits = splits;
-    }
+      if (formData.notes) {
+        transactionData.notes = formData.notes;
+      }
 
-    if (attachments.length > 0) {
-      transactionData.attachments = attachments;
-    }
+      if (isSplit && splits.length > 0) {
+        transactionData.splits = splits;
+      }
 
-    if (isRecurring) {
-      transactionData.isRecurring = true;
-      transactionData.recurringRule = recurringRule;
-    }
+      if (attachments.length > 0) {
+        transactionData.attachments = attachments;
+      }
 
-    if (isRecurring && onSubmitRecurring) {
-      onSubmitRecurring(transactionData, recurringRule);
-    } else if (isSplit && onSubmitSplit && splits.length > 0) {
-      onSubmitSplit(transactionData, splits);
-    } else {
-      onSubmit(transactionData);
+      if (isRecurring) {
+        transactionData.isRecurring = true;
+        transactionData.recurringRule = recurringRule;
+      }
+
+      if (isRecurring && onSubmitRecurring) {
+        await onSubmitRecurring(transactionData, recurringRule);
+      } else if (isSplit && onSubmitSplit && splits.length > 0) {
+        await onSubmitSplit(transactionData, splits);
+      } else {
+        await onSubmit(transactionData);
+      }
+    } catch (error) {
+      console.error('Error submitting transaction:', error);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -686,12 +697,22 @@ export function EnhancedTransactionForm({
         {/* Form Actions */}
         <div className="flex gap-2">
           {onCancel && (
-            <Button type="button" variant="outline" onClick={onCancel}>
+            <Button type="button" variant="outline" onClick={onCancel} disabled={isSubmitting}>
               Cancel
             </Button>
           )}
-          <Button type="submit" disabled={!isValidSplit || !isValidDate}>
-            {submitText}
+          <Button type="submit" disabled={!isValidSplit || !isValidDate || isSubmitting}>
+            {isSubmitting ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Adding...
+              </>
+            ) : (
+              <>
+                <Plus className="mr-2 h-4 w-4" />
+                {submitText}
+              </>
+            )}
           </Button>
         </div>
       </form>
@@ -701,6 +722,9 @@ export function EnhancedTransactionForm({
         <DialogContent className="sm:max-w-[600px]">
           <DialogHeader>
             <DialogTitle>Select a Template</DialogTitle>
+            <DialogDescription>
+              Choose a template to quickly populate the transaction form
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             {/* Quick Add Templates */}
