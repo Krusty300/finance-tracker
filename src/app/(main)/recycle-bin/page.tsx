@@ -171,7 +171,7 @@ export default function RecycleBinPage() {
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card className="hover:shadow-lg transition-all duration-200 hover:scale-[1.02] hover:border-primary/20">
+        <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Items</CardTitle>
             <Trash2 className="h-4 w-4 text-muted-foreground" />
@@ -184,7 +184,7 @@ export default function RecycleBinPage() {
           </CardContent>
         </Card>
 
-        <Card className="hover:shadow-lg transition-all duration-200 hover:scale-[1.02] hover:border-primary/20">
+        <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Old Items</CardTitle>
             <Clock className="h-4 w-4 text-muted-foreground" />
@@ -198,7 +198,7 @@ export default function RecycleBinPage() {
         </Card>
 
         {Object.entries(itemCounts).map(([type, count]) => (
-          <Card key={type} className="hover:shadow-lg transition-all duration-200 hover:scale-[1.02] hover:border-primary/20">
+          <Card key={type}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium capitalize">
                 {getItemTypeLabel(type)}s
@@ -212,7 +212,7 @@ export default function RecycleBinPage() {
       </div>
 
       {/* Filters and Search */}
-      <Card className="hover:shadow-lg transition-all duration-200 hover:scale-[1.02] hover:border-primary/20">
+      <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Filter className="h-4 w-4" />
@@ -265,7 +265,7 @@ export default function RecycleBinPage() {
 
       {/* Bulk Actions */}
       {selectedItems.length > 0 && (
-        <Card className="hover:shadow-lg transition-all duration-200 hover:scale-[1.02] hover:border-primary/20">
+        <Card>
           <CardContent className="pt-6">
             <div className="flex items-center gap-2">
               <span className="text-sm text-muted-foreground">
@@ -294,7 +294,7 @@ export default function RecycleBinPage() {
 
       {/* Items List */}
       {filteredItems.length === 0 ? (
-        <Card className="hover:shadow-lg transition-all duration-200 hover:scale-[1.02] hover:border-primary/20">
+        <Card>
           <CardContent className="pt-6">
             <div className="text-center py-8">
               <Trash2 className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
@@ -313,7 +313,7 @@ export default function RecycleBinPage() {
       ) : (
         <div className="space-y-2">
           {filteredItems.map((item) => (
-            <Card key={item.id} className="hover:shadow-lg transition-all duration-200 hover:scale-[1.02] hover:border-primary/20">
+            <Card key={item.id}>
               <CardContent className="pt-6">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3 flex-1">

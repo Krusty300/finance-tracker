@@ -20,7 +20,7 @@ export function SparklineChart({
 }: SparklineChartProps) {
   if (!data || data.length === 0) {
     return (
-      <div className={cn("flex items-center justify-center", className)} style={{ height }}>
+      <div className={cn("flex items-center justify-center", className)} style={{ height, minHeight: height }}>
         <span className="text-muted-foreground text-xs">No data</span>
       </div>
     );
@@ -42,12 +42,13 @@ export function SparklineChart({
   const trendPercent = firstValue !== 0 ? ((trend / firstValue) * 100).toFixed(1) : '0';
 
   return (
-    <div className={cn("relative", className)} style={{ height }}>
+    <div className={cn("relative", className)} style={{ height, minHeight: height }}>
       <svg
         width="100%"
-        height={height}
+        height="100%"
         viewBox={`0 0 100 100`}
         preserveAspectRatio="none"
+        style={{ minWidth: 0, minHeight: height }}
         className="overflow-visible"
       >
         <polyline

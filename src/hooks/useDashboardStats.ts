@@ -31,6 +31,12 @@ export function useDashboardStats() {
         setStats(null);
         return;
       }
+      
+      if (!budgets || !Array.isArray(budgets)) {
+        console.warn('Invalid budgets data:', budgets);
+        setStats(null);
+        return;
+      }
 
       const now = new Date();
       const monthStart = getMonthStart(now);
@@ -70,6 +76,13 @@ export function useDashboardStats() {
       const transactionCount = transactions.filter(t => !t.deletedAt).length;
       const accountCount = accounts.length;
       const budgetCount = budgets.length;
+      
+      // Log budget count for debugging
+      console.log('Dashboard stats: Budget count calculated', {
+        totalBudgets: budgets.length,
+        budgetCount: budgetCount,
+        budgets: budgets.map(b => ({ id: b.id, category: b.category, amount: b.amount }))
+      });
       const lowBalanceAccounts = accounts.filter((acc: any) => acc.balance < 100).length;
       const overdueTransactions = transactions.filter(t => 
         !t.deletedAt && 
@@ -222,17 +235,27 @@ export function useDashboardStats() {
 
     // Listen for real-time events
     const unsubscribers = [
-      subscribe('transaction', () => {
+      subscribe('transaction', (event) => {
+        console.log('Dashboard stats: Transaction event received', event);
         setTimeout(calculateStats, 50);
       }),
-      subscribe('budget', () => {
+      subscribe('budget', (event) => {
+        console.log('Dashboard stats: Budget event received', event);
+        // Use a longer delay for budget events to ensure database is updated
+        setTimeout(calculateStats, 200);
+      }),
+      subscribe('account', (event) => {
+        console.log('Dashboard stats: Account event received', event);
         setTimeout(calculateStats, 50);
       }),
-      subscribe('account', () => {
+      subscribe('category', (event) => {
+        console.log('Dashboard stats: Category event received', event);
         setTimeout(calculateStats, 50);
       }),
-      subscribe('category', () => {
-        setTimeout(calculateStats, 50);
+      subscribe('notification', (event) => {
+        console.log('Dashboard stats: Notification event received', event);
+        // Also listen for notification events (like budget restores from recycle bin)
+        setTimeout(calculateStats, 100);
       })
     ];
 
@@ -241,6 +264,15 @@ export function useDashboardStats() {
       unsubscribers.forEach(unsubscribe => unsubscribe());
     };
   }, [calculateStats, subscribe]);
+
+  // Also listen for direct budget changes
+  useEffect(() => {
+    if (budgets) {
+      console.log('Dashboard stats: Budgets changed, recalculating stats', budgets.length);
+      // Add a small delay to ensure all state updates are processed
+      setTimeout(calculateStats, 100);
+    }
+  }, [budgets, calculateStats]);
 
   return {
     stats,

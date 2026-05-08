@@ -22,6 +22,8 @@ class RealtimeEventManager {
   private listeners: Map<string, RealtimeListener[]> = new Map();
   private eventHistory: RealtimeEvent[] = [];
   private maxHistorySize = 100;
+  private recentEvents: Map<string, number> = new Map(); // Track recent events for deduplication
+  private deduplicationWindow = 1000; // 1 second deduplication window
 
   // Subscribe to events
   subscribe(eventType: string, listener: RealtimeListener): () => void {
@@ -32,22 +34,66 @@ class RealtimeEventManager {
     const listeners = this.listeners.get(eventType)!;
     listeners.push(listener);
     
+    // Debug logging to track subscriptions
+    console.log(`Realtime: Subscribed to ${eventType}, total listeners: ${listeners.length}`);
+    
     // Return unsubscribe function
     return () => {
       const index = listeners.indexOf(listener);
       if (index > -1) {
         listeners.splice(index, 1);
+        console.log(`Realtime: Unsubscribed from ${eventType}, remaining listeners: ${listeners.length}`);
       }
     };
   }
 
+  // Check if an event is a recent duplicate
+  private isDuplicate(event: Omit<RealtimeEvent, 'id' | 'timestamp'>): boolean {
+    const eventKey = `${event.type}-${event.action}-${JSON.stringify(event.data || {})}`;
+    const now = Date.now();
+    const lastEventTime = this.recentEvents.get(eventKey);
+    
+    // If same event occurred within deduplication window, it's a duplicate
+    if (lastEventTime && (now - lastEventTime) < this.deduplicationWindow) {
+      console.log('Realtime: Duplicate event prevented:', eventKey);
+      return true;
+    }
+    
+    // Update the recent events map
+    this.recentEvents.set(eventKey, now);
+    
+    // Clean up old events
+    const cutoff = now - this.deduplicationWindow * 2; // Keep events for 2x the window
+    for (const [key, timestamp] of this.recentEvents.entries()) {
+      if (timestamp < cutoff) {
+        this.recentEvents.delete(key);
+      }
+    }
+    
+    return false;
+  }
+
   // Emit an event
   emit(event: Omit<RealtimeEvent, 'id' | 'timestamp'>): void {
+    // Check for duplicates before processing
+    if (this.isDuplicate(event)) {
+      return;
+    }
+    
     const fullEvent: RealtimeEvent = {
       id: crypto.randomUUID(),
       timestamp: Date.now(),
       ...event
     };
+
+    // Debug logging to track event emissions
+    console.log('Realtime: Emitting event', {
+      type: event.type,
+      action: event.action,
+      id: fullEvent.id,
+      timestamp: fullEvent.timestamp,
+      listenerCount: (this.listeners.get(event.type) || []).length
+    });
 
     // Add to history
     this.eventHistory.unshift(fullEvent);
@@ -57,8 +103,10 @@ class RealtimeEventManager {
 
     // Notify listeners
     const listeners = this.listeners.get(event.type) || [];
-    listeners.forEach(listener => {
+    console.log(`Realtime: Notifying ${listeners.length} listeners for ${event.type} events`);
+    listeners.forEach((listener, index) => {
       try {
+        console.log(`Realtime: Calling listener ${index} for ${event.type}:${event.action}`);
         listener(fullEvent);
       } catch (error) {
         console.error('Error in realtime listener:', error);

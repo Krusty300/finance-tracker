@@ -365,7 +365,7 @@ export function TemplateManager({ onUseTemplate }: TemplateManagerProps) {
             {quickAddTemplates.map((template) => (
               <Card 
                 key={template.id} 
-                className="cursor-pointer hover:shadow-lg transition-all duration-200 hover:scale-[1.02] hover:border-primary/20"
+                className="cursor-pointer"
                 role="button"
                 tabIndex={0}
                 aria-label={`Quick add template: ${template.name}, amount ${formatCurrency(template.amount)}, category ${template.category}`}
@@ -416,7 +416,7 @@ export function TemplateManager({ onUseTemplate }: TemplateManagerProps) {
             {mostUsedTemplates.map((template) => (
               <Card 
                 key={template.id} 
-                className="cursor-pointer hover:shadow-lg transition-all duration-200 hover:scale-[1.02] hover:border-primary/20"
+                className="cursor-pointer"
                 role="button"
                 tabIndex={0}
                 aria-label={`Most used template: ${template.name}, amount ${formatCurrency(template.amount)}, category ${template.category}, used ${template.usageCount} times`}
@@ -501,7 +501,7 @@ export function TemplateManager({ onUseTemplate }: TemplateManagerProps) {
             {otherTemplates.map((template) => (
               <Card 
                 key={template.id} 
-                className="cursor-pointer hover:shadow-lg transition-all duration-200 hover:scale-[1.02] hover:border-primary/20"
+                className="cursor-pointer"
                 role="button"
                 tabIndex={0}
                 aria-label={`Template: ${template.name}, amount ${formatCurrency(template.amount)}, category ${template.category}${template.lastUsed ? `, last used ${new Date(template.lastUsed).toLocaleDateString()}` : ''}`}
@@ -582,7 +582,7 @@ export function TemplateManager({ onUseTemplate }: TemplateManagerProps) {
       )}
 
       {templates.length === 0 && (
-        <Card className="text-center py-12 hover:shadow-lg transition-all duration-200 hover:scale-[1.02] hover:border-primary/20">
+        <Card className="text-center py-12">
           <CardContent>
             <Layout className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
             <h3 className="text-lg font-semibold mb-2">No templates yet</h3>

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -9,17 +9,34 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Badge } from '@/components/ui/badge';
 import { createTransactionSchema } from '@/lib/schema';
+import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
 import { useCategories } from '@/hooks/useCategories';
 import { useAccounts } from '@/hooks/useAccounts';
 import { useCurrency } from '@/contexts/CurrencyContext';
-import { Plus, Loader2 } from 'lucide-react';
+import { Plus, Loader2, Calendar } from 'lucide-react';
 
 const formSchema = createTransactionSchema.extend({
   date: z.string().min(1, 'Date is required'),
 });
 
 type FormData = z.infer<typeof formSchema>;
+
+// Quick add presets
+const expenseAmounts = [5, 10, 15, 25, 50, 100];
+const incomeAmounts = [100, 250, 500, 1000, 2000, 5000];
+const quickDescriptions = [
+  'Coffee',
+  'Lunch',
+  'Groceries',
+  'Gas',
+  'Utilities',
+  'Entertainment',
+  'Shopping',
+  'Transport',
+  'Other'
+];
 
 interface TransactionFormProps {
   onSubmit: (data: Omit<FormData, 'tags'>) => void;
@@ -28,6 +45,15 @@ interface TransactionFormProps {
   onDialogClose?: () => void;
 }
 
+const TransactionFormErrorFallback = ({ error, reset }: { error?: Error; reset: () => void }) => (
+  <div className="p-4 text-center">
+    <p className="text-red-500">Something went wrong with the transaction form. Please try again.</p>
+    <Button onClick={reset} className="mt-2" variant="outline">
+      Try Again
+    </Button>
+  </div>
+);
+
 export function TransactionForm({ onSubmit, trigger, initialData, onDialogClose }: TransactionFormProps) {
   const { formatCurrency, currency, getCurrencySymbol } = useCurrency();
   const { categories, loading } = useCategories();
@@ -35,6 +61,12 @@ export function TransactionForm({ onSubmit, trigger, initialData, onDialogClose 
 
   const [open, setOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isClient, setIsClient] = useState(false);
+
+  // Set client-side flag for SSR
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
 
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
@@ -49,10 +81,45 @@ export function TransactionForm({ onSubmit, trigger, initialData, onDialogClose 
     },
   });
 
+  // Quick add helpers
+  const setQuickAmount = useCallback((amount: number) => {
+    try {
+      if (amount <= 0) {
+        throw new Error('Amount must be greater than 0');
+      }
+      form.setValue('amount', amount);
+      // Clear any existing error for this field
+      form.clearErrors('amount');
+    } catch (error) {
+      console.error('Error setting quick amount:', error);
+    }
+  }, [form]);
+
+  const setQuickDescription = useCallback((description: string) => {
+    try {
+      if (!description || description.trim().length === 0) {
+        throw new Error('Description cannot be empty');
+      }
+      form.setValue('description', description);
+      // Clear any existing error for this field
+      form.clearErrors('description');
+    } catch (error) {
+      console.error('Error setting quick description:', error);
+    }
+  }, [form]);
+
+  const setToday = useCallback(() => {
+    form.setValue('date', new Date().toISOString().split('T')[0]);
+  }, [form]);
+
+  const setYesterday = useCallback(() => {
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    form.setValue('date', yesterday.toISOString().split('T')[0]);
+  }, [form]);
+
   const transactionType = form.watch('type');
   const filteredCategories = categories.filter(cat => cat.type === transactionType);
-
-  // Auto-open dialog when initialData is provided and set form values
   useEffect(() => {
     if (initialData) {
       console.log('TransactionForm: Setting initialData', initialData);
@@ -98,6 +165,20 @@ export function TransactionForm({ onSubmit, trigger, initialData, onDialogClose 
   const handleSubmit = async (data: FormData) => {
     setIsSubmitting(true);
     try {
+      // Validate data before submission
+      if (!data.amount || data.amount <= 0) {
+        throw new Error('Amount must be greater than 0');
+      }
+      if (!data.description || data.description.trim().length === 0) {
+        throw new Error('Description is required');
+      }
+      if (!data.category) {
+        throw new Error('Category is required');
+      }
+      if (!data.date) {
+        throw new Error('Date is required');
+      }
+
       await onSubmit(data);
       // Delay form reset to allow parent to clear template data first
       setTimeout(() => {
@@ -106,6 +187,11 @@ export function TransactionForm({ onSubmit, trigger, initialData, onDialogClose 
       }, 100);
     } catch (error) {
       console.error('Error submitting transaction:', error);
+      // Show user-friendly error message
+      const errorMessage = error instanceof Error ? error.message : 'Failed to add transaction. Please try again.';
+      // You could add a toast notification here if needed
+      // Don't close dialog on error - let user fix the issue
+      return;
     } finally {
       setIsSubmitting(false);
     }
@@ -119,28 +205,29 @@ export function TransactionForm({ onSubmit, trigger, initialData, onDialogClose 
   );
 
   return (
-    <Dialog open={open} onOpenChange={(newOpen) => {
-      setOpen(newOpen);
-      if (!newOpen && onDialogClose) {
-        onDialogClose();
-      }
-    }}>
-      <DialogTrigger asChild>
-        {trigger || defaultTrigger}
-      </DialogTrigger>
-      <DialogContent className="sm:max-w-[425px]">
-        <DialogHeader>
-          <DialogTitle>Add Transaction</DialogTitle>
-          <DialogDescription>
-            Add a new transaction to your records
-          </DialogDescription>
-        </DialogHeader>
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
+    <ErrorBoundary fallback={TransactionFormErrorFallback}>
+      <Dialog open={open} onOpenChange={(newOpen) => {
+        setOpen(newOpen);
+        if (!newOpen && onDialogClose) {
+          onDialogClose();
+        }
+      }}>
+        <DialogTrigger asChild>
+          {trigger || defaultTrigger}
+        </DialogTrigger>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Add Transaction</DialogTitle>
+            <DialogDescription>
+              Add a new transaction to your records
+            </DialogDescription>
+          </DialogHeader>
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
             <FormField
               control={form.control}
               name="type"
-              render={({ field }: { field: any }) => (
+              render={({ field }: { field: { value: string; onChange: (value: string) => void } }) => (
                 <FormItem>
                   <FormLabel>Type</FormLabel>
                   <Select onValueChange={field.onChange} value={field.value}>
@@ -162,7 +249,7 @@ export function TransactionForm({ onSubmit, trigger, initialData, onDialogClose 
             <FormField
               control={form.control}
               name="amount"
-              render={({ field }: { field: any }) => (
+              render={({ field }: { field: { value: number; onChange: (value: number) => void } }) => (
                 <FormItem>
                   <FormLabel>Amount ({getCurrencySymbol(currency)})</FormLabel>
                   <FormControl>
@@ -180,6 +267,21 @@ export function TransactionForm({ onSubmit, trigger, initialData, onDialogClose 
                       Preview: {formatCurrency(field.value)}
                     </p>
                   )}
+                  {/* Quick Amount Buttons */}
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {(transactionType === 'income' ? incomeAmounts : expenseAmounts).map((amount) => (
+                      <Button
+                        key={amount}
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setQuickAmount(amount)}
+                        className="text-xs"
+                      >
+                        {isClient ? formatCurrency(amount) : `$${amount.toFixed(2)}`}
+                      </Button>
+                    ))}
+                  </div>
                 </FormItem>
               )}
             />
@@ -197,7 +299,7 @@ export function TransactionForm({ onSubmit, trigger, initialData, onDialogClose 
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      {filteredCategories.map((category) => (
+                      {filteredCategories.map((category: any) => (
                         <SelectItem key={category.id} value={category.id}>
                           {category.name}
                         </SelectItem>
@@ -219,6 +321,28 @@ export function TransactionForm({ onSubmit, trigger, initialData, onDialogClose 
                     <Input type="date" {...field} />
                   </FormControl>
                   <FormMessage />
+                  {/* Quick Date Buttons */}
+                  <div className="flex gap-2 mt-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={setToday}
+                      className="text-xs"
+                    >
+                      <Calendar className="w-3 h-3 mr-1" />
+                      Today
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={setYesterday}
+                      className="text-xs"
+                    >
+                      Yesterday
+                    </Button>
+                  </div>
                 </FormItem>
               )}
             />
@@ -233,6 +357,19 @@ export function TransactionForm({ onSubmit, trigger, initialData, onDialogClose 
                     <Input placeholder="Enter description" {...field} />
                   </FormControl>
                   <FormMessage />
+                  {/* Quick Description Suggestions */}
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {quickDescriptions.map((description) => (
+                      <Badge
+                        key={description}
+                        variant="outline"
+                        className="cursor-pointer hover:bg-accent transition-colors"
+                        onClick={() => setQuickDescription(description)}
+                      >
+                        {description}
+                      </Badge>
+                    ))}
+                  </div>
                 </FormItem>
               )}
             />
@@ -250,7 +387,7 @@ export function TransactionForm({ onSubmit, trigger, initialData, onDialogClose 
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      {accounts.map((account) => (
+                      {accounts.map((account: any) => (
                         <SelectItem key={account.id} value={account.id}>
                           {account.name}
                         </SelectItem>
@@ -289,5 +426,6 @@ export function TransactionForm({ onSubmit, trigger, initialData, onDialogClose 
         </Form>
       </DialogContent>
     </Dialog>
+    </ErrorBoundary>
   );
 }

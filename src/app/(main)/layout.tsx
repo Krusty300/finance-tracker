@@ -150,7 +150,6 @@ export default function MainLayout({
       />
       <main className={cn(
         "flex-1 overflow-auto relative",
-        "transition-all duration-500 ease-in-out",
         "will-change-transform",
         "z-30", // Ensure main content is above sidebar but below other overlays
         "min-h-screen", // Ensure main content takes full height
@@ -170,17 +169,13 @@ export default function MainLayout({
             className={cn(
               "fixed top-4 left-4 z-50 h-10 w-10 p-0",
               "shadow-lg bg-background border-2 border-border/50",
-              "hover:bg-primary hover:text-primary-foreground hover:border-primary",
-              "hover:shadow-xl hover:scale-105",
-              "transition-all duration-300 ease-out",
               "group",
               "touch-manipulation-none" // Prevent zoom on touch
             )}
             title="Toggle Sidebar Menu"
           >
             <Menu className={cn(
-              "h-5 w-5 transition-transform duration-300",
-              "group-hover:scale-110"
+              "h-5 w-5"
             )} />
           </Button>
         )}
@@ -194,21 +189,17 @@ export default function MainLayout({
             className={cn(
               "fixed top-6 left-6 z-50 h-12 w-12 p-0", // Larger for mobile touch
               "shadow-lg bg-background border-2 border-border/50",
-              "hover:bg-primary hover:text-primary-foreground hover:border-primary",
-              "hover:shadow-xl hover:scale-105",
-              "transition-all duration-300 ease-out",
               "group",
               // Responsive sizing
               "sm:top-4 sm:left-4 sm:h-10 sm:w-10", // Smaller on small screens
               "md:top-4 md:left-4 md:h-8 md:w-8", // Even smaller on medium screens
-              "active:scale-95 touch-manipulation-none" // Touch feedback & prevent zoom
+              "touch-manipulation-none" // Prevent zoom on touch
             )}
             title="Toggle Sidebar (Ctrl/Cmd + B)"
           >
             <ChevronRight className={cn(
-              "h-6 w-6 transition-transform duration-300", // Larger icon for mobile
+              "h-6 w-6", // Larger icon for mobile
               "sm:h-5 sm:w-5 md:h-4 md:w-4", // Responsive icon sizing
-              "group-hover:translate-x-1 group-hover:scale-110 group-hover:rotate-12"
             )} />
           </Button>
         )}
@@ -258,7 +249,7 @@ export default function MainLayout({
                 variant="ghost"
                 size="sm"
                 onClick={toggleIcons}
-                className="h-8 w-8 p-0 hover:bg-primary/10 transition-all duration-200 hover:scale-110"
+                className="h-8 w-8 p-0 transition-colors duration-200"
                 title={showSidebarIcons ? "Hide Sidebar Icons" : "Show Sidebar Icons"}
               >
                 {showSidebarIcons ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}

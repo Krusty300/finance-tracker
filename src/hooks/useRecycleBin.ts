@@ -3,12 +3,14 @@ import { RecycleBinItem } from '@/lib/types';
 import { db } from '@/lib/db';
 import { useCurrency } from '@/contexts/CurrencyContext';
 import { useDebounceCallback } from '@/hooks/useDebounceCallback';
+import { useRealtime } from './useRealtime';
 import { toast } from 'sonner';
 
 export function useRecycleBin() {
   const { formatCurrency } = useCurrency();
   const [items, setItems] = useState<RecycleBinItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const { subscribe, emit } = useRealtime();
 
   const loadItems = useCallback(() => {
     setLoading(true);
@@ -43,44 +45,126 @@ export function useRecycleBin() {
     };
   }, [debouncedLoadItems]);
 
+  // Listen for real-time events that affect recycle bin
+  useEffect(() => {
+    const unsubscribeTransaction = subscribe('transaction', (event) => {
+      console.log('Transaction event for recycle bin:', event);
+      
+      // Only reload for delete events (items moved to recycle bin)
+      if (event.action === 'delete') {
+        const timer = setTimeout(() => {
+          loadItems();
+        }, 100);
+        return () => clearTimeout(timer);
+      }
+    });
+
+    const unsubscribeNotification = subscribe('notification', (event) => {
+      console.log('Notification event for recycle bin:', event);
+      
+      // Reload for any notification event (permanent deletes, empty recycle bin)
+      const timer = setTimeout(() => {
+        loadItems();
+      }, 100);
+      return () => clearTimeout(timer);
+    });
+
+    return () => {
+      unsubscribeTransaction();
+      unsubscribeNotification();
+    };
+  }, [subscribe, loadItems]);
+
   const restoreItem = useCallback((id: string) => {
     try {
+      const itemToRestore = items.find(item => item.id === id);
       const success = db.restoreFromRecycleBin(id);
+      
       if (success) {
         loadItems(); // Refresh items
+        
+        // Emit real-time event for restore
+        if (itemToRestore) {
+          emit({
+            type: itemToRestore.type as 'transaction' | 'category' | 'budget' | 'account' | 'template',
+            action: 'create', // Restoration is like creation
+            data: {
+              item: itemToRestore,
+              action: 'restore',
+              timestamp: new Date().toISOString()
+            }
+          });
+          
+          // Show success message
+          toast.success(`${itemToRestore.type.charAt(0).toUpperCase() + itemToRestore.type.slice(1)} restored successfully!`);
+        }
       }
       return success;
     } catch (error) {
       console.error('Error restoring item:', error);
       throw error;
     }
-  }, [loadItems]);
+  }, [items, loadItems, emit]);
 
   const permanentDeleteItem = useCallback((id: string) => {
     try {
+      const itemToDelete = items.find(item => item.id === id);
       const success = db.permanentDeleteFromRecycleBin(id);
+      
       if (success) {
         loadItems(); // Refresh items
+        
+        // Emit real-time event for permanent delete
+        if (itemToDelete) {
+          emit({
+            type: 'notification', // Use notification type for permanent delete
+            action: 'delete',
+            data: {
+              item: itemToDelete,
+              action: 'permanent_delete',
+              timestamp: new Date().toISOString()
+            }
+          });
+          
+          // Show success message
+          toast.warning(`${itemToDelete.type.charAt(0).toUpperCase() + itemToDelete.type.slice(1)} permanently deleted`);
+        }
       }
       return success;
     } catch (error) {
       console.error('Error permanently deleting item:', error);
       throw error;
     }
-  }, [loadItems]);
+  }, [items, loadItems, emit]);
 
   const emptyRecycleBin = useCallback(() => {
     try {
+      const itemsToDelete = [...items]; // Copy current items
       const success = db.emptyRecycleBin();
+      
       if (success) {
         loadItems(); // Refresh items
+        
+        // Emit real-time event for empty recycle bin
+        emit({
+          type: 'notification',
+          action: 'delete',
+          data: {
+            items: itemsToDelete,
+            action: 'empty_recycle_bin',
+            timestamp: new Date().toISOString()
+          }
+        });
+        
+        // Show success message
+        toast.success(`Recycle bin emptied (${itemsToDelete.length} items permanently deleted)`);
       }
       return success;
     } catch (error) {
       console.error('Error emptying recycle bin:', error);
       throw error;
     }
-  }, [loadItems]);
+  }, [items, loadItems, emit]);
 
   const getItemDescription = useCallback((item: RecycleBinItem) => {
     switch (item.type) {

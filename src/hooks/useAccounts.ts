@@ -6,7 +6,7 @@ import { useRealtimeAccounts } from './useRealtime';
 export function useAccounts() {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [loading, setLoading] = useState(true);
-  const { notifyAccountChange } = useRealtimeAccounts();
+  const { notifyAccountChange, lastAccountEvent } = useRealtimeAccounts();
 
   const loadAccounts = useCallback(() => {
     setLoading(true);
@@ -33,20 +33,41 @@ export function useAccounts() {
     };
   }, [loadAccounts]);
 
+  // Listen for real-time account events
+  useEffect(() => {
+    if (lastAccountEvent) {
+      console.log('Real-time account event received:', lastAccountEvent);
+      
+      // Note: Toast notifications are handled by useNotifications hook to avoid duplicates
+      
+      // Reload accounts to get the latest data
+      const timer = setTimeout(() => {
+        loadAccounts();
+      }, 100); // Small delay to ensure database is updated
+
+      return () => clearTimeout(timer);
+    }
+  }, [lastAccountEvent, loadAccounts]);
+
   const addAccount = useCallback((account: Omit<Account, 'id'>) => {
     try {
       const newAccount = db.addAccount(account);
+      
+      // Update local state immediately
       setAccounts(prev => [...prev, newAccount]);
       
-      // Emit real-time event
-      notifyAccountChange('create', newAccount);
+      // Emit real-time event after state update (deferred to avoid render issues)
+      console.log('Account creation: Emitting real-time event', { accountId: newAccount.id });
+      setTimeout(() => {
+        notifyAccountChange('create', newAccount);
+      }, 50);
       
       return newAccount;
     } catch (error) {
       console.error('Error adding account:', error);
       throw error;
     }
-  }, []);
+  }, [notifyAccountChange]);
 
   const updateAccount = useCallback((id: string, updates: Partial<Account>) => {
     try {
@@ -56,15 +77,18 @@ export function useAccounts() {
           prev.map(a => a.id === id ? updated : a)
         );
         
-        // Emit real-time event
-        notifyAccountChange('update', updated);
+        // Emit real-time event after state update (deferred to avoid render issues)
+        console.log('Account update: Emitting real-time event', { accountId: updated.id });
+        setTimeout(() => {
+          notifyAccountChange('update', updated);
+        }, 50);
       }
       return updated;
     } catch (error) {
       console.error('Error updating account:', error);
       throw error;
     }
-  }, []);
+  }, [notifyAccountChange]);
 
   const deleteAccount = useCallback((id: string) => {
     try {
@@ -73,9 +97,12 @@ export function useAccounts() {
       if (success) {
         setAccounts(prev => prev.filter(a => a.id !== id));
         
-        // Emit real-time event
+        // Emit real-time event after state update (deferred to avoid render issues)
         if (accountToDelete) {
-          notifyAccountChange('delete', accountToDelete);
+          console.log('Account deletion: Emitting real-time event', { accountId: accountToDelete.id });
+          setTimeout(() => {
+            notifyAccountChange('delete', accountToDelete);
+          }, 50);
         }
       }
       return success;
@@ -83,7 +110,7 @@ export function useAccounts() {
       console.error('Error deleting account:', error);
       throw error;
     }
-  }, []);
+  }, [notifyAccountChange]);
 
   const getAccountById = useCallback((id: string) => {
     return accounts.find(a => a.id === id);

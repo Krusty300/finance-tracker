@@ -52,13 +52,13 @@ export default function DashboardPage() {
           </p>
         </div>
         
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 w-full">
           {[...Array(4)].map((_, i) => (
-            <Card key={i}>
-              <CardHeader className="space-y-0">
+            <Card key={i} className="min-h-[120px]">
+              <CardHeader className="space-y-0 px-4 pt-4">
                 <Skeleton className="h-4 w-20" />
               </CardHeader>
-              <CardContent>
+              <CardContent className="px-4 pb-4">
                 <Skeleton className="h-8 w-24" />
                 <Skeleton className="h-3 w-16 mt-2" />
               </CardContent>
@@ -66,7 +66,7 @@ export default function DashboardPage() {
           ))}
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 sm:gap-6">
           <Card>
             <CardHeader>
               <Skeleton className="h-6 w-32" />
@@ -130,7 +130,7 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="space-y-4 sm:space-y-6 max-w-full overflow-hidden">
+    <div className="space-y-4 sm:space-y-6 w-full">
       <div>
         <h1 data-onboarding="dashboard-title" className="text-2xl sm:text-3xl font-bold">Dashboard</h1>
         <p className="text-sm sm:text-base text-muted-foreground">
@@ -151,7 +151,7 @@ export default function DashboardPage() {
       </DashboardErrorBoundary>
 
       {/* Charts Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 sm:gap-6">
         <DashboardErrorBoundary fallback={DashboardErrorFallback}>
           <SpendingChart data={stats.categoryBreakdown} />
         </DashboardErrorBoundary>

@@ -344,7 +344,7 @@ export default function SettingsPage() {
         <ThemeSettings />
 
         {/* Currency & Formatting */}
-        <Card className="hover:shadow-lg transition-all duration-200 hover:scale-[1.02] hover:border-primary/20">
+        <Card>
           <CardHeader>
             <CardTitle>
               Currency & Formatting
@@ -407,7 +407,7 @@ export default function SettingsPage() {
         </Card>
 
         {/* Formatting Preview */}
-        <Card className="hover:shadow-lg transition-all duration-200 hover:scale-[1.02] hover:border-primary/20">
+        <Card>
           <CardHeader>
             <CardTitle>
               Formatting Preview
@@ -470,7 +470,7 @@ export default function SettingsPage() {
         </Card>
 
         {/* Currency Converter */}
-        <Card className="hover:shadow-lg transition-all duration-200 hover:scale-[1.02] hover:border-primary/20">
+        <Card>
           <CardHeader>
             <CardTitle>
               Currency Converter
@@ -533,7 +533,7 @@ export default function SettingsPage() {
         </Card>
 
         {/* Import/Export */}
-        <Card className="hover:shadow-lg transition-all duration-200 hover:scale-[1.02] hover:border-primary/20">
+        <Card>
           <CardHeader>
             <CardTitle className="flex items-center">
               <Download className="mr-2 h-5 w-5" />
@@ -593,7 +593,7 @@ export default function SettingsPage() {
         </Card>
 
         {/* Data Management */}
-        <Card className="hover:shadow-lg transition-all duration-200 hover:scale-[1.02] hover:border-primary/20">
+        <Card>
           <CardHeader>
             <CardTitle className="flex items-center">
               <Database className="mr-2 h-5 w-5" />
@@ -622,7 +622,7 @@ export default function SettingsPage() {
       </div>
 
       {/* Application Status */}
-      <Card className="hover:shadow-lg transition-all duration-200 hover:scale-[1.02] hover:border-primary/20">
+      <Card>
         <CardHeader>
           <CardTitle className="flex items-center">
             <SettingsIcon className="mr-2 h-5 w-5" />

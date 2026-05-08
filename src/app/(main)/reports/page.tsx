@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -9,6 +9,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useDashboardStats } from '@/hooks/useDashboardStats';
 import { useTransactions } from '@/hooks/useTransactions';
+import { useRealtime } from '@/hooks/useRealtime';
 import { MonthlyTrendsReport } from '@/components/reports/MonthlyTrendsReport';
 import { CategoryBreakdownReport } from '@/components/reports/CategoryBreakdownReport';
 import { FinancialSummaryReport } from '@/components/reports/FinancialSummaryReport';
@@ -44,9 +45,11 @@ export default function ReportsPage() {
   const { formatCurrency } = useCurrency();
   const { resolvedTheme } = useTheme();
   const { stats, loading, refreshStats } = useDashboardStats();
-  const { transactions } = useTransactions();
+  const { transactions, loading: transactionsLoading } = useTransactions();
   const { goals, addGoal, updateGoal, deleteGoal } = useGoals();
+  const { subscribe } = useRealtime();
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
   const [exportFormat, setExportFormat] = useState<'pdf' | 'excel' | 'csv' | 'json'>('pdf');
   const [includeCharts, setIncludeCharts] = useState(true);
   const [selectedSections, setSelectedSections] = useState<string[]>(['summary', 'categories', 'trends']);
@@ -75,9 +78,16 @@ export default function ReportsPage() {
       return;
     }
     
-    // Validate stats structure
+    // Enhanced validation for stats structure
     if (!stats.monthlyIncome || !stats.monthlyExpenses || typeof stats.monthlyIncome !== 'number' || typeof stats.monthlyExpenses !== 'number') {
       toast.error('Invalid data format for export');
+      console.error('Invalid stats structure:', stats);
+      return;
+    }
+    
+    // Validate transactions data
+    if (!transactions || !Array.isArray(transactions)) {
+      toast.error('No transaction data available for export');
       return;
     }
     
@@ -88,12 +98,13 @@ export default function ReportsPage() {
         sections: selectedSections
       };
       
+      console.log('Exporting report with options:', exportOptions);
       await ReportExporter.exportReport(stats, exportOptions);
       toast.success(`Report exported successfully as ${exportFormat.toUpperCase()}`);
       setShowExportDialog(false);
     } catch (error) {
       console.error('Export error:', error);
-      toast.error(`Failed to export report as ${exportFormat.toUpperCase()}`);
+      toast.error(`Failed to export report as ${exportFormat.toUpperCase()}: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   };
 
@@ -106,6 +117,13 @@ export default function ReportsPage() {
     // Validate stats structure
     if (!stats.monthlyIncome || !stats.monthlyExpenses || typeof stats.monthlyIncome !== 'number' || typeof stats.monthlyExpenses !== 'number') {
       toast.error('Invalid data format for export');
+      console.error('Invalid stats structure for quick export:', stats);
+      return;
+    }
+    
+    // Validate transactions data
+    if (!transactions || !Array.isArray(transactions)) {
+      toast.error('No transaction data available for export');
       return;
     }
     
@@ -116,11 +134,12 @@ export default function ReportsPage() {
         sections: ['summary', 'categories', 'trends']
       };
       
+      console.log('Quick exporting report with options:', exportOptions);
       await ReportExporter.exportReport(stats, exportOptions);
       toast.success(`Report exported successfully as ${format.toUpperCase()}`);
     } catch (error) {
-      console.error('Export error:', error);
-      toast.error(`Failed to export report as ${format.toUpperCase()}`);
+      console.error('Quick export error:', error);
+      toast.error(`Failed to export report as ${format.toUpperCase()}: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   };
 
@@ -146,22 +165,96 @@ export default function ReportsPage() {
   };
 
   const handleSaveGoal = (goalData: Omit<FinancialGoal, 'id' | 'createdAt'>) => {
-    if (editingGoal) {
-      updateGoal(editingGoal.id, goalData);
-    } else {
-      addGoal(goalData);
+    try {
+      if (editingGoal) {
+        updateGoal(editingGoal.id, goalData);
+        toast.success('Goal updated successfully!');
+      } else {
+        addGoal(goalData);
+        toast.success('Goal added successfully!');
+      }
+      setShowGoalDialog(false);
+      setEditingGoal(null);
+    } catch (error) {
+      console.error('Error saving goal:', error);
+      toast.error(`Failed to save goal: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   };
 
   const handleDeleteGoal = () => {
     if (goalToDelete) {
-      deleteGoal(goalToDelete.id);
-      toast.success('Goal deleted successfully!');
-      setGoalToDelete(null);
+      try {
+        deleteGoal(goalToDelete.id);
+        toast.success('Goal deleted successfully!');
+        setGoalToDelete(null);
+        setShowDeleteDialog(false);
+      } catch (error) {
+        console.error('Error deleting goal:', error);
+        toast.error(`Failed to delete goal: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      }
     }
   };
 
-  if (loading) {
+  // Handle initial loading state to prevent flash
+  useEffect(() => {
+    if (!loading && !transactionsLoading && stats && transactions) {
+      // Data is loaded, set initial load to false after a small delay
+      const timer = setTimeout(() => {
+        setIsInitialLoad(false);
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [loading, transactionsLoading, stats, transactions]);
+
+  // Listen for real-time events that should refresh reports
+  useEffect(() => {
+    console.log('Reports: Setting up real-time event listeners');
+    
+    const unsubscribers = [
+      subscribe('transaction', (event) => {
+        console.log('Reports: Transaction event received', event);
+        // Refresh reports when transactions change
+        const timer = setTimeout(() => {
+          refreshStats();
+        }, 200); // Small delay to ensure data is updated
+        return () => clearTimeout(timer);
+      }),
+      
+      subscribe('budget', (event) => {
+        console.log('Reports: Budget event received', event);
+        // Refresh reports when budgets change
+        const timer = setTimeout(() => {
+          refreshStats();
+        }, 200);
+        return () => clearTimeout(timer);
+      }),
+      
+      subscribe('account', (event) => {
+        console.log('Reports: Account event received', event);
+        // Refresh reports when accounts change
+        const timer = setTimeout(() => {
+          refreshStats();
+        }, 200);
+        return () => clearTimeout(timer);
+      }),
+      
+      subscribe('category', (event) => {
+        console.log('Reports: Category event received', event);
+        // Refresh reports when categories change
+        const timer = setTimeout(() => {
+          refreshStats();
+        }, 200);
+        return () => clearTimeout(timer);
+      })
+    ];
+
+    return () => {
+      console.log('Reports: Cleaning up real-time event listeners');
+      unsubscribers.forEach(unsubscribe => unsubscribe());
+    };
+  }, [subscribe, refreshStats]);
+
+  if (loading || isInitialLoad) {
     return (
       <div className="space-y-6">
         <div className="flex items-center justify-between">
@@ -226,7 +319,7 @@ export default function ReportsPage() {
     );
   }
 
-  if (!stats) {
+  if (!stats && !loading && !isInitialLoad) {
     return (
       <div className="space-y-6">
         <div>
@@ -256,6 +349,13 @@ export default function ReportsPage() {
       </div>
     );
   }
+
+  // Only render main content when we have valid data
+  if (!stats || loading || isInitialLoad) {
+    return null; // This will be handled by the loading/no data states above
+  }
+
+  // At this point, stats is guaranteed to be non-null
 
   return (
     <div className="space-y-6">

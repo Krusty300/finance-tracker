@@ -1,12 +1,13 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useRealtime } from '@/hooks/useRealtime';
 import { 
   Bell, 
   Settings, 
@@ -29,8 +30,11 @@ import { NotificationSettings } from '@/components/notifications/NotificationSet
 import { NotificationCenter } from '@/components/notifications/NotificationCenter';
 
 export default function NotificationsPage() {
+  console.log('NotificationsPage: Component rendering');
   const { resolvedTheme } = useTheme();
-  const { notifications, markAllAsRead, clearAll, unreadCount, markAsRead, removeNotification } = useNotifications();
+  const { notifications, markAllAsRead, clearAll, unreadCount } = useNotifications();
+  const { addNotification, removeNotification, markAsRead, setNotifications } = useNotifications();
+  const { subscribe } = useRealtime();
   const [activeTab, setActiveTab] = useState('notifications');
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState<'all' | 'read' | 'unread'>('all');
@@ -56,6 +60,32 @@ export default function NotificationsPage() {
     
     return true;
   });
+
+  // Listen for real-time notification events
+  useEffect(() => {
+    console.log('Notifications: Setting up real-time event listeners');
+    
+    const unsubscribe = subscribe('notification', (event) => {
+      console.log('Notifications: Real-time notification event received', event);
+      
+      // Refresh notifications from localStorage when events occur
+      setTimeout(() => {
+        try {
+          const savedNotifications = localStorage.getItem('notifications');
+          if (savedNotifications && savedNotifications !== 'undefined') {
+            const parsed = JSON.parse(savedNotifications);
+            if (setNotifications && typeof setNotifications === 'function') {
+              setNotifications(parsed);
+            }
+          }
+        } catch (error) {
+          console.error('Failed to reload notifications:', error);
+        }
+      }, 100); // Small delay to ensure localStorage is updated
+    });
+
+    return unsubscribe;
+  }, [subscribe]);
 
   const getNotificationIcon = (type: string) => {
     const safeType = type || 'info';

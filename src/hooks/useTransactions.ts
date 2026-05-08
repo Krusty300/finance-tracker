@@ -10,7 +10,7 @@ export function useTransactions() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const { accounts, updateAccount } = useAccounts();
-  const { notifyTransactionChange } = useRealtimeTransactions();
+  const { notifyTransactionChange, lastTransactionEvent } = useRealtimeTransactions();
 
   const loadTransactions = useCallback(() => {
     setLoading(true);
@@ -23,13 +23,17 @@ export function useTransactions() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [setLoading, setTransactions]);
 
   // Debounced version to prevent event storms
   const debouncedLoadTransactions = useDebounceCallback(loadTransactions, 300);
 
   useEffect(() => {
-    loadTransactions();
+    const loadData = () => {
+      loadTransactions();
+    };
+    
+    loadData();
 
     const handleStorageChange = () => {
       debouncedLoadTransactions();
@@ -39,15 +43,19 @@ export function useTransactions() {
     return () => {
       window.removeEventListener('storage', handleStorageChange);
     };
-  }, [debouncedLoadTransactions]);
+  }, [debouncedLoadTransactions, loadTransactions]);
 
   const addTransaction = useCallback((transaction: Omit<Transaction, 'id'>) => {
     try {
       const newTransaction = db.addTransaction(transaction);
       setTransactions(prev => [...prev, newTransaction]);
 
-      // Emit real-time event
-      notifyTransactionChange('create', newTransaction);
+      // Emit real-time event with specific transaction data
+      notifyTransactionChange('create', {
+        transaction: newTransaction,
+        action: 'create',
+        timestamp: new Date().toISOString()
+      });
 
       // Update account balance if transaction has an account
       if (transaction.account && accounts.length > 0) {
@@ -92,8 +100,14 @@ export function useTransactions() {
           prev.map(t => t.id === id ? updated : t)
         );
 
-        // Emit real-time event
-        notifyTransactionChange('update', { ...updated, oldTransaction });
+        // Emit real-time event with specific transaction data
+        notifyTransactionChange('update', {
+          transaction: updated,
+          oldTransaction,
+          action: 'update',
+          updates,
+          timestamp: new Date().toISOString()
+        });
 
         // Update account balance if amount, type, or account changed
         const amountChanged = updates.amount !== undefined && updates.amount !== oldTransaction.amount;
@@ -136,7 +150,7 @@ export function useTransactions() {
       console.error('Error updating transaction:', error);
       throw error;
     }
-  }, [transactions, accounts, updateAccount]);
+  }, [transactions, accounts, updateAccount, notifyTransactionChange]);
 
   const deleteTransaction = useCallback((id: string) => {
     try {
@@ -152,9 +166,13 @@ export function useTransactions() {
           )
         );
 
-        // Emit real-time event
+        // Emit real-time event with specific transaction data
         if (transactionToDelete) {
-          notifyTransactionChange('delete', transactionToDelete);
+          notifyTransactionChange('delete', {
+            transaction: transactionToDelete,
+            action: 'delete',
+            timestamp: new Date().toISOString()
+          });
         }
 
         // Update account balance when transaction is deleted
@@ -177,7 +195,7 @@ export function useTransactions() {
       console.error('Error deleting transaction:', error);
       throw error;
     }
-  }, [transactions, accounts, updateAccount]);
+  }, [transactions, accounts, updateAccount, notifyTransactionChange]);
 
   const restoreTransaction = useCallback((id: string) => {
     try {
@@ -192,6 +210,15 @@ export function useTransactions() {
             : t
           )
         );
+
+        // Emit real-time event with specific transaction data
+        if (transactionToRestore) {
+          notifyTransactionChange('create', {
+            transaction: { ...transactionToRestore, deletedAt: undefined },
+            action: 'create',
+            timestamp: new Date().toISOString()
+          });
+        }
 
         // Update account balance when transaction is restored
         if (transactionToRestore?.account && accounts.length > 0) {
@@ -213,7 +240,7 @@ export function useTransactions() {
       console.error('Error restoring transaction:', error);
       throw error;
     }
-  }, [transactions, accounts, updateAccount]);
+  }, [transactions, accounts, updateAccount, notifyTransactionChange]);
 
   const getTransactionsByMonth = useCallback((year: number, month: number) => {
     return db.getTransactionsByMonth(year, month);
@@ -326,6 +353,37 @@ export function useTransactions() {
   const getTransactionsWithAttachments = useCallback(() => {
     return transactions.filter(t => t.attachments && t.attachments.length > 0);
   }, [transactions]);
+
+  // Listen for real-time transaction events
+  useEffect(() => {
+    if (lastTransactionEvent) {
+      console.log('Real-time transaction event received:', lastTransactionEvent);
+      
+      // Show toast notification for user feedback
+      const { action, data } = lastTransactionEvent;
+      
+      switch (action) {
+        case 'create':
+          toast.success('Transaction added successfully!');
+          break;
+        case 'update':
+          toast.info('Transaction updated successfully!');
+          break;
+        case 'delete':
+          toast.warning('Transaction moved to recycle bin');
+          break;
+        default:
+          console.log('Unknown transaction action:', action);
+      }
+      
+      // Reload transactions to get the latest data
+      const timer = setTimeout(() => {
+        loadTransactions();
+      }, 100); // Small delay to ensure database is updated
+
+      return () => clearTimeout(timer);
+    }
+  }, [lastTransactionEvent, loadTransactions]);
 
   // Initialize recurring transaction generation on load
   useEffect(() => {

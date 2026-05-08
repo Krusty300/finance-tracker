@@ -13,6 +13,7 @@ interface NavigationItemProps {
   href: string;
   icon: React.ComponentType<{ className?: string }>;
   badge?: string | null;
+  badgeVariant?: 'default' | 'secondary' | 'destructive' | 'outline';
   description?: string;
   color?: string;
   isActive?: boolean;
@@ -26,6 +27,7 @@ export const NavigationItem = memo(function NavigationItem({
   href,
   icon: Icon,
   badge,
+  badgeVariant = 'secondary',
   description,
   color,
   isActive = false,
@@ -78,7 +80,7 @@ export const NavigationItem = memo(function NavigationItem({
             />
             {isCollapsed && badge && (
               <Badge
-                variant={isActive ? 'default' : 'secondary'}
+                variant={isActive ? 'default' : badgeVariant}
                 className={cn(
                   'absolute -top-1 -right-1 h-3 w-3 text-[10px] font-bold p-0',
                   'transition-all duration-200'
@@ -113,7 +115,7 @@ export const NavigationItem = memo(function NavigationItem({
         </span>
         {!isCollapsed && badge && (
           <Badge
-            variant={isActive ? 'default' : 'secondary'}
+            variant={isActive ? 'default' : badgeVariant}
             className={cn(
               'ml-2 transition-all duration-200',
               'group-hover:scale-105'

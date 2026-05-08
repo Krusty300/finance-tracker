@@ -30,14 +30,28 @@ export function DeleteConfirmDialog({
   itemName,
   itemDetails,
 }: DeleteConfirmDialogProps) {
+  console.log('DeleteConfirmDialog rendered with open:', open, 'title:', title);
+  
   const handleConfirm = () => {
-    onConfirm();
-    onOpenChange(false);
+    console.log('DeleteConfirmDialog handleConfirm called');
+    try {
+      onConfirm();
+      // Close dialog after successful confirmation
+      onOpenChange(false);
+    } catch (error) {
+      console.error('Error in delete confirmation:', error);
+      // Don't close dialog on error
+    }
+  };
+
+  const handleOpenChange = (newOpen: boolean) => {
+    console.log('DeleteConfirmDialog onOpenChange called with:', newOpen);
+    onOpenChange(newOpen);
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[425px]">
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogContent className="sm:max-w-[425px]" aria-describedby="delete-dialog-description">
         <DialogHeader>
           <div className="flex items-center gap-2">
             <div className="flex h-10 w-10 items-center justify-center rounded-full bg-destructive/10">
@@ -45,7 +59,7 @@ export function DeleteConfirmDialog({
             </div>
             <DialogTitle>{title}</DialogTitle>
           </div>
-          <DialogDescription>
+          <DialogDescription id="delete-dialog-description">
             {description}
             {itemName && (
               <span className="block mt-2 font-medium text-foreground">

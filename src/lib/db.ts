@@ -223,6 +223,17 @@ class LocalStorageDB {
 
   deleteCategory(id: string): boolean {
     const categories = this.getCategories();
+    const categoryToDelete = categories.find(c => c.id === id);
+    
+    if (!categoryToDelete) return false;
+
+    // Add to recycle bin before deletion
+    this.addToRecycleBin({
+      type: 'category',
+      originalId: id,
+      data: categoryToDelete,
+    });
+
     const filteredCategories = categories.filter(c => c.id !== id);
     
     if (filteredCategories.length === categories.length) return false;
@@ -231,6 +242,10 @@ class LocalStorageDB {
     this.broadcastChange();
     
     return true;
+  }
+
+  softDeleteCategory(id: string): boolean {
+    return this.deleteCategory(id);
   }
 
   // Budgets
@@ -281,6 +296,17 @@ class LocalStorageDB {
 
   deleteBudget(id: string): boolean {
     const budgets = this.getBudgets();
+    const budgetToDelete = budgets.find(b => b.id === id);
+    
+    if (!budgetToDelete) return false;
+
+    // Add to recycle bin before deletion
+    this.addToRecycleBin({
+      type: 'budget',
+      originalId: id,
+      data: budgetToDelete,
+    });
+
     const filteredBudgets = budgets.filter(b => b.id !== id);
     
     if (filteredBudgets.length === budgets.length) return false;
@@ -289,6 +315,10 @@ class LocalStorageDB {
     this.broadcastChange();
     
     return true;
+  }
+
+  softDeleteBudget(id: string): boolean {
+    return this.deleteBudget(id);
   }
 
   // Accounts
@@ -355,6 +385,17 @@ class LocalStorageDB {
 
   deleteAccount(id: string): boolean {
     const accounts = this.getAccounts();
+    const accountToDelete = accounts.find(a => a.id === id);
+    
+    if (!accountToDelete) return false;
+
+    // Add to recycle bin before deletion
+    this.addToRecycleBin({
+      type: 'account',
+      originalId: id,
+      data: accountToDelete,
+    });
+
     const filteredAccounts = accounts.filter(a => a.id !== id);
     
     if (filteredAccounts.length === accounts.length) return false;
@@ -363,6 +404,10 @@ class LocalStorageDB {
     this.broadcastChange();
     
     return true;
+  }
+
+  softDeleteAccount(id: string): boolean {
+    return this.deleteAccount(id);
   }
 
   // Transaction Templates
@@ -394,22 +439,33 @@ return newTemplate;
 }
 
 updateTemplate(id: string, updates: Partial<TransactionTemplate>): TransactionTemplate | null {
-const templates = this.getTemplates();
-const index = templates.findIndex(t => t.id === id);
+    const templates = this.getTemplates();
+    const index = templates.findIndex(t => t.id === id);
     
-if (index === -1) return null;
+    if (index === -1) return null;
 
-const updatedTemplate = { ...templates[index], ...updates };
-templates[index] = updatedTemplate;
-localStorage.setItem(STORAGE_KEYS.TEMPLATES, JSON.stringify(templates));
-this.broadcastChange();
+    const updatedTemplate = { ...templates[index], ...updates };
+    templates[index] = updatedTemplate;
+    localStorage.setItem(STORAGE_KEYS.TEMPLATES, JSON.stringify(templates));
+    this.broadcastChange();
     
-return updatedTemplate;
-}
+    return updatedTemplate;
+  }
 
-deleteTemplate(id: string): boolean {
-const templates = this.getTemplates();
-const filteredTemplates = templates.filter(t => t.id !== id);
+  deleteTemplate(id: string): boolean {
+    const templates = this.getTemplates();
+    const templateToDelete = templates.find(t => t.id === id);
+    
+    if (!templateToDelete) return false;
+
+    // Add to recycle bin before deletion
+    this.addToRecycleBin({
+      type: 'template',
+      originalId: id,
+      data: templateToDelete,
+    });
+
+    const filteredTemplates = templates.filter(t => t.id !== id);
     
     if (filteredTemplates.length === templates.length) return false;
 
@@ -419,11 +475,8 @@ const filteredTemplates = templates.filter(t => t.id !== id);
     return true;
   }
 
-  incrementTemplateUsage(id: string): TransactionTemplate | null {
-    return this.updateTemplate(id, { 
-      usageCount: (this.getTemplates().find(t => t.id === id)?.usageCount || 0) + 1,
-      lastUsed: new Date().toISOString()
-    });
+  softDeleteTemplate(id: string): boolean {
+    return this.deleteTemplate(id);
   }
 
   // Enhanced transaction methods for recurring transactions

@@ -13,6 +13,7 @@ import { useDashboardStats } from '@/hooks/useDashboardStats';
 import { useNavigationCache } from '@/hooks/useNavigationCache';
 import { useNotifications } from '@/hooks/useNotifications';
 import { usePerformanceState } from '@/hooks/usePerformanceState';
+import { useRecycleBinCount } from '@/hooks/useRecycleBinCount';
 import { LazySection } from '@/components/performance/LazySection';
 import { VirtualNavigation } from '@/components/performance/VirtualList';
 import { NavigationItem } from '@/components/performance/OptimizedComponents';
@@ -77,6 +78,7 @@ export function Sidebar({
   const { stats, loading: statsLoading } = useDashboardStats();
   const { sortedItems, favoriteItems, recentlyViewedItems, toggleFavorite } = useNavigationCache();
   const { unreadCount } = useNotifications();
+  const recycleBinCount = useRecycleBinCount();
   
   // Performance-optimized sidebar state
   const { state: sidebarState, setState: setSidebarState } = usePerformanceState({
@@ -175,12 +177,17 @@ export function Sidebar({
       icon: typeof item.icon === 'string' ? getIcon(item.icon) : item.icon, // Ensure icon is a component
       badge: item.id === 'notifications' && unreadCount > 0 ? unreadCount.toString() :
              item.id === 'transactions' && stats?.transactionCount && stats.transactionCount > 0 ? stats.transactionCount.toString() :
-             item.id === 'budgets' && stats?.budgetCount && stats.budgetCount > 0 ? stats.budgetCount.toString() :
+             item.id === 'budgets' && stats?.budgetCount && stats.budgetCount > 0 ? (() => {
+               console.log('Sidebar: Budget badge updated', { budgetCount: stats.budgetCount });
+               return stats.budgetCount.toString();
+             })() :
              item.id === 'accounts' && stats?.accountCount && stats.accountCount > 0 ? stats.accountCount.toString() :
              item.id === 'reports' && stats?.hasReports ? '!' :
+             item.id === 'recycle-bin' && recycleBinCount > 0 ? recycleBinCount.toString() :
              null,
+      badgeVariant: item.id === 'recycle-bin' && recycleBinCount > 0 ? 'destructive' as const : 'secondary' as const,
     }));
-  }, [sortedItems, stats, unreadCount]);
+  }, [sortedItems, stats, unreadCount, recycleBinCount]);
 
   // Touch gesture support for mobile
   const [touchStart, setTouchStart] = useState<number | null>(null);
@@ -350,6 +357,7 @@ export function Sidebar({
                     href={item.href}
                     icon={item.icon}
                     badge={item.badge}
+                    badgeVariant={item.badgeVariant}
                     description={item.description}
                     color={item.color}
                     isActive={pathname === item.href}

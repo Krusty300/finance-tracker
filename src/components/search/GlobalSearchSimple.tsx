@@ -453,7 +453,7 @@ export function GlobalSearchSimple() {
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent 
           className={cn(
-            "p-0 overflow-hidden border-2 shadow-2xl transition-all duration-300",
+            "p-0 overflow-hidden border-2 shadow-2xl",
             searchResults.length > 0 
               ? "max-w-7xl w-[100vw] max-h-[85vh] sm:max-h-[70vh] sm:w-[98vw]" 
               : "max-w-6xl w-[95vw] max-h-[85vh] sm:max-h-[70vh]",
@@ -488,7 +488,7 @@ export function GlobalSearchSimple() {
                 <button
                   onClick={() => setOpen(false)}
                   className={cn(
-                    "p-1 rounded-md transition-all duration-200 hover:scale-110",
+                    "p-1 rounded-md transition-colors duration-200",
                     resolvedTheme === 'dark'
                       ? "hover:bg-muted/30 text-muted-foreground hover:text-foreground"
                       : "hover:bg-muted text-muted-foreground hover:text-foreground"
@@ -500,24 +500,24 @@ export function GlobalSearchSimple() {
               </div>
             </DialogTitle>
           </DialogHeader>
-          <Command className="rounded-lg border-0 shadow-none transition-all duration-300 overflow-hidden" style={{ height: searchResults.length > 0 ? 'calc(85vh - 80px) sm:calc(70vh - 80px)' : 'auto' }}>
+          <Command className="rounded-lg border-0 shadow-none overflow-hidden" style={{ height: searchResults.length > 0 ? 'calc(85vh - 80px) sm:calc(70vh - 80px)' : 'auto' }}>
             <div className="relative group">
               <div className={cn(
                 "absolute inset-0 bg-gradient-to-r from-primary/10 via-primary/5 to-transparent rounded-lg opacity-0 group-focus-within:opacity-100 transition-opacity duration-300",
                 resolvedTheme === 'dark' && "from-primary/20 via-primary/10 to-transparent"
               )} />
               <div className={cn(
-                "relative flex items-center border-b transition-all duration-300",
+                "relative flex items-center border-b",
                 resolvedTheme === 'dark'
                   ? "border-border/40 group-focus-within:border-primary/60"
                   : "border-border/30 group-focus-within:border-primary/50"
               )}>
-                <Search className="ml-2 sm:ml-3 mr-1 sm:mr-2 h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground transition-all duration-200 group-focus-within:text-primary group-focus-within:scale-110" />
+                <Search className="ml-2 sm:ml-3 mr-1 sm:mr-2 h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground group-focus-within:text-primary" />
                 <input
                   placeholder="Search..."
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  className="flex h-10 sm:h-11 w-full bg-transparent py-2 sm:py-3 pr-4 text-sm outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50 transition-all duration-200"
+                  className="flex h-10 sm:h-11 w-full bg-transparent py-2 sm:py-3 pr-4 text-sm outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50"
                   autoFocus
                   autoComplete="off"
                 />
@@ -525,7 +525,7 @@ export function GlobalSearchSimple() {
                   <button
                     onClick={() => setSearch('')}
                     className={cn(
-                      "mr-2 sm:mr-3 p-1 rounded-full transition-all duration-200 hover:scale-110",
+                      "mr-2 sm:mr-3 p-1 rounded-full transition-colors duration-200",
                       resolvedTheme === 'dark'
                         ? "hover:bg-muted/30 text-muted-foreground hover:text-foreground"
                         : "hover:bg-muted text-muted-foreground hover:text-foreground"
@@ -537,7 +537,7 @@ export function GlobalSearchSimple() {
               </div>
             </div>
             <Command.List className={cn(
-              "p-1 sm:p-2 overflow-y-auto overflow-x-hidden scrollbar-thin transition-all duration-300",
+              "p-1 sm:p-2 overflow-y-auto overflow-x-hidden scrollbar-thin",
               "touch-pan-y touch-manipulation", // Better touch scrolling
               resolvedTheme === 'dark'
                 ? "scrollbar-thumb-gray-600 scrollbar-track-transparent hover:scrollbar-thumb-gray-400"

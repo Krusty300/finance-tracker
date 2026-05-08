@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Transaction } from '@/lib/types';
 import { TransactionForm } from '@/components/forms/TransactionForm';
@@ -17,6 +17,7 @@ import { Search, Filter, Download, Calendar, X, RotateCcw } from 'lucide-react';
 import { useCurrency } from '@/contexts/CurrencyContext';
 import { useFormatting } from '@/contexts/FormattingContext';
 import { useTheme } from '@/contexts/ThemeContext';
+import { useRealtime } from '@/hooks/useRealtime';
 import { toast } from 'sonner';
 import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
 import { DeleteConfirmDialog } from '@/components/dialogs/DeleteConfirmDialog';
@@ -61,59 +62,46 @@ export default function TransactionsPage() {
   const { formatDate } = useFormatting();
   const { resolvedTheme } = useTheme();
   const searchParams = useSearchParams();
+  const { subscribe } = useRealtime();
   const { transactions, addTransaction, deleteTransaction, updateTransaction } = useTransactions();
   const { categories } = useCategories();
   const { accounts } = useAccounts();
   
   // Enhanced filter state
-  const [filters, setFilters] = useState<FilterState>(() => {
-    // Safe initialization with fallback values
-    if (!transactions || transactions.length === 0) {
-      return {
-        searchTerm: '',
-        type: 'all' as 'all' | 'income' | 'expense',
-        category: 'all',
-        account: 'all',
-        tags: [],
-        dateRange: { start: '', end: '' },
-        amountRange: { min: 0, max: 1000 }
-      };
-    }
-    
-    const amounts = transactions.map(t => t.amount || 0);
-    const minAmount = Math.min(...amounts, 0);
-    const maxAmount = Math.max(...amounts, 1000);
-    
-    return {
-      searchTerm: '',
-      type: 'all' as 'all' | 'income' | 'expense',
-      category: 'all',
-      account: 'all',
-      tags: [],
-      dateRange: { start: '', end: '' },
-      amountRange: { min: minAmount, max: maxAmount }
-    };
-  });
+  const [filters, setFilters] = useState<FilterState>(() => ({
+    searchTerm: '',
+    type: 'all' as 'all' | 'income' | 'expense',
+    category: 'all',
+    account: 'all',
+    tags: [],
+    dateRange: { start: '', end: '' },
+    amountRange: { min: 0, max: 1000 }
+  }));
 
   // Debounced search for real-time updates
   const debouncedSearchTerm = useDebounce(filters.searchTerm, 300);
 
+  // Memoize amount range calculation
+  const amountRange = useMemo(() => {
+    if (transactions.length === 0) {
+      return { min: 0, max: 1000 };
+    }
+    const amounts = transactions.map(t => t.amount || 0);
+    return {
+      min: Math.min(...amounts, 0),
+      max: Math.max(...amounts, 1000)
+    };
+  }, [transactions]);
+
   // Update amount range when transactions change
   useEffect(() => {
-    if (transactions.length > 0) {
-      const amounts = transactions.map(t => t.amount);
-      const minAmount = Math.min(...amounts, 0);
-      const maxAmount = Math.max(...amounts, 1000);
-      
-      // Only update if the current range is too restrictive
-      if (filters.amountRange.max < maxAmount) {
-        setFilters(prev => ({
-          ...prev,
-          amountRange: { min: minAmount, max: maxAmount }
-        }));
-      }
+    if (transactions.length > 0 && filters.amountRange.max < amountRange.max) {
+      setFilters(prev => ({
+        ...prev,
+        amountRange: amountRange
+      }));
     }
-  }, [transactions, filters.amountRange.max]);
+  }, [amountRange.max, filters.amountRange.max, setFilters]);
 
   // Keyboard shortcuts
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -140,6 +128,29 @@ export default function TransactionsPage() {
   const [transactionToDelete, setTransactionToDelete] = useState<string | null>(null);
   const [bulkDeleteIds, setBulkDeleteIds] = useState<string[]>([]);
   const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false);
+
+  // Ensure only one delete dialog is open at a time
+  useEffect(() => {
+    if (deleteDialogOpen && bulkDeleteDialogOpen) {
+      console.warn('Both delete dialogs are open, closing bulk dialog');
+      setBulkDeleteDialogOpen(false);
+      setBulkDeleteIds([]);
+    }
+  }, [deleteDialogOpen, bulkDeleteDialogOpen]);
+
+  // Listen for real-time transaction events
+  useEffect(() => {
+    console.log('Transactions: Setting up real-time event listeners');
+    
+    const unsubscribe = subscribe('transaction', (event) => {
+      console.log('Transactions: Real-time transaction event received', event);
+      
+      // Show toast notification for user feedback (optional, since useNotifications handles this)
+      // Note: Toast notifications are handled by useNotifications hook to avoid duplicates
+    });
+
+    return unsubscribe;
+  }, [subscribe]);
   const [useEnhancedTable, setUseEnhancedTable] = useState(true);
   const [exportDialogOpen, setExportDialogOpen] = useState(false);
   const [bulkCategoryDialogOpen, setBulkCategoryDialogOpen] = useState(false);
@@ -249,29 +260,7 @@ export default function TransactionsPage() {
     return sortedMonths;
   };
 
-  // Safe calculation functions for summary stats
-  const calculateTotalIncome = (transactionsList: Transaction[]) => {
-    if (!transactionsList || transactionsList.length === 0) return 0;
-    
-    return transactionsList
-      .filter(t => t && t.type === 'income' && typeof t.amount === 'number' && !isNaN(t.amount))
-      .reduce((sum, t) => sum + t.amount, 0);
-  };
-
-  const calculateTotalExpenses = (transactionsList: Transaction[]) => {
-    if (!transactionsList || transactionsList.length === 0) return 0;
-    
-    return transactionsList
-      .filter(t => t && t.type === 'expense' && typeof t.amount === 'number' && !isNaN(t.amount))
-      .reduce((sum, t) => sum + t.amount, 0);
-  };
-
-  const calculateNet = (transactionsList: Transaction[]) => {
-    const income = calculateTotalIncome(transactionsList);
-    const expenses = calculateTotalExpenses(transactionsList);
-    return income - expenses;
-  };
-
+  
   // Loading state management
   useEffect(() => {
     setIsLoading(true);
@@ -279,8 +268,10 @@ export default function TransactionsPage() {
       setIsLoading(false);
     }, 500); // Simulate loading time
 
-    return () => clearTimeout(timer);
-  }, [transactions.length]);
+    return () => {
+      clearTimeout(timer);
+    };
+  }, [transactions.length, setIsLoading]);
 
   // Clear template data when component unmounts or after 5 minutes
   useEffect(() => {
@@ -288,8 +279,10 @@ export default function TransactionsPage() {
       setTemplateData(null);
     }, 5 * 60 * 1000); // 5 minutes
 
-    return () => clearTimeout(timer);
-  }, []);
+    return () => {
+      clearTimeout(timer);
+    };
+  }, []); // Remove setTemplateData dependency to prevent memory leaks
 
   // Cleanup bulk operation progress timers
   useEffect(() => {
@@ -299,7 +292,7 @@ export default function TransactionsPage() {
         setBulkOperationProgress(null);
       }
     };
-  }, [bulkOperationProgress]);
+  }, [bulkOperationProgress, setBulkOperationProgress]);
 
   const handleEditTransaction = (transaction: Transaction) => {
     setEditingTransaction(transaction);
@@ -319,11 +312,19 @@ export default function TransactionsPage() {
   };
 
   const handleDeleteTransaction = (id: string) => {
+    console.log('handleDeleteTransaction called with id:', id);
+    console.log('Current deleteDialogOpen state:', deleteDialogOpen);
+    
+    // Close any existing dialogs first
+    setBulkDeleteDialogOpen(false);
+    setBulkDeleteIds([]);
+    
     setTransactionToDelete(id);
     setDeleteDialogOpen(true);
   };
 
   const handleConfirmDelete = () => {
+    console.log('handleConfirmDelete called with transactionToDelete:', transactionToDelete);
     if (transactionToDelete) {
       try {
         deleteTransaction(transactionToDelete);
@@ -333,6 +334,7 @@ export default function TransactionsPage() {
         toast.error('Failed to delete transaction. Please try again.');
       } finally {
         setTransactionToDelete(null);
+        // Dialog closing is now handled by DeleteConfirmDialog component
       }
     }
   };
@@ -382,68 +384,90 @@ export default function TransactionsPage() {
     return details.join(' • ');
   };
 
-  const filteredTransactions = transactions.filter(transaction => {
-    // Skip invalid transactions
-    if (!transaction || !transaction.id) return false;
+  // Memoize filtered transactions for performance
+  const filteredTransactions = useMemo(() => {
+    return transactions.filter(transaction => {
+      // Skip invalid transactions
+      if (!transaction || !transaction.id) return false;
 
-    // Search filter with null checks
-    const matchesSearch = !debouncedSearchTerm || 
-      (transaction.description && transaction.description.toLowerCase().includes(debouncedSearchTerm.toLowerCase())) ||
-      (transaction.category && transaction.category.toLowerCase().includes(debouncedSearchTerm.toLowerCase())) ||
-      (transaction.account && transaction.account.toLowerCase().includes(debouncedSearchTerm.toLowerCase())) ||
-      (transaction.tags && transaction.tags.some((tag: string) => 
-        tag && tag.toLowerCase().includes(debouncedSearchTerm.toLowerCase())
-      ));
+      // Search filter with null checks
+      const matchesSearch = !debouncedSearchTerm || 
+        (transaction.description && transaction.description.toLowerCase().includes(debouncedSearchTerm.toLowerCase())) ||
+        (transaction.category && transaction.category.toLowerCase().includes(debouncedSearchTerm.toLowerCase())) ||
+        (transaction.account && transaction.account.toLowerCase().includes(debouncedSearchTerm.toLowerCase())) ||
+        (transaction.tags && transaction.tags.some((tag: string) => 
+          tag && tag.toLowerCase().includes(debouncedSearchTerm.toLowerCase())
+        ));
 
-    // Type filter with null check
-    const matchesType = filters.type === 'all' || (transaction.type && transaction.type === filters.type);
+      // Type filter with null check
+      const matchesType = filters.type === 'all' || (transaction.type && transaction.type === filters.type);
 
-    // Category filter with null check
-    const matchesCategory = filters.category === 'all' || (transaction.category && transaction.category === filters.category);
+      // Category filter with null check
+      const matchesCategory = filters.category === 'all' || (transaction.category && transaction.category === filters.category);
 
-    // Account filter with null check
-    const matchesAccount = filters.account === 'all' || (transaction.account && transaction.account === filters.account);
+      // Account filter with null check
+      const matchesAccount = filters.account === 'all' || (transaction.account && transaction.account === filters.account);
 
-    // Tags filter with null check
-    const matchesTags = filters.tags.length === 0 || 
-      (transaction.tags && filters.tags.some((tag: string) => transaction.tags!.includes(tag)));
+      // Tags filter with null check
+      const matchesTags = filters.tags.length === 0 || 
+        (transaction.tags && filters.tags.some((tag: string) => transaction.tags!.includes(tag)));
 
-    // Amount range filter with null check
-    const transactionAmount = transaction.amount || 0;
-    const matchesAmountRange = transactionAmount >= filters.amountRange.min && 
-                           transactionAmount <= filters.amountRange.max;
+      // Amount range filter with null check
+      const transactionAmount = transaction.amount || 0;
+      const matchesAmountRange = transactionAmount >= filters.amountRange.min && 
+                             transactionAmount <= filters.amountRange.max;
 
-    // Date range filtering with validation
-    let matchesDateRange = true;
-    if (filters.dateRange.start || filters.dateRange.end) {
-      try {
-        const transactionDate = new Date(transaction.date);
-        // Check if date is valid
-        if (isNaN(transactionDate.getTime())) {
+      // Date range filtering with validation
+      let matchesDateRange = true;
+      if (filters.dateRange.start || filters.dateRange.end) {
+        try {
+          const transactionDate = new Date(transaction.date);
+          // Check if date is valid
+          if (isNaN(transactionDate.getTime())) {
+            matchesDateRange = false;
+          } else {
+            if (filters.dateRange.start) {
+              const startDate = new Date(filters.dateRange.start);
+              if (!isNaN(startDate.getTime())) {
+                matchesDateRange = transactionDate >= startDate;
+              }
+            }
+            if (filters.dateRange.end && matchesDateRange) {
+              const endDate = new Date(filters.dateRange.end + 'T23:59:59');
+              if (!isNaN(endDate.getTime())) {
+                matchesDateRange = transactionDate <= endDate;
+              }
+            }
+          }
+        } catch (error) {
+          console.error('Date parsing error:', error);
           matchesDateRange = false;
-        } else {
-          if (filters.dateRange.start) {
-            const startDate = new Date(filters.dateRange.start);
-            if (!isNaN(startDate.getTime())) {
-              matchesDateRange = transactionDate >= startDate;
-            }
-          }
-          if (filters.dateRange.end && matchesDateRange) {
-            const endDate = new Date(filters.dateRange.end + 'T23:59:59');
-            if (!isNaN(endDate.getTime())) {
-              matchesDateRange = transactionDate <= endDate;
-            }
-          }
         }
-      } catch (error) {
-        console.error('Date parsing error:', error);
-        matchesDateRange = false;
       }
-    }
 
-    return matchesSearch && matchesType && matchesCategory && matchesAccount && 
-           matchesTags && matchesDateRange && matchesAmountRange;
-  });
+      return matchesSearch && matchesType && matchesCategory && matchesAccount && 
+             matchesTags && matchesDateRange && matchesAmountRange;
+    });
+  }, [transactions, debouncedSearchTerm, filters]);
+
+  // Memoize summary calculations for performance
+  const summaryStats = useMemo(() => {
+    const totalIncome = filteredTransactions
+      .filter(t => t && t.type === 'income' && typeof t.amount === 'number' && !isNaN(t.amount))
+      .reduce((sum, t) => sum + t.amount, 0);
+
+    const totalExpenses = filteredTransactions
+      .filter(t => t && t.type === 'expense' && typeof t.amount === 'number' && !isNaN(t.amount))
+      .reduce((sum, t) => sum + t.amount, 0);
+
+    const net = totalIncome - totalExpenses;
+
+    return {
+      totalIncome,
+      totalExpenses,
+      net
+    };
+  }, [filteredTransactions]);
 
   const clearAllFilters = () => {
     // Safe amount calculation with fallback
@@ -482,18 +506,25 @@ export default function TransactionsPage() {
   };
 
   const handleBulkDelete = (ids: string[]) => {
+    console.log('handleBulkDelete called with ids:', ids);
+    
+    // Close any existing individual delete dialog first
+    setDeleteDialogOpen(false);
+    setTransactionToDelete(null);
+    
     setBulkDeleteIds(ids);
     setBulkDeleteDialogOpen(true);
   };
 
   const handleConfirmBulkDelete = () => {
+    console.log('handleConfirmBulkDelete called with ids:', bulkDeleteIds);
     try {
       bulkDeleteIds.forEach(id => {
         deleteTransaction(id);
       });
       toast.success(`${bulkDeleteIds.length} transactions deleted successfully!`);
       setBulkDeleteIds([]);
-      setBulkDeleteDialogOpen(false);
+      // Dialog closing is now handled by DeleteConfirmDialog component
     } catch (error) {
       console.error('Failed to delete transactions:', error);
       toast.error('Failed to delete some transactions. Please try again.');
@@ -542,6 +573,7 @@ export default function TransactionsPage() {
             failed++;
           }
         } catch (error) {
+          console.error(`Failed to update transaction ${id}:`, error);
           failed++;
         }
 
@@ -556,12 +588,14 @@ export default function TransactionsPage() {
         await new Promise(resolve => setTimeout(resolve, 50));
       }
 
+      const finalStatus = failed > 0 ? 'error' : 'completed';
       setBulkOperationProgress({
         operation: 'Changing Categories',
         total: updates.ids.length,
         completed,
         failed,
-        status: failed > 0 ? 'error' : 'completed'
+        status: finalStatus,
+        error: failed > 0 ? `Failed to update ${failed} transactions` : undefined
       });
 
       setSelectedIds([]);
@@ -571,18 +605,20 @@ export default function TransactionsPage() {
       return () => clearTimeout(hideTimer);
       
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      console.error('Bulk category change failed:', error);
+      
       setBulkOperationProgress({
         operation: 'Changing Categories',
         total: updates.ids.length,
         completed: 0,
         failed: updates.ids.length,
         status: 'error',
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: errorMessage
       });
       
       const errorTimer = setTimeout(() => setBulkOperationProgress(null), 3000);
       return () => clearTimeout(errorTimer);
-      throw error;
     }
   };
 
@@ -610,6 +646,7 @@ export default function TransactionsPage() {
             failed++;
           }
         } catch (error) {
+          console.error(`Failed to update transaction ${id}:`, error);
           failed++;
         }
 
@@ -624,12 +661,14 @@ export default function TransactionsPage() {
         await new Promise(resolve => setTimeout(resolve, 50));
       }
 
+      const finalStatus = failed > 0 ? 'error' : 'completed';
       setBulkOperationProgress({
         operation: 'Editing Dates',
         total: updates.ids.length,
         completed,
         failed,
-        status: failed > 0 ? 'error' : 'completed'
+        status: finalStatus,
+        error: failed > 0 ? `Failed to update ${failed} transactions` : undefined
       });
 
       setSelectedIds([]);
@@ -639,18 +678,20 @@ export default function TransactionsPage() {
       return () => clearTimeout(hideTimer);
       
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      console.error('Bulk date edit failed:', error);
+      
       setBulkOperationProgress({
         operation: 'Editing Dates',
         total: updates.ids.length,
         completed: 0,
         failed: updates.ids.length,
         status: 'error',
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: errorMessage
       });
       
       const errorTimer = setTimeout(() => setBulkOperationProgress(null), 3000);
       return () => clearTimeout(errorTimer);
-      throw error;
     }
   };
 
@@ -697,17 +738,7 @@ export default function TransactionsPage() {
         />
       )}
 
-      {/* Infinite Scroll Toggle */}
-      <div className="flex justify-end mb-2">
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => setUseEnhancedTable(!useEnhancedTable)}
-        >
-          {useEnhancedTable ? 'Simple View' : 'Infinite Scroll'}
-        </Button>
-      </div>
-
+      
       {/* Summary Stats with Sparklines */}
       {isLoading ? (
         <SummaryCardsSkeleton />
@@ -715,12 +746,12 @@ export default function TransactionsPage() {
         <EmptyTransactionsState />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Card className="hover:shadow-lg transition-all duration-200 hover:scale-[1.02] hover:border-success/20">
+          <Card>
             <CardContent className="pt-6">
               <div className="flex items-center justify-between mb-3">
                 <div>
                   <div className="text-2xl font-bold text-success">
-                    +{formatCurrency(calculateTotalIncome(filteredTransactions))}
+                    +{formatCurrency(summaryStats.totalIncome)}
                   </div>
                   <p className="text-xs text-muted-foreground">Total Income</p>
                 </div>
@@ -742,18 +773,18 @@ export default function TransactionsPage() {
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-center justify-between mb-3">
-              <div>
-                <div className="text-2xl font-bold text-destructive">
-                  -{formatCurrency(calculateTotalExpenses(filteredTransactions))}
+                <div>
+                  <div className="text-2xl font-bold text-destructive">
+                    -{formatCurrency(summaryStats.totalExpenses)}
+                  </div>
+                  <p className="text-xs text-muted-foreground">Total Expenses</p>
                 </div>
-                <p className="text-xs text-muted-foreground">Total Expenses</p>
+                {hasActiveFilters && (
+                  <Badge variant="outline" className="text-xs">
+                    {filteredTransactions.filter(t => t.type === 'expense').length} items
+                  </Badge>
+                )}
               </div>
-              {hasActiveFilters && (
-                <Badge variant="outline" className="text-xs">
-                  {filteredTransactions.filter(t => t.type === 'expense').length} items
-                </Badge>
-              )}
-            </div>
             <SparklineChart 
               data={getMonthlyTrendData(transactions.filter(t => t.type === 'expense'))}
               color={resolvedTheme === 'dark' ? '#ef4444' : '#dc2626'}
@@ -767,8 +798,8 @@ export default function TransactionsPage() {
           <CardContent className="pt-6">
             <div className="flex items-center justify-between mb-3">
               <div>
-                <div className={`text-2xl font-bold ${calculateNet(filteredTransactions) >= 0 ? 'text-success' : 'text-destructive'}`}>
-                  {formatCurrency(calculateNet(filteredTransactions))}
+                <div className={`text-2xl font-bold ${summaryStats.net >= 0 ? 'text-success' : 'text-destructive'}`}>
+                  {formatCurrency(summaryStats.net)}
                 </div>
                 <p className="text-xs text-muted-foreground">Net</p>
               </div>
@@ -850,6 +881,7 @@ export default function TransactionsPage() {
 
       {/* Delete Confirmation Dialog */}
       <DeleteConfirmDialog
+        key="individual-delete"
         open={deleteDialogOpen}
         onOpenChange={setDeleteDialogOpen}
         onConfirm={handleConfirmDelete}
@@ -861,6 +893,7 @@ export default function TransactionsPage() {
 
       {/* Bulk Delete Confirmation Dialog */}
       <DeleteConfirmDialog
+        key="bulk-delete"
         open={bulkDeleteDialogOpen}
         onOpenChange={setBulkDeleteDialogOpen}
         onConfirm={handleConfirmBulkDelete}
