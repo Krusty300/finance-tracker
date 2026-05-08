@@ -155,10 +155,10 @@ export default function MainLayout({
         onCloseMobileSidebar={closeMobileSidebar}
       />
       <main className={cn(
-        "flex-1 overflow-auto relative",
+        "flex-1 overflow-hidden relative flex flex-col",
         "will-change-transform",
         "z-30", // Ensure main content is above sidebar but below other overlays
-        "min-h-screen", // Ensure main content takes full height
+        "h-screen", // Ensure main content takes full height
         // Mobile adjustments
         isMobile && "md:hidden", // Hide on mobile when sidebar is open as overlay
         !isMobile && isSidebarCollapsed && "ml-0" // No margin when collapsed on desktop
@@ -214,7 +214,7 @@ export default function MainLayout({
         
         {/* Breadcrumb Navigation */}
         <div className={cn(
-          "sticky top-0 z-10 bg-background/95 backdrop-blur-sm border-b",
+          "flex-shrink-0 z-10 bg-background/95 backdrop-blur-sm border-b",
           "p-3 sm:p-4",
           // Add left padding when sidebar is collapsed to avoid overlap with floating toggle
           !isMobile && isSidebarCollapsed && "pl-20 sm:pl-16", // Only on desktop
@@ -270,22 +270,24 @@ export default function MainLayout({
         </div>
         
         {/* Main Content */}
-        <AppErrorBoundary>
-          <Suspense 
-            fallback={<PageSkeleton />}
-          >
-            {/* Global Page Loader */}
-            <PageLoader 
-              isLoading={isAnyLoading() || isPageLoading}
-              title="Loading Application"
-              message="Preparing your finance dashboard..."
-            />
-            
-            <div className="container mx-auto px-3 sm:px-4 md:px-6 py-4 sm:py-6">
-              {children}
-            </div>
-          </Suspense>
-        </AppErrorBoundary>
+        <div className="flex-1 overflow-auto">
+          <AppErrorBoundary>
+            <Suspense 
+              fallback={<PageSkeleton />}
+            >
+              {/* Global Page Loader */}
+              <PageLoader 
+                isLoading={isAnyLoading() || isPageLoading}
+                title="Loading Application"
+                message="Preparing your finance dashboard..."
+              />
+              
+              <div className="container mx-auto px-3 sm:px-4 md:px-6 py-4 sm:py-6">
+                {children}
+              </div>
+            </Suspense>
+          </AppErrorBoundary>
+        </div>
         
         {/* Toast Notifications */}
         <ToastNotifications />

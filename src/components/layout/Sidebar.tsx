@@ -257,18 +257,27 @@ export function Sidebar({
           isCollapsed ? 'px-2 sm:px-3' : 'px-3'
         )}>
           {!isCollapsed && (
-            <h2 className={cn(
-              'mb-2 px-4 text-lg font-semibold tracking-tight',
+            <div className={cn(
+              'mb-2 px-4 flex items-center gap-3',
               'transition-all duration-500 ease-in-out',
               'transform',
-              isMounted ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-4',
-              // Enhanced white theme-supportive text styling
-              resolvedTheme === 'dark'
-                ? 'text-gray-50'
-                : 'text-gray-900'
+              isMounted ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-4'
             )}>
-              Sprint Financial
-            </h2>
+              <h2 className={cn(
+                'text-lg font-semibold tracking-tight',
+                // Enhanced white theme-supportive text styling
+                resolvedTheme === 'dark'
+                  ? 'text-gray-50'
+                  : 'text-gray-900'
+              )}>
+                Sprint Financial
+              </h2>
+              <img 
+                src="/favicon.png" 
+                alt="Sprint Financial" 
+                className="h-6 w-6 rounded-sm"
+              />
+            </div>
           )}
           {/* Mobile close button */}
           {isMobile && (
