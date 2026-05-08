@@ -15,12 +15,16 @@ const getContextualHelp = (stepId: string): string => {
   const helpMessages: Record<string, string> = {
     'welcome': 'Take your time to explore each feature. You can always return to this tour later from the Tour Guide menu.',
     'dashboard-overview': 'Your dashboard updates in real-time. Check back daily to track your financial progress.',
-    'add-transaction': 'Quick tip: Use keyboard shortcuts like Ctrl+N to add transactions even faster.',
     'sidebar-navigation': 'You can collapse the sidebar for more screen space or customize it in Settings.',
     'transactions-page': 'Filter and sort transactions to find specific entries quickly. Export data for tax purposes.',
     'budgets': 'Set realistic budgets and track your spending habits. Adjust monthly based on your needs.',
     'reports': 'Generate monthly reports to share with financial advisors or for personal tracking.',
-    'settings': 'Customize your experience with themes, notifications, and data import/export options.'
+    'accounts': 'Connect all your financial accounts in one place. Track balances and monitor account health.',
+    'banking': 'Securely link your bank accounts for automatic transaction imports and real-time updates.',
+    'notifications': 'Stay on top of your finances with smart alerts for budget limits, unusual spending, and more.',
+    'templates': 'Save time with templates for recurring bills, subscriptions, and regular income sources.',
+    'recycle-bin': 'Safety net for accidental deletions. Items are kept for 30 days before permanent removal.',
+    'settings': 'Customize your experience with themes, notifications, keyboard shortcuts, and data management.'
   };
   
   return helpMessages[stepId] || 'Explore this feature at your own pace. Click Next when you\'re ready to continue.';
@@ -42,7 +46,14 @@ export function OnboardingTour() {
   const [targetElement, setTargetElement] = useState<Element | null>(null);
   const [highlightRect, setHighlightRect] = useState<DOMRect | null>(null);
   const [isAnimating, setIsAnimating] = useState(false);
-  const [tourSpeed, setTourSpeed] = useState<'slow' | 'normal' | 'fast'>('normal');
+  const [tourSpeed, setTourSpeed] = useState<'slow' | 'normal' | 'fast'>(() => {
+  // Load tour speed from localStorage
+  if (typeof window !== 'undefined') {
+    const saved = localStorage.getItem('onboarding-tour-speed');
+    return saved ? (saved as 'slow' | 'normal' | 'fast') : 'normal';
+  }
+  return 'normal';
+});
   const [position, setPosition] = useState<'top' | 'bottom' | 'left' | 'right'>('bottom');
   const [showCustomization, setShowCustomization] = useState(false);
   const [userInteractions, setUserInteractions] = useState(0);
@@ -50,18 +61,38 @@ export function OnboardingTour() {
 
   const currentStep = steps[currentStepIndex];
 
+  // Persist tour speed to localStorage
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('onboarding-tour-speed', tourSpeed);
+    }
+  }, [tourSpeed]);
+
+  // Reset manual speed flag when starting a new tour
+  useEffect(() => {
+    if (isActive && currentStepIndex === 0) {
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('onboarding-tour-speed-manual');
+      }
+    }
+  }, [isActive, currentStepIndex]);
+
   // Adaptive pacing - adjust tour speed based on user interactions
   useEffect(() => {
     const currentTime = Date.now();
     const timeSinceLastInteraction = currentTime - lastInteractionTime;
     
-    // If user is interacting quickly, speed up the tour
-    if (timeSinceLastInteraction < 2000 && userInteractions > 3) {
-      setTourSpeed('fast');
-    } else if (timeSinceLastInteraction > 10000 && userInteractions < 2) {
-      setTourSpeed('slow');
-    } else {
-      setTourSpeed('normal');
+    // Only auto-adjust if user hasn't manually set speed
+    const hasManualSpeedChange = localStorage.getItem('onboarding-tour-speed-manual');
+    if (!hasManualSpeedChange) {
+      // If user is interacting quickly, speed up the tour
+      if (timeSinceLastInteraction < 2000 && userInteractions > 3) {
+        setTourSpeed('fast');
+      } else if (timeSinceLastInteraction > 10000 && userInteractions < 2) {
+        setTourSpeed('slow');
+      } else {
+        setTourSpeed('normal');
+      }
     }
   }, [userInteractions, lastInteractionTime]);
 
@@ -116,7 +147,8 @@ export function OnboardingTour() {
       addHighlightClass(element);
       
       // Trigger animation with adaptive timing
-      const animationDuration = tourSpeed === 'fast' ? 300 : tourSpeed === 'slow' ? 900 : 600;
+      const animationDuration = tourSpeed === 'fast' ? 200 : tourSpeed === 'slow' ? 800 : 400;
+      setIsAnimating(true);
       setTimeout(() => setIsAnimating(false), animationDuration);
       
       return () => {
@@ -139,7 +171,7 @@ export function OnboardingTour() {
     setLastInteractionTime(Date.now());
     
     // Adaptive delay based on tour speed
-    const delay = tourSpeed === 'fast' ? 0 : tourSpeed === 'slow' ? 500 : 200;
+    const delay = tourSpeed === 'fast' ? 100 : tourSpeed === 'slow' ? 600 : 300;
     setTimeout(() => nextStep(), delay);
   };
 
@@ -362,7 +394,13 @@ export function OnboardingTour() {
                         key={speed}
                         variant={tourSpeed === speed ? 'default' : 'outline'}
                         size="sm"
-                        onClick={() => setTourSpeed(speed)}
+                        onClick={() => {
+                          setTourSpeed(speed);
+                          // Mark that user manually changed speed
+                          if (typeof window !== 'undefined') {
+                            localStorage.setItem('onboarding-tour-speed-manual', 'true');
+                          }
+                        }}
                         className="text-xs flex-1"
                       >
                         {speed === 'slow' && <Clock className="h-3 w-3 mr-1" />}

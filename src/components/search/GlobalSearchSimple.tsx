@@ -10,14 +10,19 @@ import { useTransactions } from '@/hooks/useTransactions';
 import { useCategories } from '@/hooks/useCategories';
 import { useAccounts } from '@/hooks/useAccounts';
 import { useBudgets } from '@/hooks/useBudgets';
-import { Search, TrendingUp, Receipt, Target, Wallet, Calendar, ArrowRight, Plus, Filter, FileText, X, Clock, Sparkles, Bell } from 'lucide-react';
+import { Search, TrendingUp, Receipt, Target, Wallet, Calendar, ArrowRight, Plus, Filter, FileText, X, Clock, Sparkles, Bell, HelpCircle } from 'lucide-react';
+import { QuickAddModal } from '@/components/forms/QuickAddModal';
+import { KeyboardShortcutsHelp } from '@/components/help/KeyboardShortcutsHelp';
 import { cn } from '@/lib/utils';
 import { useTheme } from 'next-themes';
+import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 
 export function GlobalSearchSimple() {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
   const [selectedIndex, setSelectedIndex] = useState(-1);
+  const [isQuickAddOpen, setIsQuickAddOpen] = useState(false);
+  const [isKeyboardHelpOpen, setIsKeyboardHelpOpen] = useState(false);
   const router = useRouter();
   const { resolvedTheme } = useTheme();
   
@@ -43,7 +48,24 @@ export function GlobalSearchSimple() {
       }
     };
   }, []);
-  
+
+  // Initialize keyboard shortcuts
+  useKeyboardShortcuts({
+    onQuickAdd: () => setIsQuickAddOpen(true),
+    onSearchFocus: () => setOpen(true),
+    onToggleSearch: () => setOpen(prev => !prev),
+    onClose: () => {
+      // Close search dialog if open
+      if (open) {
+        setOpen(false);
+      }
+      // Close quick add modal if open
+      if (isQuickAddOpen) {
+        setIsQuickAddOpen(false);
+      }
+    }
+  });
+
   const { transactions } = useTransactions();
   const { categories } = useCategories();
   const { accounts } = useAccounts();
@@ -328,23 +350,7 @@ export function GlobalSearchSimple() {
     }
   }, [search, transactions, categories, accounts, budgets, router]);
 
-  // Keyboard shortcut handling
-  useEffect(() => {
-    const down = (e: KeyboardEvent) => {
-      if ((e.key === 'k' || e.key === 'K') && (e.metaKey || e.ctrlKey)) {
-        e.preventDefault();
-        setOpen(!open);
-      }
-      
-      if (e.key === 'Escape') {
-        setOpen(false);
-      }
-    };
-
-    document.addEventListener('keydown', down);
-    return () => document.removeEventListener('keydown', down);
-  }, [open]);
-
+  
   const handleSelect = useCallback((action: () => void) => {
     try {
       // Execute the action immediately
@@ -601,8 +607,26 @@ export function GlobalSearchSimple() {
         </DialogContent>
       </Dialog>
       
-      {/* Mobile Search Button */}
-      <div className="md:hidden">
+      {/* Mobile Action Buttons */}
+      <div className="md:hidden flex flex-col gap-2 fixed bottom-20 right-6 z-50">
+        {/* Quick Add Button */}
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setIsQuickAddOpen(true)}
+          className={cn(
+            "h-10 w-10 p-0 rounded-full shadow-lg transition-colors duration-200",
+            "border-border/50 backdrop-blur-sm",
+            resolvedTheme === 'dark'
+              ? "bg-background/80 hover:bg-background text-foreground border-border/50"
+              : "bg-background/95 hover:bg-muted text-foreground border-border/40"
+          )}
+          aria-label="Quick Add Transaction"
+        >
+          <Plus className="h-4 w-4" />
+        </Button>
+        
+        {/* Search Button */}
         <Button
           variant="outline"
           size="sm"
@@ -611,12 +635,47 @@ export function GlobalSearchSimple() {
               (window as any).openGlobalSearch();
             }
           }}
-          className="fixed bottom-20 right-6 z-50 h-10 w-10 p-0 rounded-full"
+          className={cn(
+            "h-10 w-10 p-0 rounded-full shadow-lg transition-colors duration-200",
+            "border-border/50 backdrop-blur-sm",
+            resolvedTheme === 'dark'
+              ? "bg-background/80 hover:bg-background text-foreground border-border/50"
+              : "bg-background/95 hover:bg-muted text-foreground border-border/40"
+          )}
           aria-label="Search"
         >
           <Search className="h-4 w-4" />
         </Button>
+        
+        {/* Help Button */}
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setIsKeyboardHelpOpen(true)}
+          className={cn(
+            "h-10 w-10 p-0 rounded-full shadow-lg transition-colors duration-200",
+            "border-border/50 backdrop-blur-sm",
+            resolvedTheme === 'dark'
+              ? "bg-background/80 hover:bg-background text-foreground border-border/50"
+              : "bg-background/95 hover:bg-muted text-foreground border-border/40"
+          )}
+          aria-label="Keyboard Shortcuts Help"
+        >
+          <HelpCircle className="h-4 w-4" />
+        </Button>
       </div>
+      
+      {/* Quick Add Modal */}
+      <QuickAddModal 
+        open={isQuickAddOpen} 
+        onOpenChange={setIsQuickAddOpen} 
+      />
+      
+      {/* Keyboard Shortcuts Help Modal */}
+      <KeyboardShortcutsHelp 
+        open={isKeyboardHelpOpen} 
+        onOpenChange={setIsKeyboardHelpOpen} 
+      />
     </>
   );
 }

@@ -47,7 +47,7 @@ const TOUR_CATEGORIES: TourCategory[] = [
     title: 'Transactions',
     description: 'Add and manage your financial transactions',
     icon: CreditCard,
-    steps: ['add-transaction'],
+    steps: [],
     color: 'bg-green-500',
   },
   {

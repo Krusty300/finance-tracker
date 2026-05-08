@@ -4,20 +4,22 @@ import { useState, useEffect, Suspense } from 'react';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { GlobalSearchSimple } from '@/components/search/GlobalSearchSimple';
 import { BreadcrumbNavigation } from '@/components/navigation/BreadcrumbNavigation';
-import { FloatingActionButton } from '@/components/navigation/FloatingActionButton';
 import { ThemeToggle } from '@/components/theme/ThemeToggle';
 import { NotificationCenter } from '@/components/notifications/NotificationCenter';
 import { ToastNotifications } from '@/components/notifications/NotificationSystem';
 import { ConnectionStatus } from '@/components/ui/ConnectionStatus';
 import { OnboardingTour, OnboardingTrigger, OnboardingNotifications, OnboardingHints, FeatureDiscoveryNotifications, TourNavigation } from '@/components/onboarding/index';
 import { Button } from '@/components/ui/button';
-import { Menu, Eye, EyeOff, ChevronRight, Search } from 'lucide-react';
+import { QuickAddModal } from '@/components/forms/QuickAddModal';
+import { KeyboardShortcutsHelp } from '@/components/help/KeyboardShortcutsHelp';
+import { Menu, Eye, EyeOff, ChevronRight, Search, Plus, HelpCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useTheme } from '@/contexts/ThemeContext';
 import { Skeleton } from '@/components/ui/skeleton';
 import { AppErrorBoundary } from '@/components/error/AppErrorBoundary';
 import { PageLoader, PageSkeleton } from '@/components/loading/PageLoader';
 import { useDataLoader } from '@/hooks/useDataLoader';
+import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 
 export default function MainLayout({
   children,
@@ -29,11 +31,34 @@ export default function MainLayout({
   const [showSidebarIcons, setShowSidebarIcons] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+  const [isQuickAddOpen, setIsQuickAddOpen] = useState(false);
+  const [isKeyboardHelpOpen, setIsKeyboardHelpOpen] = useState(false);
   const { resolvedTheme } = useTheme();
   const [isPageLoading, setIsPageLoading] = useState(false);
   
   // Initialize data loading system
   const { isAnyLoading } = useDataLoader();
+
+  // Initialize keyboard shortcuts
+  useKeyboardShortcuts({
+    onQuickAdd: () => setIsQuickAddOpen(true),
+    onSearchFocus: () => {
+      if ((window as any).openGlobalSearch) {
+        (window as any).openGlobalSearch();
+      }
+    },
+    onToggleSearch: () => {
+      if ((window as any).openGlobalSearch) {
+        (window as any).openGlobalSearch();
+      }
+    },
+    onClose: () => {
+      // Close quick add modal if open
+      if (isQuickAddOpen) {
+        setIsQuickAddOpen(false);
+      }
+    }
+  });
 
   // Load sidebar state from localStorage on mount and detect mobile
   useEffect(() => {
@@ -253,6 +278,50 @@ export default function MainLayout({
                 </Button>
               </div>
               
+              {/* Desktop Quick Add Button */}
+              <div className="hidden md:block">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setIsQuickAddOpen(true)}
+                  className="relative"
+                  aria-label="Quick Add Transaction (Ctrl+Q)"
+                >
+                  <Plus className="h-4 w-4" />
+                  <span className="hidden lg:inline ml-2">Quick Add</span>
+                  <kbd className={cn(
+                    "ml-auto px-1.5 py-0.5 text-xs rounded border transition-colors duration-200",
+                    resolvedTheme === 'dark'
+                      ? "bg-background/80 border-border/50 text-muted-foreground hover:bg-background hover:text-foreground"
+                      : "bg-background border-border/40 text-muted-foreground hover:bg-muted hover:text-foreground"
+                  )}>
+                    Ctrl+Q
+                  </kbd>
+                </Button>
+              </div>
+              
+              {/* Desktop Help Button */}
+              <div className="hidden md:block">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setIsKeyboardHelpOpen(true)}
+                  className="relative"
+                  aria-label="Keyboard Shortcuts Help"
+                >
+                  <HelpCircle className="h-4 w-4" />
+                  <span className="hidden lg:inline ml-2">Shortcuts</span>
+                  <kbd className={cn(
+                    "ml-auto px-1.5 py-0.5 text-xs rounded border transition-colors duration-200",
+                    resolvedTheme === 'dark'
+                      ? "bg-background/80 border-border/50 text-muted-foreground hover:bg-background hover:text-foreground"
+                      : "bg-background border-border/40 text-muted-foreground hover:bg-muted hover:text-foreground"
+                  )}>
+                    ?
+                  </kbd>
+                </Button>
+              </div>
+              
               <ConnectionStatus />
               <Button
                 variant="ghost"
@@ -299,10 +368,20 @@ export default function MainLayout({
         <OnboardingNotifications />
         <OnboardingHints />
         <FeatureDiscoveryNotifications />
+        
+        {/* Quick Add Modal */}
+        <QuickAddModal 
+          open={isQuickAddOpen} 
+          onOpenChange={setIsQuickAddOpen} 
+        />
+        
+        {/* Keyboard Shortcuts Help Modal */}
+        <KeyboardShortcutsHelp 
+          open={isKeyboardHelpOpen} 
+          onOpenChange={setIsKeyboardHelpOpen} 
+        />
       </main>
       
-      {/* Floating Action Button - Outside main to fix positioning */}
-      <FloatingActionButton />
-    </div>
+          </div>
   );
 }

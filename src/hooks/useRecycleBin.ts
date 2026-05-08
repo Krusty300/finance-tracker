@@ -2,12 +2,14 @@ import { useState, useEffect, useCallback } from 'react';
 import { RecycleBinItem } from '@/lib/types';
 import { db } from '@/lib/db';
 import { useCurrency } from '@/contexts/CurrencyContext';
+import { useCategories } from '@/hooks/useCategories';
 import { useDebounceCallback } from '@/hooks/useDebounceCallback';
 import { useRealtime } from './useRealtime';
 import { toast } from 'sonner';
 
 export function useRecycleBin() {
   const { formatCurrency } = useCurrency();
+  const { categories } = useCategories();
   const [items, setItems] = useState<RecycleBinItem[]>([]);
   const [loading, setLoading] = useState(true);
   const { subscribe, emit } = useRealtime();
@@ -177,7 +179,19 @@ export function useRecycleBin() {
       case 'category':
         return `${item.data.name} (${item.data.type})`;
       case 'budget':
-        return `${item.data.category} - ${formatCurrency(item.data.amount)}`;
+        // Resolve category name from ID if needed
+        let budgetName = item.data.category || item.data.name || 'Unknown Budget';
+        
+        // If category is an ID (not a name), try to resolve it using categories hook
+        if (budgetName && budgetName.length === 36 && /^[0-9a-f-]{36}$/.test(budgetName)) {
+          // This looks like a UUID, try to get the actual category name
+          const category = categories.find((c: any) => c.id === budgetName);
+          if (category && category.name) {
+            budgetName = category.name;
+          }
+        }
+        
+        return `${budgetName} - ${formatCurrency(item.data.amount)}`;
       case 'account':
         return `${item.data.name} - ${formatCurrency(item.data.balance)}`;
       case 'template':
@@ -185,7 +199,7 @@ export function useRecycleBin() {
       default:
         return 'Unknown item';
     }
-  }, [formatCurrency]);
+  }, [formatCurrency, categories]);
 
   const getItemTypeLabel = useCallback((type: string) => {
     switch (type) {

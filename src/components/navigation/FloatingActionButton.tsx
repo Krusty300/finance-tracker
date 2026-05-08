@@ -59,7 +59,6 @@ export function FloatingActionButton({ className }: FloatingActionButtonProps) {
         )} />
         
         <Button
-          data-onboarding="add-transaction"
           onClick={handleClick}
           size="lg"
           className={cn(

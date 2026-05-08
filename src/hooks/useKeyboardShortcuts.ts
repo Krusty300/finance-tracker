@@ -3,7 +3,10 @@ import { useEffect, useCallback } from 'react';
 export interface KeyboardShortcuts {
   onNewTransaction?: () => void;
   onSearchFocus?: () => void;
+  onQuickAdd?: () => void;
+  onToggleSearch?: () => void;
   onDelete?: () => void;
+  onClose?: () => void;
 }
 
 export function useKeyboardShortcuts(shortcuts: KeyboardShortcuts) {
@@ -31,6 +34,18 @@ export function useKeyboardShortcuts(shortcuts: KeyboardShortcuts) {
       shortcuts.onSearchFocus?.();
     }
 
+    // Ctrl+K or Cmd+K - Toggle search
+    if (ctrlKey && event.key === 'k' && !shiftKey && !altKey) {
+      event.preventDefault();
+      shortcuts.onToggleSearch?.();
+    }
+
+    // Ctrl+Q or Cmd+Q - Quick Add
+    if (ctrlKey && event.key === 'q' && !shiftKey && !altKey) {
+      event.preventDefault();
+      shortcuts.onQuickAdd?.();
+    }
+
     // Delete key - Bulk delete (when items are selected)
     if (event.key === 'Delete' && !ctrlKey && !shiftKey && !altKey) {
       event.preventDefault();
@@ -40,7 +55,7 @@ export function useKeyboardShortcuts(shortcuts: KeyboardShortcuts) {
     // Escape - Close dialogs/clear selection
     if (event.key === 'Escape' && !ctrlKey && !shiftKey && !altKey) {
       event.preventDefault();
-      // This will be handled by individual components
+      shortcuts.onClose?.();
     }
   }, [shortcuts]);
 

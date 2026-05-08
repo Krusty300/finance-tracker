@@ -48,7 +48,7 @@ export function TransactionTable({ transactions, onEdit, onDelete, onDuplicate }
           <div className="text-center">
             <p className="text-muted-foreground">No transactions found</p>
             <p className="text-sm text-muted-foreground mt-2">
-              Add your first transaction to get started
+              Start by adding your transactions
             </p>
           </div>
         </CardContent>

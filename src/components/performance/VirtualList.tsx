@@ -109,6 +109,7 @@ export function VirtualNavigation({
       return (
         <div className="px-2 py-1">
           <button
+            data-onboarding={`${item.id}-nav`}
             className={cn(
               'w-full justify-start relative transition-all duration-300 ease-out',
               'hover:scale-[1.02] hover:shadow-md active:scale-[0.98]',

@@ -49,9 +49,15 @@ export const NavigationItem = memo(function NavigationItem({
   return (
     <Button
       data-onboarding={
+        name === 'Dashboard' ? 'dashboard-nav' :
         name === 'Transactions' ? 'transactions-nav' :
         name === 'Budgets' ? 'budgets-nav' :
         name === 'Reports' ? 'reports-nav' :
+        name === 'Notifications' ? 'notifications-nav' :
+        name === 'Accounts' ? 'accounts-nav' :
+        name === 'Banking' ? 'banking-nav' :
+        name === 'Templates' ? 'templates-nav' :
+        name === 'Recycle Bin' ? 'recycle-bin-nav' :
         name === 'Settings' ? 'settings-nav' :
         undefined
       }
