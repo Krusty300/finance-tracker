@@ -315,6 +315,13 @@ export default function TransactionsPage() {
     console.log('handleDeleteTransaction called with id:', id);
     console.log('Current deleteDialogOpen state:', deleteDialogOpen);
     
+    // Validate transaction exists before proceeding
+    const transaction = transactions.find(t => t.id === id);
+    if (!transaction) {
+      toast.error('Transaction not found');
+      return;
+    }
+    
     // Close any existing dialogs first
     setBulkDeleteDialogOpen(false);
     setBulkDeleteIds([]);
@@ -516,19 +523,30 @@ export default function TransactionsPage() {
     setBulkDeleteDialogOpen(true);
   };
 
-  const handleConfirmBulkDelete = () => {
+  const handleConfirmBulkDelete = async () => {
     console.log('handleConfirmBulkDelete called with ids:', bulkDeleteIds);
-    try {
-      bulkDeleteIds.forEach(id => {
+    let successCount = 0;
+    let failCount = 0;
+    
+    for (const id of bulkDeleteIds) {
+      try {
         deleteTransaction(id);
-      });
-      toast.success(`${bulkDeleteIds.length} transactions deleted successfully!`);
-      setBulkDeleteIds([]);
-      // Dialog closing is now handled by DeleteConfirmDialog component
-    } catch (error) {
-      console.error('Failed to delete transactions:', error);
-      toast.error('Failed to delete some transactions. Please try again.');
+        successCount++;
+      } catch (error) {
+        console.error(`Failed to delete transaction ${id}:`, error);
+        failCount++;
+      }
     }
+    
+    if (successCount > 0) {
+      toast.success(`${successCount} transaction${successCount > 1 ? 's' : ''} deleted successfully!`);
+    }
+    if (failCount > 0) {
+      toast.error(`Failed to delete ${failCount} transaction${failCount > 1 ? 's' : ''}.`);
+    }
+    
+    setBulkDeleteIds([]);
+    // Dialog closing is now handled by DeleteConfirmDialog component
   };
 
   const handleBulkExport = (ids: string[]) => {
@@ -746,7 +764,7 @@ export default function TransactionsPage() {
         <EmptyTransactionsState />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Card>
+          <Card className="rounded-none">
             <CardContent className="pt-6">
               <div className="flex items-center justify-between mb-3">
                 <div>
@@ -770,7 +788,7 @@ export default function TransactionsPage() {
             </CardContent>
           </Card>
         
-        <Card>
+        <Card className="rounded-none">
           <CardContent className="pt-6">
             <div className="flex items-center justify-between mb-3">
                 <div>
@@ -794,7 +812,7 @@ export default function TransactionsPage() {
           </CardContent>
         </Card>
         
-        <Card>
+        <Card className="rounded-none">
           <CardContent className="pt-6">
             <div className="flex items-center justify-between mb-3">
               <div>

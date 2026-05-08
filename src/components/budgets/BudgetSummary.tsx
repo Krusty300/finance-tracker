@@ -62,7 +62,7 @@ export function BudgetSummary({
 
   return (
     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-      <Card className="hover:shadow-lg transition-all duration-200 hover:scale-[1.02] hover:border-primary/20">
+      <Card className="hover:shadow-lg transition-all duration-200 hover:scale-[1.02] hover:border-primary/20 rounded-none">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-sm font-medium">Total Budget</CardTitle>
         </CardHeader>
@@ -74,7 +74,7 @@ export function BudgetSummary({
         </CardContent>
       </Card>
 
-      <Card className="hover:shadow-lg transition-all duration-200 hover:scale-[1.02] hover:border-primary/20">
+      <Card className="hover:shadow-lg transition-all duration-200 hover:scale-[1.02] hover:border-primary/20 rounded-none">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-sm font-medium">Total Spent</CardTitle>
           <TrendingUp className="h-4 w-4 text-muted-foreground" />
@@ -89,7 +89,7 @@ export function BudgetSummary({
         </CardContent>
       </Card>
 
-      <Card className="hover:shadow-lg transition-all duration-200 hover:scale-[1.02] hover:border-primary/20">
+      <Card className="hover:shadow-lg transition-all duration-200 hover:scale-[1.02] hover:border-primary/20 rounded-none">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-sm font-medium">Remaining</CardTitle>
           <Target className="h-4 w-4 text-muted-foreground" />
@@ -104,7 +104,7 @@ export function BudgetSummary({
         </CardContent>
       </Card>
 
-      <Card className="hover:shadow-lg transition-all duration-200 hover:scale-[1.02] hover:border-primary/20">
+      <Card className="hover:shadow-lg transition-all duration-200 hover:scale-[1.02] hover:border-primary/20 rounded-none">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-sm font-medium">Status</CardTitle>
           {status.icon}

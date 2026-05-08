@@ -178,7 +178,7 @@ export function BudgetTrendChart({
   // Handle empty data case
   if (validatedData.length === 0) {
     return (
-      <Card>
+      <Card className="rounded-none">
         <CardHeader>
           <CardTitle>{title}</CardTitle>
         </CardHeader>

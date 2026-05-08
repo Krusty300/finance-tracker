@@ -68,7 +68,7 @@ export function SpendingChart({ data }: SpendingChartProps) {
   }
 
   return (
-    <Card>
+    <Card className="rounded-none">
       <CardHeader>
         <CardTitle>Spending by Category</CardTitle>
       </CardHeader>

@@ -36,15 +36,35 @@ class LocalStorageDB {
   // Transactions
   getTransactions(): Transaction[] {
     try {
+      // SSR protection
+      if (typeof window === 'undefined' || typeof localStorage === 'undefined') {
+        return [];
+      }
+      
       const data = localStorage.getItem(STORAGE_KEYS.TRANSACTIONS);
       if (!data) return [];
       
+      // Safe JSON parsing with validation
       const transactions = JSON.parse(data);
+      if (!Array.isArray(transactions)) {
+        console.warn('Transactions data is not an array, clearing corrupted data');
+        localStorage.removeItem(STORAGE_KEYS.TRANSACTIONS);
+        return [];
+      }
+      
       return transactions
         .filter((t: any) => transactionSchema.safeParse(t).success)
         .filter((t: any) => !t.deletedAt); // Filter out soft-deleted transactions
     } catch (error) {
       console.error('Error reading transactions:', error);
+      // Clear corrupted data to prevent future errors
+      try {
+        if (typeof localStorage !== 'undefined') {
+          localStorage.removeItem(STORAGE_KEYS.TRANSACTIONS);
+        }
+      } catch (clearError) {
+        console.error('Failed to clear corrupted transactions data:', clearError);
+      }
       return [];
     }
   }
@@ -52,13 +72,33 @@ class LocalStorageDB {
   // Get all transactions including deleted ones (for recycle bin)
   getAllTransactions(): Transaction[] {
     try {
+      // SSR protection
+      if (typeof window === 'undefined' || typeof localStorage === 'undefined') {
+        return [];
+      }
+      
       const data = localStorage.getItem(STORAGE_KEYS.TRANSACTIONS);
       if (!data) return [];
       
+      // Safe JSON parsing with validation
       const transactions = JSON.parse(data);
+      if (!Array.isArray(transactions)) {
+        console.warn('All transactions data is not an array, clearing corrupted data');
+        localStorage.removeItem(STORAGE_KEYS.TRANSACTIONS);
+        return [];
+      }
+      
       return transactions.filter((t: any) => transactionSchema.safeParse(t).success);
     } catch (error) {
       console.error('Error reading all transactions:', error);
+      // Clear corrupted data to prevent future errors
+      try {
+        if (typeof localStorage !== 'undefined') {
+          localStorage.removeItem(STORAGE_KEYS.TRANSACTIONS);
+        }
+      } catch (clearError) {
+        console.error('Failed to clear corrupted transactions data:', clearError);
+      }
       return [];
     }
   }

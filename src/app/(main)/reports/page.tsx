@@ -535,9 +535,9 @@ export default function ReportsPage() {
                     <div className="p-4 bg-muted/50 rounded-lg">
                       <h4 className="font-medium mb-2">Highest Spending Day</h4>
                       <p className="text-2xl font-bold">
-                        {transactions.length > 0 ? formatCurrency(Math.max(...transactions.map((t: any) => Math.abs(t.amount)))) : formatCurrency(0)}
+                        {transactions.length > 0 ? formatCurrency(Math.max(...transactions.filter(t => t && t.type === 'expense' && typeof t.amount === 'number' && !isNaN(t.amount)).map((t: any) => Math.abs(t.amount)))) : formatCurrency(0)}
                       </p>
-                      <p className="text-sm text-muted-foreground">Single transaction</p>
+                      <p className="text-sm text-muted-foreground">Single expense transaction</p>
                     </div>
                   </div>
                 </div>

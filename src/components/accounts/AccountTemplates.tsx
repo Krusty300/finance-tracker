@@ -235,7 +235,7 @@ export function AccountTemplates({ onUseTemplate, onCreateAccount }: AccountTemp
   const allTemplates = templates.filter(t => !t.isPopular);
 
   const TemplateCard = ({ template }: { template: AccountTemplate }) => (
-    <Card className="hover:shadow-md transition-shadow cursor-pointer">
+    <Card className="hover:shadow-md transition-shadow cursor-pointer rounded-none">
       <CardContent className="pt-6">
         <div className="flex items-start justify-between mb-4">
           <div className="flex items-center gap-3">
@@ -499,7 +499,7 @@ export function AccountTemplates({ onUseTemplate, onCreateAccount }: AccountTemp
 
       {/* Empty State */}
       {templates.length === 0 && (
-        <Card>
+        <Card className="rounded-none">
           <CardContent>
             <div className="text-center py-8">
               <div className="text-6xl mb-4">📋</div>
@@ -514,7 +514,7 @@ export function AccountTemplates({ onUseTemplate, onCreateAccount }: AccountTemp
             </div>
 
             {/* Banking Integration Section */}
-            <Card>
+            <Card className="rounded-none">
               <CardHeader>
                 <CardTitle className="text-base">Bank Integration</CardTitle>
               </CardHeader>

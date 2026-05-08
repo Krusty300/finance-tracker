@@ -384,14 +384,12 @@ export function EnhancedTransactionFilters({
         {/* Search */}
         <div>
           <Label htmlFor="search">Search</Label>
-          <div className="relative">
-            <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+          <div>
             <Input
               id="search"
               placeholder="Search transactions..."
               value={filters.searchTerm}
               onChange={(e) => onFiltersChange({ ...filters, searchTerm: e.target.value })}
-              className="pl-10"
             />
           </div>
         </div>

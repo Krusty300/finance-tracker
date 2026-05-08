@@ -90,7 +90,7 @@ export function BudgetCards({ stats }: BudgetCardsProps) {
   return (
     <div className="space-y-6">
       {/* Budget Overview Card */}
-      <Card className={`border-2 ${getHealthColor()}`}>
+      <Card className={`border-2 ${getHealthColor()} rounded-none`}>
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
             <CardTitle className="flex items-center gap-2">
@@ -147,7 +147,7 @@ export function BudgetCards({ stats }: BudgetCardsProps) {
       {/* Individual Budget Cards */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         {budgetBreakdown.slice(0, 6).map((budget) => (
-          <Card key={budget.category} className="hover:shadow-lg transition-all duration-200 hover:scale-[1.02] hover:border-primary/20">
+          <Card key={budget.category} className="hover:shadow-lg transition-all duration-200 hover:scale-[1.02] hover:border-primary/20 rounded-none">
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
                 <div className="space-y-1">
@@ -208,7 +208,7 @@ export function BudgetCards({ stats }: BudgetCardsProps) {
 
       {/* Budget Summary Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card className="text-center hover:shadow-md transition-all duration-200 hover:scale-[1.02] hover:border-primary/20">
+        <Card className="text-center hover:shadow-md transition-all duration-200 hover:scale-[1.02] hover:border-primary/20 rounded-none">
           <CardContent className="pt-6">
             <div className="text-2xl font-bold text-success">
               {budgetBreakdown.filter(b => b.status === 'on-track').length}
@@ -217,7 +217,7 @@ export function BudgetCards({ stats }: BudgetCardsProps) {
           </CardContent>
         </Card>
         
-        <Card className="text-center hover:shadow-md transition-all duration-200 hover:scale-[1.02] hover:border-primary/20">
+        <Card className="text-center hover:shadow-md transition-all duration-200 hover:scale-[1.02] hover:border-primary/20 rounded-none">
           <CardContent className="pt-6">
             <div className="text-2xl font-bold text-warning">
               {budgetBreakdown.filter(b => b.status === 'near-limit').length}
@@ -226,7 +226,7 @@ export function BudgetCards({ stats }: BudgetCardsProps) {
           </CardContent>
         </Card>
         
-        <Card className="text-center hover:shadow-md transition-all duration-200 hover:scale-[1.02] hover:border-primary/20">
+        <Card className="text-center hover:shadow-md transition-all duration-200 hover:scale-[1.02] hover:border-primary/20 rounded-none">
           <CardContent className="pt-6">
             <div className="text-2xl font-bold text-destructive">
               {budgetBreakdown.filter(b => b.status === 'over-budget').length}
@@ -235,7 +235,7 @@ export function BudgetCards({ stats }: BudgetCardsProps) {
           </CardContent>
         </Card>
         
-        <Card className="text-center hover:shadow-md transition-all duration-200 hover:scale-[1.02] hover:border-primary/20">
+        <Card className="text-center hover:shadow-md transition-all duration-200 hover:scale-[1.02] hover:border-primary/20 rounded-none">
           <CardContent className="pt-6">
             <div className="text-2xl font-bold text-primary">
               {budgetBreakdown.length}

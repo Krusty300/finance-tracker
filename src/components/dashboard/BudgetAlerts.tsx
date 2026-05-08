@@ -72,7 +72,7 @@ export function BudgetAlerts({ stats }: BudgetAlertsProps) {
             </p>
             <div className="space-y-3">
               {overBudgetBudgets.map((budget) => (
-                <div key={budget.category} className={`flex items-center justify-between p-3 ${resolvedTheme === 'dark' ? 'bg-card' : 'bg-background'} rounded-lg border border-destructive/20`}>
+                <div key={budget.category} className={`flex items-center justify-between p-3 ${resolvedTheme === 'dark' ? 'bg-card' : 'bg-background'} rounded-none border-destructive/20`}>
                   <div className="flex items-center gap-3">
                     <AlertCircle className="h-4 w-4 text-destructive" />
                     <div>
@@ -124,7 +124,7 @@ export function BudgetAlerts({ stats }: BudgetAlertsProps) {
             </p>
             <div className="space-y-3">
               {nearLimitBudgets.map((budget) => (
-                <div key={budget.category} className={`flex items-center justify-between p-3 ${resolvedTheme === 'dark' ? 'bg-card' : 'bg-background'} rounded-lg border border-warning/20`}>
+                <div key={budget.category} className={`flex items-center justify-between p-3 ${resolvedTheme === 'dark' ? 'bg-card' : 'bg-background'} rounded-none border-warning/20`}>
                   <div className="flex items-center gap-3">
                     <TrendingUp className="h-4 w-4 text-warning" />
                     <div>

@@ -120,9 +120,10 @@ export function useDashboardStats() {
       });
 
       // Calculate percentages for category breakdown
-      const totalExpenses = categoryBreakdown.reduce((sum, item) => sum + item.amount, 0);
+      const totalExpenses = categoryBreakdown.reduce((sum, item) => sum + (typeof item.amount === 'number' && !isNaN(item.amount) ? item.amount : 0), 0);
       categoryBreakdown.forEach(item => {
-        item.percentage = totalExpenses > 0 ? Math.round((item.amount / totalExpenses) * 100) : 0;
+        const validAmount = typeof item.amount === 'number' && !isNaN(item.amount) ? item.amount : 0;
+        item.percentage = totalExpenses > 0 ? Math.round((validAmount / totalExpenses) * 100) : 0;
       });
 
       // Sort category breakdown by amount (descending)

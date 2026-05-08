@@ -162,7 +162,7 @@ export function AccountDashboard({
   return (
     <div className="space-y-6">
       {/* Banking Integration Status */}
-      <Card>
+      <Card className="rounded-none">
         <CardContent className="pt-6">
           <div className="flex items-center justify-between">
             <div>
@@ -192,7 +192,7 @@ export function AccountDashboard({
 
       {/* Quick Stats Overview */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
+        <Card className="rounded-none">
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
@@ -204,7 +204,7 @@ export function AccountDashboard({
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="rounded-none">
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
@@ -216,7 +216,7 @@ export function AccountDashboard({
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="rounded-none">
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
@@ -228,7 +228,7 @@ export function AccountDashboard({
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="rounded-none">
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
@@ -245,7 +245,7 @@ export function AccountDashboard({
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="rounded-none">
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
@@ -277,7 +277,7 @@ export function AccountDashboard({
 
       <div className="grid gap-6 lg:grid-cols-2">
         {/* Top Performers */}
-        <Card>
+        <Card className="rounded-none">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <TrendingUp className="h-5 w-5 text-green-600" />
@@ -318,7 +318,7 @@ export function AccountDashboard({
         </Card>
 
         {/* Needs Attention */}
-        <Card>
+        <Card className="rounded-none">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <AlertCircle className="h-5 w-5 text-red-600" />
@@ -361,7 +361,7 @@ export function AccountDashboard({
       </div>
 
       {/* Account Health Overview */}
-      <Card>
+      <Card className="rounded-none">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Activity className="h-5 w-5" />

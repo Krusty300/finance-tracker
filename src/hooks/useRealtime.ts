@@ -202,10 +202,12 @@ class RealtimeEventManager {
     // Simple tab identification - could be enhanced
     if (typeof window === 'undefined') return 'server';
     
-    if (!window.realtimeTabId) {
-      window.realtimeTabId = `tab-${Date.now()}-${Math.random()}`;
+    // Type-safe window property access
+    const windowWithTab = window as typeof window & { realtimeTabId?: string };
+    if (!windowWithTab.realtimeTabId) {
+      windowWithTab.realtimeTabId = `tab-${Date.now()}-${Math.random()}`;
     }
-    return window.realtimeTabId;
+    return windowWithTab.realtimeTabId;
   }
 }
 

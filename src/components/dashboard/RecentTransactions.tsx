@@ -53,7 +53,7 @@ export function RecentTransactions({ transactions }: RecentTransactionsProps) {
 
   if (safeTransactions.length === 0) {
     return (
-      <Card>
+      <Card className="rounded-none">
         <CardHeader>
           <CardTitle>Recent Transactions</CardTitle>
         </CardHeader>

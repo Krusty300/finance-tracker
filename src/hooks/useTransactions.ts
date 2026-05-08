@@ -4,6 +4,7 @@ import { db } from '@/lib/db';
 import { useAccounts } from './useAccounts';
 import { useRealtimeTransactions } from './useRealtime';
 import { useDebounceCallback } from '@/hooks/useDebounceCallback';
+import { addSafeEventListener, removeSafeEventListener } from '@/utils/eventManager';
 import { toast } from 'sonner';
 
 export function useTransactions() {
@@ -39,9 +40,15 @@ export function useTransactions() {
       debouncedLoadTransactions();
     };
 
-    window.addEventListener('storage', handleStorageChange);
+    // Use safe event listener management
+    if (typeof window !== 'undefined') {
+      addSafeEventListener(window, 'storage', handleStorageChange);
+    }
+    
     return () => {
-      window.removeEventListener('storage', handleStorageChange);
+      if (typeof window !== 'undefined') {
+        removeSafeEventListener(window, 'storage', handleStorageChange);
+      }
     };
   }, [debouncedLoadTransactions, loadTransactions]);
 
@@ -184,9 +191,14 @@ export function useTransactions() {
               ? -transactionToDelete.amount 
               : transactionToDelete.amount;
             
-            updateAccount(account.id, {
-              balance: account.balance + balanceChange
-            });
+            try {
+              updateAccount(account.id, {
+                balance: account.balance + balanceChange
+              });
+            } catch (balanceError) {
+              console.error('Failed to update account balance:', balanceError);
+              toast.warning('Transaction deleted but account balance update failed');
+            }
           }
         }
       }

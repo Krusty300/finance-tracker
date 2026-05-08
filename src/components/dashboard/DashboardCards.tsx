@@ -28,7 +28,7 @@ export function DashboardCards({
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 w-full">
-      <Card className="hover:shadow-lg transition-all duration-200 hover:scale-[1.02] hover:border-primary/20 min-h-[120px]">
+      <Card className="hover:shadow-lg transition-all duration-200 hover:scale-[1.02] hover:border-primary/20 min-h-[120px] rounded-none">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-4 pt-4">
           <CardTitle className="text-sm font-medium">Total Balance</CardTitle>
         </CardHeader>
@@ -40,7 +40,7 @@ export function DashboardCards({
         </CardContent>
       </Card>
 
-      <Card className="hover:shadow-lg transition-all duration-200 hover:scale-[1.02] hover:border-success/20 min-h-[120px]">
+      <Card className="hover:shadow-lg transition-all duration-200 hover:scale-[1.02] hover:border-success/20 min-h-[120px] rounded-none">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-4 pt-4">
           <CardTitle className="text-sm font-medium">Monthly Income</CardTitle>
           <TrendingUp className="h-4 w-4 text-success" />
@@ -53,7 +53,7 @@ export function DashboardCards({
         </CardContent>
       </Card>
 
-      <Card className="hover:shadow-lg transition-all duration-200 hover:scale-[1.02] hover:border-destructive/20 min-h-[120px]">
+      <Card className="hover:shadow-lg transition-all duration-200 hover:scale-[1.02] hover:border-destructive/20 min-h-[120px] rounded-none">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-4 pt-4">
           <CardTitle className="text-sm font-medium">Monthly Expenses</CardTitle>
           <TrendingDown className="h-4 w-4 text-destructive" />
@@ -66,7 +66,7 @@ export function DashboardCards({
         </CardContent>
       </Card>
 
-      <Card className="hover:shadow-lg transition-all duration-200 hover:scale-[1.02] hover:border-primary/20 min-h-[120px]">
+      <Card className="hover:shadow-lg transition-all duration-200 hover:scale-[1.02] hover:border-primary/20 min-h-[120px] rounded-none">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-4 pt-4">
           <CardTitle className="text-sm font-medium">Net Worth</CardTitle>
         </CardHeader>

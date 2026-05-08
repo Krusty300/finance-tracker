@@ -245,7 +245,7 @@ export default function BudgetsPage() {
 
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           {[...Array(4)].map((_, i) => (
-            <Card key={i}>
+            <Card key={i} className="rounded-none">
               <CardHeader className="pb-2">
                 <Skeleton className="h-4 w-20" />
               </CardHeader>
@@ -259,7 +259,7 @@ export default function BudgetsPage() {
 
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {[...Array(6)].map((_, i) => (
-            <Card key={i}>
+            <Card key={i} className="rounded-none">
               <CardHeader>
                 <Skeleton className="h-5 w-32" />
               </CardHeader>
@@ -294,7 +294,7 @@ export default function BudgetsPage() {
       </div>
 
       {budgets.length === 0 ? (
-        <Card className="text-center py-12">
+        <Card className="text-center py-12 rounded-none">
           <div className="space-y-4">
             <div className="mx-auto w-12 h-12 bg-muted rounded-full flex items-center justify-center">
               <PiggyBank className="h-6 w-6 text-muted-foreground" />

@@ -15,6 +15,9 @@ import { Menu, Eye, EyeOff, ChevronRight, Search } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useTheme } from '@/contexts/ThemeContext';
 import { Skeleton } from '@/components/ui/skeleton';
+import { AppErrorBoundary } from '@/components/error/AppErrorBoundary';
+import { PageLoader, PageSkeleton } from '@/components/loading/PageLoader';
+import { useDataLoader } from '@/hooks/useDataLoader';
 
 export default function MainLayout({
   children,
@@ -28,6 +31,9 @@ export default function MainLayout({
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const { resolvedTheme } = useTheme();
   const [isPageLoading, setIsPageLoading] = useState(false);
+  
+  // Initialize data loading system
+  const { isAnyLoading } = useDataLoader();
 
   // Load sidebar state from localStorage on mount and detect mobile
   useEffect(() => {
@@ -167,15 +173,16 @@ export default function MainLayout({
             size="sm"
             onClick={toggleSidebar}
             className={cn(
-              "fixed top-4 left-4 z-50 h-10 w-10 p-0",
+              "fixed top-4 left-4 z-50 h-12 w-12 p-0", // Larger for better touch
               "shadow-lg bg-background border-2 border-border/50",
-              "group",
+              "group transition-all duration-200 hover:scale-105", // Smooth hover effect
               "touch-manipulation-none" // Prevent zoom on touch
             )}
             title="Toggle Sidebar Menu"
+            aria-label="Toggle sidebar menu"
           >
             <Menu className={cn(
-              "h-5 w-5"
+              "h-6 w-6 transition-transform duration-200 group-hover:rotate-90" // Animated icon
             )} />
           </Button>
         )}
@@ -187,19 +194,20 @@ export default function MainLayout({
             size="sm"
             onClick={toggleSidebar}
             className={cn(
-              "fixed top-6 left-6 z-50 h-12 w-12 p-0", // Larger for mobile touch
+              "fixed top-6 left-6 z-50 h-12 w-12 p-0", // Consistent size
               "shadow-lg bg-background border-2 border-border/50",
-              "group",
-              // Responsive sizing
+              "group transition-all duration-200 hover:scale-105 hover:shadow-xl", // Enhanced hover
+              // Responsive positioning
               "sm:top-4 sm:left-4 sm:h-10 sm:w-10", // Smaller on small screens
-              "md:top-4 md:left-4 md:h-8 md:w-8", // Even smaller on medium screens
+              "md:top-4 md:left-4 md:h-10 md:w-10", // Consistent medium size
               "touch-manipulation-none" // Prevent zoom on touch
             )}
             title="Toggle Sidebar (Ctrl/Cmd + B)"
+            aria-label="Toggle sidebar"
           >
             <ChevronRight className={cn(
-              "h-6 w-6", // Larger icon for mobile
-              "sm:h-5 sm:w-5 md:h-4 md:w-4", // Responsive icon sizing
+              "h-6 w-6 transition-transform duration-200 group-hover:translate-x-0.5", // Animated icon
+              "sm:h-5 sm:w-5 md:h-5 md:w-5" // Consistent icon sizing
             )} />
           </Button>
         )}
@@ -210,8 +218,9 @@ export default function MainLayout({
           "p-3 sm:p-4",
           // Add left padding when sidebar is collapsed to avoid overlap with floating toggle
           !isMobile && isSidebarCollapsed && "pl-20 sm:pl-16", // Only on desktop
-          // Add padding for mobile menu button
-          isMobile && "pl-16" // Space for mobile menu button
+          // Add proper padding for mobile menu button (larger button now)
+          isMobile && "pl-20 sm:pl-20", // Space for larger mobile menu button
+          "transition-all duration-200" // Smooth spacing transitions
         )}>
           <div className="flex items-center justify-between">
             <div className="min-w-0 flex-1">
@@ -261,33 +270,22 @@ export default function MainLayout({
         </div>
         
         {/* Main Content */}
-        <Suspense 
-          fallback={
-            <div className="flex-1 overflow-auto relative">
-              {/* Loading Skeleton */}
-              <div className="container mx-auto px-3 sm:px-4 md:px-6 py-4 sm:py-6">
-                <div className="space-y-4">
-                  <Skeleton className="h-8 w-full" />
-                  <Skeleton className="h-8 w-full" />
-                  <Skeleton className="h-8 w-full" />
-                  <Skeleton className="h-8 w-full" />
-                </div>
-              </div>
+        <AppErrorBoundary>
+          <Suspense 
+            fallback={<PageSkeleton />}
+          >
+            {/* Global Page Loader */}
+            <PageLoader 
+              isLoading={isAnyLoading() || isPageLoading}
+              title="Loading Application"
+              message="Preparing your finance dashboard..."
+            />
+            
+            <div className="container mx-auto px-3 sm:px-4 md:px-6 py-4 sm:py-6">
+              {children}
             </div>
-          }
-        >
-          {isPageLoading && (
-            <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center">
-              <div className="text-center">
-                <div className="animate-spin rounded-full h-12 w-12 border-4 border-primary mb-4"></div>
-                <p className="text-lg font-medium">Loading page...</p>
-              </div>
-            </div>
-          )}
-          <div className="container mx-auto px-3 sm:px-4 md:px-6 py-4 sm:py-6">
-            {children}
-          </div>
-        </Suspense>
+          </Suspense>
+        </AppErrorBoundary>
         
         {/* Toast Notifications */}
         <ToastNotifications />

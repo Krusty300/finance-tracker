@@ -57,12 +57,31 @@ export class SimpleExchangeRateService implements ExchangeRateService {
     // Save to localStorage for persistence
     try {
       // Check if we're in a browser environment
-      if (typeof window === 'undefined') return;
+      if (typeof window === 'undefined' || typeof localStorage === 'undefined') return;
       
-      localStorage.setItem('exchange-rates', JSON.stringify({
+      // Check localStorage quota before saving
+      const data = JSON.stringify({
         rates: this.rates,
         lastUpdated: this.lastUpdated.toISOString(),
-      }));
+      });
+      
+      // Test if we can write to localStorage
+      try {
+        localStorage.setItem('exchange-rates', data);
+      } catch (quotaError) {
+        if (quotaError instanceof Error && (quotaError.name === 'QuotaExceededError' || quotaError.name === 'NS_ERROR_DOM_QUOTA_REACHED')) {
+          console.warn('localStorage quota exceeded, clearing old exchange rates');
+          try {
+            localStorage.removeItem('exchange-rates');
+            // Try again with smaller data
+            localStorage.setItem('exchange-rates', data);
+          } catch (retryError) {
+            console.error('Failed to save exchange rates even after clearing:', retryError);
+          }
+        } else {
+          throw quotaError;
+        }
+      }
     } catch (error) {
       console.warn('Failed to save exchange rates:', error);
     }
@@ -76,16 +95,29 @@ export class SimpleExchangeRateService implements ExchangeRateService {
   loadStoredRates(): void {
     try {
       // Check if we're in a browser environment
-      if (typeof window === 'undefined') return;
+      if (typeof window === 'undefined' || typeof localStorage === 'undefined') return;
       
       const stored = localStorage.getItem('exchange-rates');
       if (stored) {
+        // Safe JSON parsing with validation
         const data = JSON.parse(stored);
-        this.rates = data.rates || this.rates;
-        this.lastUpdated = new Date(data.lastUpdated);
+        if (data && typeof data === 'object' && data.rates) {
+          this.rates = { ...this.rates, ...data.rates };
+          if (data.lastUpdated) {
+            this.lastUpdated = new Date(data.lastUpdated);
+          }
+        } else {
+          console.warn('Invalid exchange rates data format, using defaults');
+        }
       }
     } catch (error) {
       console.warn('Failed to load stored exchange rates:', error);
+      // Clear corrupted data
+      try {
+        localStorage.removeItem('exchange-rates');
+      } catch (clearError) {
+        console.error('Failed to clear corrupted exchange rates:', clearError);
+      }
     }
   }
 }

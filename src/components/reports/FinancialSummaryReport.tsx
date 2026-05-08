@@ -253,10 +253,10 @@ export function FinancialSummaryReport({ stats }: FinancialSummaryReportProps) {
             <div className="space-y-2">
               <div className="flex justify-between text-sm">
                 <span>Expense Ratio</span>
-                <span className="font-medium">{stats.monthlyIncome > 0 ? ((stats.monthlyExpenses / stats.monthlyIncome) * 100).toFixed(1) : '0'}%</span>
+                <span className="font-medium">{stats.monthlyIncome > 0 && !isNaN(stats.monthlyIncome) && !isNaN(stats.monthlyExpenses) ? ((stats.monthlyExpenses / stats.monthlyIncome) * 100).toFixed(1) : '0'}%</span>
               </div>
               <Progress 
-                value={stats.monthlyIncome > 0 ? Math.min((stats.monthlyExpenses / stats.monthlyIncome) * 100, 100) : 0} 
+                value={stats.monthlyIncome > 0 && !isNaN(stats.monthlyIncome) && !isNaN(stats.monthlyExpenses) ? Math.min((stats.monthlyExpenses / stats.monthlyIncome) * 100, 100) : 0} 
                 className="h-2" 
               />
               <p className="text-xs text-muted-foreground">

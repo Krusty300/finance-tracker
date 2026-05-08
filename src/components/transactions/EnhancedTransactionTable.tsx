@@ -373,7 +373,13 @@ export function EnhancedTransactionTable({
                             </DropdownMenuItem>
                             {onDelete && (
                               <DropdownMenuItem 
-                                onClick={() => onDelete(transaction.id)}
+                                onClick={() => {
+                                  if (!transaction) {
+                                    console.error('Attempted to delete invalid transaction');
+                                    return;
+                                  }
+                                  onDelete(transaction.id);
+                                }}
                                 className="text-destructive"
                               >
                                 <Trash2 className="mr-2 h-4 w-4" />

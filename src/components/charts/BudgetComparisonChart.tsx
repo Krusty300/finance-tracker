@@ -239,7 +239,7 @@ export function BudgetComparisonChart({
   // Handle empty data case
   if (validatedData.length === 0) {
     return (
-      <Card className="w-full">
+      <Card className="w-full rounded-none">
         <CardHeader>
           <CardTitle className="text-lg">{title}</CardTitle>
         </CardHeader>
@@ -255,7 +255,7 @@ export function BudgetComparisonChart({
   }
 
   return (
-    <Card>
+    <Card className="rounded-none">
       <CardHeader>
         <div className="flex items-center justify-between">
           <div className="space-y-1">

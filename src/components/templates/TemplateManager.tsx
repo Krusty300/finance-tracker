@@ -699,7 +699,7 @@ export function TemplateManager({ onUseTemplate }: TemplateManagerProps) {
                   </SelectTrigger>
                   <SelectContent>
                     {filteredCategories.map((category) => (
-                      <SelectItem key={category.id} value={category.name}>
+                      <SelectItem key={category.id} value={category.id}>
                         {category.name}
                       </SelectItem>
                     ))}
@@ -717,7 +717,7 @@ export function TemplateManager({ onUseTemplate }: TemplateManagerProps) {
                   </SelectTrigger>
                   <SelectContent>
                     {accounts.map((account) => (
-                      <SelectItem key={account.id} value={account.name}>
+                      <SelectItem key={account.id} value={account.id}>
                         {account.name}
                       </SelectItem>
                     ))}

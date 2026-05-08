@@ -61,7 +61,7 @@ export function AccountSummary({
 
   return (
     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-      <Card className="hover:shadow-lg transition-all duration-200 hover:scale-[1.02] hover:border-primary/20">
+      <Card className="hover:shadow-lg transition-all duration-200 hover:scale-[1.02] hover:border-primary/20 rounded-none">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-sm font-medium">Total Net Worth</CardTitle>
         </CardHeader>
@@ -75,7 +75,7 @@ export function AccountSummary({
         </CardContent>
       </Card>
 
-      <Card className="hover:shadow-lg transition-all duration-200 hover:scale-[1.02] hover:border-primary/20">
+      <Card className="hover:shadow-lg transition-all duration-200 hover:scale-[1.02] hover:border-primary/20 rounded-none">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-sm font-medium">Bank Accounts</CardTitle>
         </CardHeader>
@@ -89,7 +89,7 @@ export function AccountSummary({
         </CardContent>
       </Card>
 
-      <Card className="hover:shadow-lg transition-all duration-200 hover:scale-[1.02] hover:border-primary/20">
+      <Card className="hover:shadow-lg transition-all duration-200 hover:scale-[1.02] hover:border-primary/20 rounded-none">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-sm font-medium">Credit Cards</CardTitle>
         </CardHeader>
@@ -103,7 +103,7 @@ export function AccountSummary({
         </CardContent>
       </Card>
 
-      <Card className="hover:shadow-lg transition-all duration-200 hover:scale-[1.02] hover:border-primary/20">
+      <Card className="hover:shadow-lg transition-all duration-200 hover:scale-[1.02] hover:border-primary/20 rounded-none">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-sm font-medium">Account Health</CardTitle>
           {hasIssues ? (
@@ -153,7 +153,7 @@ export function AccountTypeDistribution({ accountTypeDistribution }: { accountTy
     });
 
   return (
-    <Card className="hover:shadow-lg transition-all duration-200 hover:scale-[1.02] hover:border-primary/20">
+    <Card className="hover:shadow-lg transition-all duration-200 hover:scale-[1.02] hover:border-primary/20 rounded-none">
       <CardHeader>
         <CardTitle>Account Distribution</CardTitle>
       </CardHeader>

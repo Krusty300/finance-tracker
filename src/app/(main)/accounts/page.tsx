@@ -241,7 +241,7 @@ export default function AccountsPage() {
       </div>
 
       {accounts.length === 0 ? (
-        <Card className="text-center py-12">
+        <Card className="text-center py-12 rounded-none">
           <div className="space-y-4">
             <div className="mx-auto w-12 h-12 bg-muted rounded-full flex items-center justify-center">
               <Wallet className="h-6 w-6 text-muted-foreground" />
@@ -360,7 +360,7 @@ export default function AccountsPage() {
 
       {/* Banking Integration Section */}
       {bankFeedStatus.totalAccounts > 0 && (
-        <Card>
+        <Card className="rounded-none">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <CreditCard className="h-5 w-5" />
@@ -384,7 +384,7 @@ export default function AccountsPage() {
             </div>
             
             <div className="grid gap-4 md:grid-cols-2">
-              <div className="text-center p-4 border rounded-lg">
+              <div className="text-center p-4 border rounded-none">
                 <div className="text-2xl mb-2">🏦</div>
                 <h4 className="font-medium">Bank Integration Active</h4>
                 <p className="text-sm text-muted-foreground">
@@ -392,7 +392,7 @@ export default function AccountsPage() {
                 </p>
               </div>
               
-              <div className="text-center p-4 border rounded-lg">
+              <div className="text-center p-4 border rounded-none">
                 <div className="text-2xl mb-2">📊</div>
                 <h4 className="font-medium">Auto-Sync Enabled</h4>
                 <p className="text-sm text-muted-foreground">

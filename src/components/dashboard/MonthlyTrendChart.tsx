@@ -24,7 +24,7 @@ export function MonthlyTrendChart({ data }: MonthlyTrendChartProps) {
   const CustomTooltipWithCurrency = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
       return (
-        <div className="bg-background border rounded-lg p-3 shadow-lg">
+        <div className="bg-background border rounded-none p-3 shadow-lg">
           <p className="font-medium mb-2">{label}</p>
           {payload.map((entry: any, index: number) => (
             <p key={index} className="text-sm" style={{ color: entry.color }}>
@@ -52,7 +52,7 @@ export function MonthlyTrendChart({ data }: MonthlyTrendChartProps) {
   }
 
   return (
-    <Card>
+    <Card className="rounded-none">
       <CardHeader>
         <CardTitle>Monthly Trend</CardTitle>
       </CardHeader>

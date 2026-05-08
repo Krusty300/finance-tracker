@@ -113,8 +113,13 @@ export function useTransactionTemplates() {
 
     // Increment usage count with race condition protection
     try {
+      // Get current template data to ensure we have the latest count
+      const currentTemplates = db.getTemplates();
+      const currentTemplate = currentTemplates.find(t => t.id === template.id);
+      const currentCount = currentTemplate?.usageCount || 0;
+      
       await updateTemplate(template.id, { 
-        usageCount: template.usageCount + 1,
+        usageCount: currentCount + 1,
         lastUsed: new Date().toISOString()
       });
     } catch (error) {

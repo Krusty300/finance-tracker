@@ -261,7 +261,7 @@ export function DragDropAccounts({
 
       {/* Bulk Actions */}
       {selectedAccounts.length > 0 && (
-        <Card className="border-blue-200 bg-blue-50">
+        <Card className="border-blue-200 bg-blue-50 rounded-none">
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -293,7 +293,7 @@ export function DragDropAccounts({
       )}
 
       {/* Instructions */}
-      <Card className="border-muted">
+      <Card className="border-muted rounded-none">
         <CardContent className="pt-6">
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <GripVertical className="h-4 w-4" />
@@ -381,7 +381,7 @@ export function DragDropAccounts({
       )}
 
       {accounts.length === 0 && (
-        <Card>
+        <Card className="rounded-none">
           <CardContent className="text-center py-12">
             <div className="text-6xl mb-4">🏦</div>
             <h3 className="text-lg font-semibold mb-2">No accounts yet</h3>
