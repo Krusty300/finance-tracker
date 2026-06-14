@@ -27,11 +27,12 @@ import { Account } from '@/lib/types';
 import { AccountErrorBoundary, AccountErrorFallback } from '@/components/error/AccountErrorBoundary';
 import { Plus, Wallet, CreditCard, Smartphone, TrendingUp, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
+import { FavoriteButton } from '@/components/layout/FavoriteButton';
 import { useRouter } from 'next/navigation';
 
 export default function AccountsPage() {
   const router = useRouter();
-  const { accounts, loading: accountsLoading, addAccount, updateAccount, deleteAccount, getTotalBalance } = useAccounts();
+  const { accounts, loading: accountsLoading, addingAccount, updatingAccount, deletingAccount, addAccount, updateAccount, deleteAccount, getTotalBalance } = useAccounts();
   const { transactions } = useTransactions();
   const { bankFeedStatus } = useBankIntegration();
 
@@ -54,15 +55,17 @@ export default function AccountsPage() {
       };
     }
 
-    // Get current month transactions with validation
-    const currentMonth = new Date().getMonth();
-    const currentYear = new Date().getFullYear();
+    // Get current month transactions with validation - use UTC for consistency
+    const now = new Date();
+    const currentMonth = now.getUTCMonth();
+    const currentYear = now.getUTCFullYear();
     const currentMonthTransactions = transactions.filter(t => {
       if (!t || !t.date) return false;
       const transactionDate = new Date(t.date);
       if (isNaN(transactionDate.getTime())) return false;
-      return transactionDate.getMonth() === currentMonth && 
-             transactionDate.getFullYear() === currentYear;
+      // Use UTC for consistent date comparison across timezones
+      return transactionDate.getUTCMonth() === currentMonth && 
+             transactionDate.getUTCFullYear() === currentYear;
     });
 
     // Calculate account type distribution with validation
@@ -121,7 +124,8 @@ export default function AccountsPage() {
       setShowCreateDialog(false);
       toast.success('Account created successfully');
     } catch (error) {
-      toast.error('Failed to create account');
+      const errorMessage = error instanceof Error ? error.message : 'Failed to create account';
+      toast.error(errorMessage);
       console.error('Error creating account:', error);
     }
   };
@@ -135,7 +139,8 @@ export default function AccountsPage() {
       setSelectedAccount(null);
       toast.success('Account updated successfully');
     } catch (error) {
-      toast.error('Failed to update account');
+      const errorMessage = error instanceof Error ? error.message : 'Failed to update account';
+      toast.error(errorMessage);
       console.error('Error updating account:', error);
     }
   };
@@ -149,7 +154,8 @@ export default function AccountsPage() {
       setSelectedAccount(null);
       toast.success('Account deleted successfully');
     } catch (error) {
-      toast.error('Failed to delete account');
+      const errorMessage = error instanceof Error ? error.message : 'Failed to delete account';
+      toast.error(errorMessage);
       console.error('Error deleting account:', error);
     }
   };
@@ -191,7 +197,7 @@ export default function AccountsPage() {
 
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           {[...Array(4)].map((_, i) => (
-            <Card key={i}>
+            <Card key={i} className="rounded-xl">
               <CardHeader className="pb-2">
                 <Skeleton className="h-4 w-20" />
               </CardHeader>
@@ -205,7 +211,7 @@ export default function AccountsPage() {
 
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {[...Array(6)].map((_, i) => (
-            <Card key={i}>
+            <Card key={i} className="rounded-xl">
               <CardHeader>
                 <Skeleton className="h-5 w-32" />
               </CardHeader>
@@ -234,6 +240,7 @@ export default function AccountsPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <FavoriteButton size="sm" variant="outline" showLabel={false} />
           <Button onClick={() => setShowCreateDialog(true)} className="w-full sm:w-auto">
             Add Account
           </Button>
@@ -241,7 +248,7 @@ export default function AccountsPage() {
       </div>
 
       {accounts.length === 0 ? (
-        <Card className="text-center py-12 rounded-none">
+        <Card className="text-center py-12 rounded-xl">
           <div className="space-y-4">
             <div className="mx-auto w-12 h-12 bg-muted rounded-full flex items-center justify-center">
               <Wallet className="h-6 w-6 text-muted-foreground" />
@@ -271,15 +278,15 @@ export default function AccountsPage() {
             </AccountErrorBoundary>
 
             <Tabs defaultValue="dashboard" className="space-y-4">
-              <TabsList>
-                <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
-                <TabsTrigger value="detailed-view">Detailed View</TabsTrigger>
-                <TabsTrigger value="distribution">Distribution</TabsTrigger>
-                <TabsTrigger value="analytics">Analytics</TabsTrigger>
+              <TabsList className="w-full sm:w-auto overflow-x-auto">
+                <TabsTrigger value="dashboard" className="whitespace-nowrap">Dashboard</TabsTrigger>
+                <TabsTrigger value="detailed-view" className="whitespace-nowrap">Detailed View</TabsTrigger>
+                <TabsTrigger value="distribution" className="whitespace-nowrap">Distribution</TabsTrigger>
+                <TabsTrigger value="analytics" className="whitespace-nowrap">Analytics</TabsTrigger>
               </TabsList>
 
-            <TabsContent value="dashboard" className="space-y-4">
-              <div className="grid gap-4 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+            <TabsContent value="dashboard" className="space-y-4 animate-in fade-in-50 duration-300">
+              <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 max-h-[70vh] overflow-y-auto pr-2">
                 {accountAnalytics.accountsWithTransactions.map(({ account, recentTransactions }, index) => {
                                     
                   return (
@@ -298,7 +305,7 @@ export default function AccountsPage() {
             </TabsContent>
 
             
-            <TabsContent value="detailed-view" className="space-y-4">
+            <TabsContent value="detailed-view" className="space-y-4 animate-in fade-in-50 duration-300">
               <div className="space-y-4">
                 {accountAnalytics.accountsWithTransactions.map(({ account, recentTransactions }, index) => {
                                     
@@ -317,13 +324,13 @@ export default function AccountsPage() {
               </div>
             </TabsContent>
 
-            <TabsContent value="distribution" className="space-y-4">
+            <TabsContent value="distribution" className="space-y-4 animate-in fade-in-50 duration-300">
               <AccountTypeDistribution accountTypeDistribution={accountAnalytics.accountTypeDistribution} />
             </TabsContent>
 
             
             
-            <TabsContent value="analytics" className="space-y-6">
+            <TabsContent value="analytics" className="space-y-6 animate-in fade-in-50 duration-300">
               {/* Individual Account Analytics */}
               {accounts.slice(0, 3).map((account) => (
                 <div key={account.id} className="space-y-4">
@@ -360,7 +367,7 @@ export default function AccountsPage() {
 
       {/* Banking Integration Section */}
       {bankFeedStatus.totalAccounts > 0 && (
-        <Card className="rounded-none">
+        <Card className="rounded-xl">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <CreditCard className="h-5 w-5" />
@@ -384,7 +391,7 @@ export default function AccountsPage() {
             </div>
             
             <div className="grid gap-4 md:grid-cols-2">
-              <div className="text-center p-4 border rounded-none">
+              <div className="text-center p-4 border rounded-xl">
                 <div className="text-2xl mb-2">🏦</div>
                 <h4 className="font-medium">Bank Integration Active</h4>
                 <p className="text-sm text-muted-foreground">
@@ -392,7 +399,7 @@ export default function AccountsPage() {
                 </p>
               </div>
               
-              <div className="text-center p-4 border rounded-none">
+              <div className="text-center p-4 border rounded-xl">
                 <div className="text-2xl mb-2">📊</div>
                 <h4 className="font-medium">Auto-Sync Enabled</h4>
                 <p className="text-sm text-muted-foreground">
@@ -406,7 +413,7 @@ export default function AccountsPage() {
 
       {/* Create Account Dialog */}
       <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
-        <DialogContent className="sm:max-w-[500px]">
+        <DialogContent className="sm:max-w-[500px] z-50">
           <DialogHeader>
             <DialogTitle>Add New Account</DialogTitle>
             <DialogDescription>
@@ -416,13 +423,15 @@ export default function AccountsPage() {
           <AccountForm
             onSubmit={handleCreateAccount}
             onCancel={() => setShowCreateDialog(false)}
+            existingAccounts={accounts}
+            isSubmitting={addingAccount}
           />
         </DialogContent>
       </Dialog>
 
       {/* Edit Account Dialog */}
       <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
-        <DialogContent className="sm:max-w-[500px]">
+        <DialogContent className="sm:max-w-[500px] z-50">
           <DialogHeader>
             <DialogTitle>Edit Account</DialogTitle>
             <DialogDescription>
@@ -436,6 +445,8 @@ export default function AccountsPage() {
               setShowEditDialog(false);
               setSelectedAccount(null);
             }}
+            existingAccounts={accounts}
+            isSubmitting={updatingAccount === selectedAccount?.id}
           />
         </DialogContent>
       </Dialog>
@@ -446,6 +457,7 @@ export default function AccountsPage() {
         onOpenChange={setShowDeleteDialog}
         account={selectedAccount}
         onConfirm={handleDeleteAccount}
+        isDeleting={deletingAccount === selectedAccount?.id}
       />
 
       {/* Account Details Dialog */}

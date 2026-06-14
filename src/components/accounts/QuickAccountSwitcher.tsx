@@ -139,7 +139,7 @@ export function QuickAccountSwitcher({
       )}
 
       {open && (
-        <Card className="absolute top-full mt-2 w-96 z-50 shadow-lg rounded-none">
+        <Card className="absolute top-full mt-2 w-96 z-50 shadow-lg rounded-xl">
           <CardContent className="p-4">
             <div className="space-y-2">
               <input

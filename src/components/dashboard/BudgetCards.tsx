@@ -19,7 +19,7 @@ import { useTheme } from '@/contexts/ThemeContext';
 import { DashboardStats } from '@/lib/types';
 
 interface BudgetCardsProps {
-  stats: DashboardStats;
+  stats: DashboardStats | null;
 }
 
 export function BudgetCards({ stats }: BudgetCardsProps) {
@@ -30,7 +30,7 @@ export function BudgetCards({ stats }: BudgetCardsProps) {
   if (!stats || typeof stats !== 'object') {
     console.warn('Invalid stats data provided to BudgetCards:', stats);
     return (
-      <Card>
+      <Card className="rounded-xl">
         <CardHeader>
           <CardTitle>Budget Overview</CardTitle>
         </CardHeader>
@@ -90,7 +90,7 @@ export function BudgetCards({ stats }: BudgetCardsProps) {
   return (
     <div className="space-y-6">
       {/* Budget Overview Card */}
-      <Card className={`border-2 ${getHealthColor()} rounded-none`}>
+      <Card className={`border-2 ${getHealthColor()} rounded-xl`}>
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
             <CardTitle className="flex items-center gap-2">
@@ -110,19 +110,19 @@ export function BudgetCards({ stats }: BudgetCardsProps) {
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="text-center">
-              <div className="text-2xl font-bold text-primary">
+              <div className="text-2xl sm:text-3xl font-bold text-primary tabular-nums">
                 {formatCurrency(safeTotalBudget)}
               </div>
               <div className="text-sm text-muted-foreground">Total Budget</div>
             </div>
             <div className="text-center">
-              <div className={`text-2xl font-bold ${getStatusColor(budgetHealth)}`}>
+              <div className={`text-2xl sm:text-3xl font-bold tabular-nums ${getStatusColor(budgetHealth)}`}>
                 {formatCurrency(safeTotalSpent)}
               </div>
               <div className="text-sm text-muted-foreground">Total Spent</div>
             </div>
             <div className="text-center">
-              <div className={`text-2xl font-bold ${getStatusColor(budgetHealth)}`}>
+              <div className={`text-2xl sm:text-3xl font-bold tabular-nums ${getStatusColor(budgetHealth)}`}>
                 {formatCurrency(safeTotalBudget - safeTotalSpent)}
               </div>
               <div className="text-sm text-muted-foreground">Remaining</div>
@@ -147,7 +147,7 @@ export function BudgetCards({ stats }: BudgetCardsProps) {
       {/* Individual Budget Cards */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         {budgetBreakdown.slice(0, 6).map((budget) => (
-          <Card key={budget.category} className="hover:shadow-lg transition-all duration-200 hover:scale-[1.02] hover:border-primary/20 rounded-none">
+          <Card key={budget.category} className="hover:shadow-lg transition-all duration-200 hover:scale-[1.02] hover:border-primary/20 rounded-xl">
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
                 <div className="space-y-1">
@@ -164,17 +164,17 @@ export function BudgetCards({ stats }: BudgetCardsProps) {
               <div className="space-y-3">
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Budget</span>
-                  <span className="font-medium">{formatCurrency(budget.budget)}</span>
+                  <span className="font-bold tabular-nums">{formatCurrency(budget.budget)}</span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Spent</span>
-                  <span className={`font-medium ${getStatusColor(budget.status)}`}>
+                  <span className={`font-bold tabular-nums ${getStatusColor(budget.status)}`}>
                     {formatCurrency(budget.spent)}
                   </span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Remaining</span>
-                  <span className={`font-medium ${budget.remaining >= 0 ? 'text-success' : 'text-destructive'}`}>
+                  <span className={`font-bold tabular-nums ${budget.remaining >= 0 ? 'text-success' : 'text-destructive'}`}>
                     {formatCurrency(budget.remaining)}
                   </span>
                 </div>
@@ -208,7 +208,7 @@ export function BudgetCards({ stats }: BudgetCardsProps) {
 
       {/* Budget Summary Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card className="text-center hover:shadow-md transition-all duration-200 hover:scale-[1.02] hover:border-primary/20 rounded-none">
+        <Card className="text-center hover:shadow-md transition-all duration-200 hover:scale-[1.02] hover:border-primary/20 rounded-xl">
           <CardContent className="pt-6">
             <div className="text-2xl font-bold text-success">
               {budgetBreakdown.filter(b => b.status === 'on-track').length}
@@ -217,7 +217,7 @@ export function BudgetCards({ stats }: BudgetCardsProps) {
           </CardContent>
         </Card>
         
-        <Card className="text-center hover:shadow-md transition-all duration-200 hover:scale-[1.02] hover:border-primary/20 rounded-none">
+        <Card className="text-center hover:shadow-md transition-all duration-200 hover:scale-[1.02] hover:border-primary/20 rounded-xl">
           <CardContent className="pt-6">
             <div className="text-2xl font-bold text-warning">
               {budgetBreakdown.filter(b => b.status === 'near-limit').length}
@@ -226,7 +226,7 @@ export function BudgetCards({ stats }: BudgetCardsProps) {
           </CardContent>
         </Card>
         
-        <Card className="text-center hover:shadow-md transition-all duration-200 hover:scale-[1.02] hover:border-primary/20 rounded-none">
+        <Card className="text-center hover:shadow-md transition-all duration-200 hover:scale-[1.02] hover:border-primary/20 rounded-xl">
           <CardContent className="pt-6">
             <div className="text-2xl font-bold text-destructive">
               {budgetBreakdown.filter(b => b.status === 'over-budget').length}
@@ -235,7 +235,7 @@ export function BudgetCards({ stats }: BudgetCardsProps) {
           </CardContent>
         </Card>
         
-        <Card className="text-center hover:shadow-md transition-all duration-200 hover:scale-[1.02] hover:border-primary/20 rounded-none">
+        <Card className="text-center hover:shadow-md transition-all duration-200 hover:scale-[1.02] hover:border-primary/20 rounded-xl">
           <CardContent className="pt-6">
             <div className="text-2xl font-bold text-primary">
               {budgetBreakdown.length}

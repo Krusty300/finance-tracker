@@ -28,6 +28,7 @@ import { useNotifications } from '@/hooks/useNotifications';
 import { useTheme } from '@/contexts/ThemeContext';
 import { NotificationSettings } from '@/components/notifications/NotificationSettings';
 import { NotificationCenter } from '@/components/notifications/NotificationCenter';
+import { FavoriteButton } from '@/components/layout/FavoriteButton';
 
 export default function NotificationsPage() {
   console.log('NotificationsPage: Component rendering');
@@ -121,11 +122,14 @@ export default function NotificationsPage() {
 
   return (
     <div className="container mx-auto px-3 sm:px-4 md:px-6 py-4 sm:py-6">
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold mb-2">Notifications</h1>
-        <p className="text-muted-foreground">
-          Manage your notifications and preferences
-        </p>
+      <div className="mb-6 flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold mb-2">Notifications</h1>
+          <p className="text-muted-foreground">
+            Manage your notifications and preferences
+          </p>
+        </div>
+        <FavoriteButton size="sm" variant="outline" showLabel={false} />
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">

@@ -35,9 +35,21 @@ function getLocaleForCurrency(currency: string): string {
   }
 }
 
+// Helper to parse dates with timezone awareness
+export function parseDateWithTimezone(date: string | Date): Date {
+  if (typeof date !== 'string') return date
+  // Parse ISO date string and preserve timezone
+  const parsed = new Date(date)
+  if (isNaN(parsed.getTime())) {
+    console.warn('Invalid date string:', date)
+    return new Date()
+  }
+  return parsed
+}
+
 // Legacy formatDate function - components should use formatting context
 export function formatDate(date: string | Date, formatStr = 'MMM dd, yyyy'): string {
-  const dateObj = typeof date === 'string' ? new Date(date) : date
+  const dateObj = typeof date === 'string' ? parseDateWithTimezone(date) : date
   return format(dateObj, formatStr)
 }
 
@@ -47,19 +59,23 @@ export function formatMonth(date: string | Date): string {
 }
 
 export function getMonthStart(date: Date): Date {
-  return new Date(date.getFullYear(), date.getMonth(), 1)
+  // Use UTC to ensure consistent month boundaries across timezones
+  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), 1))
 }
 
 export function getMonthEnd(date: Date): Date {
-  return new Date(date.getFullYear(), date.getMonth() + 1, 0)
+  // Use UTC to ensure consistent month boundaries across timezones
+  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + 1, 0, 23, 59, 59, 999))
 }
 
 export function getYearStart(date: Date): Date {
-  return new Date(date.getFullYear(), 0, 1)
+  // Use UTC to ensure consistent year boundaries across timezones
+  return new Date(Date.UTC(date.getUTCFullYear(), 0, 1))
 }
 
 export function getYearEnd(date: Date): Date {
-  return new Date(date.getFullYear(), 11, 31)
+  // Use UTC to ensure consistent year boundaries across timezones
+  return new Date(Date.UTC(date.getUTCFullYear(), 11, 31, 23, 59, 59, 999))
 }
 
 export function calculatePercentage(value: number, total: number): number {

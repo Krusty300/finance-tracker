@@ -13,6 +13,7 @@ import { useBudgets } from '@/hooks/useBudgets';
 import { Search, TrendingUp, Receipt, Target, Wallet, Calendar, ArrowRight, Plus, Filter, FileText, X, Clock, Sparkles, Bell, HelpCircle } from 'lucide-react';
 import { QuickAddModal } from '@/components/forms/QuickAddModal';
 import { KeyboardShortcutsHelp } from '@/components/help/KeyboardShortcutsHelp';
+import { useQuickAdd } from '@/contexts/QuickAddContext';
 import { cn } from '@/lib/utils';
 import { useTheme } from 'next-themes';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
@@ -21,7 +22,7 @@ export function GlobalSearchSimple() {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
   const [selectedIndex, setSelectedIndex] = useState(-1);
-  const [isQuickAddOpen, setIsQuickAddOpen] = useState(false);
+  const { isOpen: isQuickAddOpen, openQuickAdd, closeQuickAdd } = useQuickAdd();
   const [isKeyboardHelpOpen, setIsKeyboardHelpOpen] = useState(false);
   const router = useRouter();
   const { resolvedTheme } = useTheme();
@@ -51,7 +52,7 @@ export function GlobalSearchSimple() {
 
   // Initialize keyboard shortcuts
   useKeyboardShortcuts({
-    onQuickAdd: () => setIsQuickAddOpen(true),
+    onQuickAdd: openQuickAdd,
     onSearchFocus: () => setOpen(true),
     onToggleSearch: () => setOpen(prev => !prev),
     onClose: () => {
@@ -61,7 +62,7 @@ export function GlobalSearchSimple() {
       }
       // Close quick add modal if open
       if (isQuickAddOpen) {
-        setIsQuickAddOpen(false);
+        closeQuickAdd();
       }
     }
   });
@@ -613,7 +614,7 @@ export function GlobalSearchSimple() {
         <Button
           variant="outline"
           size="sm"
-          onClick={() => setIsQuickAddOpen(true)}
+          onClick={openQuickAdd}
           className={cn(
             "h-10 w-10 p-0 rounded-full shadow-lg transition-colors duration-200",
             "border-border/50 backdrop-blur-sm",
@@ -668,7 +669,7 @@ export function GlobalSearchSimple() {
       {/* Quick Add Modal */}
       <QuickAddModal 
         open={isQuickAddOpen} 
-        onOpenChange={setIsQuickAddOpen} 
+        onOpenChange={(open) => open ? openQuickAdd() : closeQuickAdd()} 
       />
       
       {/* Keyboard Shortcuts Help Modal */}

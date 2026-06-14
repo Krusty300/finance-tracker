@@ -7,6 +7,20 @@ const EXCHANGE_RATES: Record<string, number> = {
   JPY: 110.0,
   CAD: 1.25,
   AUD: 1.35,
+  // East Africa
+  KES: 129.0, // Kenyan Shilling
+  UGX: 3750.0, // Ugandan Shilling
+  TZS: 2500.0, // Tanzanian Shilling
+  ETB: 55.0, // Ethiopian Birr
+  // South Africa
+  ZAR: 18.5, // South African Rand
+  NAD: 18.5, // Namibian Dollar (pegged to ZAR)
+  BWP: 13.5, // Botswana Pula
+  // West Africa
+  NGN: 1550.0, // Nigerian Naira
+  GHS: 15.0, // Ghanaian Cedi
+  XOF: 620.0, // West African CFA Franc
+  XAF: 620.0, // Central African CFA Franc
 };
 
 export interface ExchangeRateService {
@@ -42,7 +56,7 @@ export class SimpleExchangeRateService implements ExchangeRateService {
     // In a real application, this would fetch from an API
     // For now, we'll simulate with random fluctuations
     const randomFluctuation = () => 0.95 + Math.random() * 0.1; // ±5% fluctuation
-    
+
     this.rates = {
       USD: 1.0,
       EUR: EXCHANGE_RATES.EUR * randomFluctuation(),
@@ -50,8 +64,22 @@ export class SimpleExchangeRateService implements ExchangeRateService {
       JPY: EXCHANGE_RATES.JPY * randomFluctuation(),
       CAD: EXCHANGE_RATES.CAD * randomFluctuation(),
       AUD: EXCHANGE_RATES.AUD * randomFluctuation(),
+      // East Africa
+      KES: EXCHANGE_RATES.KES * randomFluctuation(),
+      UGX: EXCHANGE_RATES.UGX * randomFluctuation(),
+      TZS: EXCHANGE_RATES.TZS * randomFluctuation(),
+      ETB: EXCHANGE_RATES.ETB * randomFluctuation(),
+      // South Africa
+      ZAR: EXCHANGE_RATES.ZAR * randomFluctuation(),
+      NAD: EXCHANGE_RATES.NAD * randomFluctuation(),
+      BWP: EXCHANGE_RATES.BWP * randomFluctuation(),
+      // West Africa
+      NGN: EXCHANGE_RATES.NGN * randomFluctuation(),
+      GHS: EXCHANGE_RATES.GHS * randomFluctuation(),
+      XOF: EXCHANGE_RATES.XOF * randomFluctuation(),
+      XAF: EXCHANGE_RATES.XAF * randomFluctuation(),
     };
-    
+
     this.lastUpdated = new Date();
     
     // Save to localStorage for persistence

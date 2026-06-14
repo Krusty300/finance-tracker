@@ -8,6 +8,7 @@ import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { TemplatesErrorBoundary } from '@/components/error/TemplatesErrorBoundary';
 import { validateTemplateUsage } from '@/utils/templateValidation';
+import { FavoriteButton } from '@/components/layout/FavoriteButton';
 
 export default function TemplatesPage() {
   const { useTemplate } = useTransactionTemplates();
@@ -54,6 +55,15 @@ export default function TemplatesPage() {
 
   return (
     <div className="container mx-auto py-6">
+      <div className="mb-6 flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold">Transaction Templates</h1>
+          <p className="text-muted-foreground">
+            Create and manage transaction templates for quick entry
+          </p>
+        </div>
+        <FavoriteButton size="sm" variant="outline" showLabel={false} />
+      </div>
       <TemplatesErrorBoundary>
         <TemplateManager onUseTemplate={handleUseTemplate} />
       </TemplatesErrorBoundary>

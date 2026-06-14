@@ -11,13 +11,14 @@ import {
 import { Button } from '@/components/ui/button';
 import { Account } from '@/lib/types';
 import { useCurrency } from '@/contexts/CurrencyContext';
-import { AlertTriangle, CreditCard, Wallet, DollarSign, Smartphone } from 'lucide-react';
+import { AlertTriangle, CreditCard, Wallet, DollarSign, Smartphone, Loader2 } from 'lucide-react';
 
 interface DeleteAccountDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   account: Account | null;
   onConfirm: () => void;
+  isDeleting?: boolean;
 }
 
 const accountTypeIcons = {
@@ -32,6 +33,7 @@ export function DeleteAccountDialog({
   onOpenChange,
   account,
   onConfirm,
+  isDeleting = false,
 }: DeleteAccountDialogProps) {
   const { formatCurrency } = useCurrency();
   if (!account) return null;
@@ -101,14 +103,23 @@ export function DeleteAccountDialog({
           <Button
             variant="outline"
             onClick={() => onOpenChange(false)}
+            disabled={isDeleting}
           >
             Cancel
           </Button>
           <Button
             variant="destructive"
             onClick={onConfirm}
+            disabled={isDeleting}
           >
-            Delete Account
+            {isDeleting ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Deleting...
+              </>
+            ) : (
+              'Delete Account'
+            )}
           </Button>
         </DialogFooter>
       </DialogContent>

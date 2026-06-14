@@ -5,14 +5,14 @@ import { Card, CardContent } from '@/components/ui/card';
 import { ProgressIndicator } from '@/components/ui/ProgressIndicator';
 import { CircularProgress } from '@/components/ui/ProgressIndicator';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, CheckCircle, AlertCircle } from 'lucide-react';
+import { Loader2, CheckCircle, AlertCircle, XCircle } from 'lucide-react';
 
 interface BulkOperationProgressProps {
   operation: string;
   total: number;
   completed: number;
   failed: number;
-  status: 'pending' | 'running' | 'completed' | 'error';
+  status: 'pending' | 'running' | 'completed' | 'error' | 'cancelled';
   error?: string;
 }
 
@@ -36,6 +36,8 @@ export function BulkOperationProgress({
         return <CheckCircle className="w-4 h-4 text-green-500" />;
       case 'error':
         return <AlertCircle className="w-4 h-4 text-red-500" />;
+      case 'cancelled':
+        return <XCircle className="w-4 h-4 text-yellow-500" />;
       default:
         return null;
     }
@@ -51,6 +53,8 @@ export function BulkOperationProgress({
         return 'success';
       case 'error':
         return 'error';
+      case 'cancelled':
+        return 'warning';
       default:
         return 'default';
     }
@@ -66,13 +70,15 @@ export function BulkOperationProgress({
         return `Completed ${completed} of ${total}`;
       case 'error':
         return `Failed: ${error || 'Unknown error'}`;
+      case 'cancelled':
+        return `Cancelled at ${completed} of ${total}`;
       default:
         return '';
     }
   };
 
   return (
-    <Card className="border-l-4 border-l-primary">
+    <Card className="border-l-4 border-l-primary rounded-lg">
       <CardContent className="p-4">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
@@ -120,7 +126,7 @@ export function BulkOperationProgress({
 interface CompactBulkProgressProps {
   completed: number;
   total: number;
-  status: 'pending' | 'running' | 'completed' | 'error';
+  status: 'pending' | 'running' | 'completed' | 'error' | 'cancelled';
 }
 
 export function CompactBulkProgress({
@@ -171,7 +177,7 @@ export function BulkOperationSummary({
   const successRate = total > 0 ? (completed / total) * 100 : 0;
   
   return (
-    <Card className="bg-green-50 border-green-200">
+    <Card className="bg-green-50 border-green-200 rounded-lg">
       <CardContent className="p-4">
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-2">

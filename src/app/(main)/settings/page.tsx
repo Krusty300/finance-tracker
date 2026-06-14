@@ -1,26 +1,37 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { useState, useEffect, useMemo, useCallback } from 'react';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Progress } from '@/components/ui/progress';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { 
-  Download, 
+  Download,
   Upload, 
-  Database, 
   CheckCircle, 
   AlertTriangle,
   Monitor,
   Sun,
   Moon,
-  DollarSign,
   Globe,
   Settings as SettingsIcon,
   RefreshCw,
-  Trash2
+  Trash2,
+  Loader2
 } from 'lucide-react';
 import { verifyDataPersistence, verifyLocalStorage } from '@/lib/dataVerification';
 import { seedSampleData } from '@/lib/seedData';
@@ -30,11 +41,16 @@ import { useOnboarding } from '@/contexts/OnboardingContext';
 import { useCurrency } from '@/contexts/CurrencyContext';
 import { useFormatting } from '@/contexts/FormattingContext';
 import { OnboardingProgress } from '@/components/onboarding/OnboardingProgress';
-import { CurrencyConverter } from '@/components/settings/CurrencyConverter';
-import { FormattingPreview } from '@/components/settings/FormattingPreview';
 import { FinancialCalculator } from '@/components/settings/FinancialCalculator';
 import { ThemeSettings } from '@/components/settings/ThemeSettings';
+import { ErrorAnalysisDashboard } from '@/components/settings/ErrorAnalysisDashboard';
+import { DataRefreshManager } from '@/components/settings/DataRefreshManager';
 import { toast } from 'sonner';
+import { settingsErrorValidator, ValidationError } from '@/utils/settingsErrorValidation';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { FavoriteButton } from '@/components/layout/FavoriteButton';
+import { Info } from 'lucide-react';
+import { useRealtimeSync, syncCurrency, syncData, syncImportExport } from '@/utils/realtimeSync';
 
 export default function SettingsPage() {
   const { resetOnboarding, progress } = useOnboarding();
@@ -54,20 +70,90 @@ export default function SettingsPage() {
   const [exportFormat, setExportFormat] = useState('json');
   const [includeDeleted, setIncludeDeleted] = useState(false);
   const [dateRange, setDateRange] = useState('all');
+  const [customStartDate, setCustomStartDate] = useState('');
+  const [customEndDate, setCustomEndDate] = useState('');
   
+  // Status type enum
+  type AppStatus = 'checking' | 'available' | 'connected' | 'loaded' | 'active' | 'limited' | 'unavailable' | 'error';
+
   // Application Status
-  const [appStatus, setAppStatus] = useState({
+  const [appStatus, setAppStatus] = useState<Record<string, AppStatus>>({
     localStorage: 'checking',
     database: 'checking',
     storage: 'checking',
     fonts: 'checking',
-    components: 'checking'
+    components: 'checking',
+    recycleBin: 'checking',
+    themeSystem: 'checking'
+  });
+
+  // Error validation states
+  const [currencyErrors, setCurrencyErrors] = useState<ValidationError[]>([]);
+  const [currencyWarnings, setCurrencyWarnings] = useState<ValidationError[]>([]);
+  const [currencyInfo, setCurrencyInfo] = useState<ValidationError[]>([]);
+  const [isValidatingCurrency, setIsValidatingCurrency] = useState(false);
+  const [isValidatingDateFormat, setIsValidatingDateFormat] = useState(false);
+  const [isValidatingNumberFormat, setIsValidatingNumberFormat] = useState(false);
+
+  // Import/Export validation states
+  const [importErrors, setImportErrors] = useState<ValidationError[]>([]);
+  const [importWarnings, setImportWarnings] = useState<ValidationError[]>([]);
+  const [exportErrors, setExportErrors] = useState<ValidationError[]>([]);
+  const [exportWarnings, setExportWarnings] = useState<ValidationError[]>([]);
+  const [isValidatingImport, setIsValidatingImport] = useState(false);
+  const [isValidatingExport, setIsValidatingExport] = useState(false);
+
+  // Confirmation dialog states
+  const [showSeedDataDialog, setShowSeedDataDialog] = useState(false);
+  const [showClearCacheDialog, setShowClearCacheDialog] = useState(false);
+  const [showResetOnboardingDialog, setShowResetOnboardingDialog] = useState(false);
+  const [showResetDefaultsDialog, setShowResetDefaultsDialog] = useState(false);
+
+  // Progress tracking for long-running operations
+  const [importProgress, setImportProgress] = useState(0);
+  const [exportProgress, setExportProgress] = useState(0);
+  const [isInitialLoading, setIsInitialLoading] = useState(true);
+  const [isVerifyingData, setIsVerifyingData] = useState(false);
+
+  // Listen for real-time updates from other tabs
+  useRealtimeSync('currency-changed', (event) => {
+    const { currency: newCurrency, dateFormat: newDateFormat, numberFormat: newNumberFormat } = event.data;
+    if (newCurrency && newCurrency !== currency) {
+      setCurrency(newCurrency as any);
+      toast.info('Currency updated from another tab');
+    }
+    if (newDateFormat && newDateFormat !== dateFormat) {
+      setDateFormat(newDateFormat as any);
+      toast.info('Date format updated from another tab');
+    }
+    if (newNumberFormat && newNumberFormat !== numberFormat) {
+      setNumberFormat(newNumberFormat as any);
+      toast.info('Number format updated from another tab');
+    }
+  });
+
+  useRealtimeSync('data-changed', (event) => {
+    const { dataType, data } = event.data;
+    toast.info(`Data updated from another tab: ${dataType}`);
+    
+    // Trigger targeted data refresh instead of full reload
+    if (dataType === 'transactions' || dataType === 'accounts' || dataType === 'categories') {
+      // Re-validate data integrity
+      verifyLocalStorage();
+      const result = verifyDataPersistence();
+      toast.info(`Data refreshed: Categories: ${result.categories}, Accounts: ${result.accounts}, Transactions: ${result.transactions}`);
+    }
+  });
+
+  useRealtimeSync('import-export-changed', (event) => {
+    const { operation, status, details } = event.data;
+    toast.info(`${operation.charAt(0).toUpperCase() + operation.slice(1)} ${status} from another tab`);
   });
 
   // Check application status
   useEffect(() => {
     const checkStatus = () => {
-      const status = {
+      const status: Record<string, AppStatus> = {
         localStorage: localStorage ? 'available' : 'unavailable',
         database: (() => {
           try {
@@ -83,7 +169,25 @@ export default function SettingsPage() {
           return storageUsed < storageAvailable * 0.8 ? 'available' : 'limited';
         })(),
         fonts: 'loaded', // Could check for specific fonts
-        components: 'active'
+        components: 'active',
+        recycleBin: (() => {
+          try {
+            // Check if recycle bin functionality is available
+            const hasRecycleBin = localStorage.getItem('recycleBin_enabled') !== null;
+            return hasRecycleBin ? 'active' : 'available';
+          } catch {
+            return 'unavailable';
+          }
+        })(),
+        themeSystem: (() => {
+          try {
+            // Check if theme system is working
+            const hasTheme = localStorage.getItem('theme') !== null;
+            return hasTheme ? 'active' : 'available';
+          } catch {
+            return 'unavailable';
+          }
+        })()
       };
       setAppStatus(status);
     };
@@ -93,23 +197,119 @@ export default function SettingsPage() {
     return () => clearInterval(interval);
   }, []);
 
-  const handleVerifyData = () => {
-    verifyLocalStorage();
-    const result = verifyDataPersistence();
-    toast.success(`Data verification complete! Categories: ${result.categories}, Accounts: ${result.accounts}, Transactions: ${result.transactions}, Budgets: ${result.budgets}`);
-  };
+  // Initial loading state
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setIsInitialLoading(false);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, []);
 
-  const handleSeedData = () => {
+  const handleVerifyData = useCallback(() => {
+    setIsVerifyingData(true);
+    setTimeout(() => {
+      verifyLocalStorage();
+      const result = verifyDataPersistence();
+      toast.success(`Data verification complete! Categories: ${result.categories}, Accounts: ${result.accounts}, Transactions: ${result.transactions}, Budgets: ${result.budgets}`);
+      setIsVerifyingData(false);
+    }, 500); // Small delay to show loading state
+  }, []);
+
+  const handleSeedData = useCallback(() => {
+    setShowSeedDataDialog(true);
+  }, []);
+
+  const confirmSeedData = useCallback(() => {
     seedSampleData();
+    syncData('sample-data', { timestamp: Date.now(), count: 'sample' });
     toast.success('Sample data seeded successfully!');
-  };
+    setShowSeedDataDialog(false);
+  }, []);
 
-  const handleExportData = () => {
+  const handleExportData = async () => {
+    setIsValidatingExport(true);
+    setExportProgress(0);
+    setExportErrors([]);
+    setExportWarnings([]);
+    
     try {
+      // Simulate progress for better UX
+      setExportProgress(10);
+      
+      // Validate export settings
+      const validation = settingsErrorValidator.validateExportSettings(
+        exportFormat, 
+        dateRange, 
+        includeDeleted
+      );
+      
+      setExportProgress(20);
+      
+      setExportErrors(validation.errors);
+      setExportWarnings(validation.warnings);
+
+      if (!validation.isValid) {
+        // Log errors
+        validation.errors.forEach(error => {
+          settingsErrorValidator.logError('export', error, { 
+            exportFormat,
+            dateRange,
+            includeDeleted
+          });
+        });
+        
+        // Show error toast
+        toast.error('Export validation failed', {
+          description: validation.errors[0]?.message || 'Invalid export settings'
+        });
+        setExportProgress(0);
+        return;
+      }
+
+      // Show warnings if any
+      if (validation.warnings.length > 0) {
+        validation.warnings.forEach(warning => {
+          toast.warning(warning.message);
+          settingsErrorValidator.logError('export', warning, { 
+            exportFormat,
+            dateRange,
+            includeDeleted
+          });
+        });
+      }
+
+      setExportProgress(40);
+
+      // Proceed with export
       const data = db.exportData();
-      const exportData = includeDeleted ? data : {
+      
+      setExportProgress(60);
+      
+      // Filter transactions by date range
+      let filteredTransactions = includeDeleted ? data.transactions : data.transactions.filter(t => !t.deletedAt);
+      
+      if (dateRange === 'current') {
+        const now = new Date();
+        const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+        filteredTransactions = filteredTransactions.filter(t => new Date(t.date) >= startOfMonth);
+      } else if (dateRange === 'year') {
+        const now = new Date();
+        const startOfYear = new Date(now.getFullYear(), 0, 1);
+        filteredTransactions = filteredTransactions.filter(t => new Date(t.date) >= startOfYear);
+      } else if (dateRange === 'custom' && customStartDate && customEndDate) {
+        const start = new Date(customStartDate);
+        const end = new Date(customEndDate);
+        filteredTransactions = filteredTransactions.filter(t => {
+          const date = new Date(t.date);
+          return date >= start && date <= end;
+        });
+      }
+      
+      setExportProgress(80);
+      
+      const exportData = {
         ...data,
-        transactions: data.transactions.filter(t => !t.deletedAt),
+        transactions: filteredTransactions,
         categories: data.categories,
         budgets: data.budgets,
         accounts: data.accounts,
@@ -142,9 +342,35 @@ export default function SettingsPage() {
         URL.revokeObjectURL(url);
       }
       
+      setExportProgress(100);
+      
       toast.success('Data exported successfully!');
+      
+      // Broadcast export completion
+      syncImportExport('export', 'completed', { format: exportFormat, timestamp: Date.now() });
+      
+      // Reset progress after a short delay
+      setTimeout(() => setExportProgress(0), 1000);
+      
     } catch (error) {
+      const errorObj: ValidationError = {
+        field: 'export',
+        message: `Export failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        severity: 'error',
+        code: 'EXPORT_FAILED'
+      };
+      
+      settingsErrorValidator.logError('export', errorObj, { 
+        exportFormat,
+        dateRange,
+        includeDeleted
+      });
+      
       toast.error('Export failed. Please try again.');
+      setExportProgress(0);
+      
+    } finally {
+      setIsValidatingExport(false);
     }
   };
 
@@ -154,23 +380,61 @@ export default function SettingsPage() {
     input.accept = '.json,.csv';
     
     input.onchange = async (e) => {
+      setIsValidatingImport(true);
+      setImportProgress(0);
+      setImportErrors([]);
+      setImportWarnings([]);
+      
       const file = (e.target as HTMLInputElement).files?.[0];
-      if (!file) return;
-
-      // Validate file size (max 10MB)
-      if (file.size > 10 * 1024 * 1024) {
-        toast.error('File too large. Maximum size is 10MB.');
+      if (!file) {
+        setIsValidatingImport(false);
         return;
       }
 
       try {
+        setImportProgress(10);
         const text = await file.text();
         
-        // Validate file content is not empty
-        if (!text.trim()) {
-          toast.error('File is empty.');
+        setImportProgress(20);
+        
+        // Validate import data using our validator
+        const validation = settingsErrorValidator.validateImportData(file, text);
+        
+        setImportProgress(30);
+        
+        setImportErrors(validation.errors);
+        setImportWarnings(validation.warnings);
+
+        if (!validation.isValid) {
+          // Log errors
+          validation.errors.forEach(error => {
+            settingsErrorValidator.logError('import', error, { 
+              fileName: file.name,
+              fileSize: file.size
+            });
+          });
+          
+          // Show error toast
+          toast.error('Import validation failed', {
+            description: validation.errors[0]?.message || 'Invalid file format'
+          });
+          setIsValidatingImport(false);
+          setImportProgress(0);
           return;
         }
+
+        // Show warnings if any
+        if (validation.warnings.length > 0) {
+          validation.warnings.forEach(warning => {
+            toast.warning(warning.message);
+            settingsErrorValidator.logError('import', warning, { 
+              fileName: file.name,
+              fileSize: file.size
+            });
+          });
+        }
+
+        setImportProgress(40);
 
         let data;
 
@@ -179,6 +443,7 @@ export default function SettingsPage() {
           const lines = text.split('\n').filter(line => line.trim());
           if (lines.length < 2) {
             toast.error('CSV file must have at least a header and one data row.');
+            setImportProgress(0);
             return;
           }
 
@@ -188,8 +453,11 @@ export default function SettingsPage() {
           
           if (missingHeaders.length > 0) {
             toast.error(`CSV missing required headers: ${missingHeaders.join(', ')}`);
+            setImportProgress(0);
             return;
           }
+          
+          setImportProgress(50);
           
           data = {
             transactions: lines.slice(1).map((line, index) => {
@@ -227,18 +495,23 @@ export default function SettingsPage() {
             data = JSON.parse(text);
           } catch (parseError) {
             toast.error('Invalid JSON format.');
+            setImportProgress(0);
             return;
           }
           
           // Validate data structure
           if (!data || typeof data !== 'object') {
             toast.error('Invalid data structure.');
+            setImportProgress(0);
             return;
           }
         }
 
+        setImportProgress(60);
+
         let importCount = 0;
         let errorCount = 0;
+        const totalTransactions = data.transactions?.length || 0;
 
         // Import data with validation
         if (data.transactions && Array.isArray(data.transactions)) {
@@ -251,26 +524,69 @@ export default function SettingsPage() {
               
               db.addTransaction(transaction);
               importCount++;
+              
+              // Update progress based on completion
+              if (index % Math.max(1, Math.floor(totalTransactions / 10)) === 0) {
+                setImportProgress(60 + Math.floor((importCount / totalTransactions) * 30));
+              }
             } catch (error) {
               errorCount++;
             }
           });
         }
 
+        setImportProgress(90);
+
         if (errorCount > 0) {
           toast.warning(`Import completed with ${errorCount} errors. ${importCount} transactions imported successfully.`);
+          syncImportExport('import', 'completed-with-errors', { 
+            importCount, 
+            errorCount, 
+            fileName: file.name,
+            timestamp: Date.now() 
+          });
         } else {
           toast.success(`Successfully imported ${importCount} transactions!`);
+          syncImportExport('import', 'completed', { 
+            importCount, 
+            fileName: file.name,
+            timestamp: Date.now() 
+          });
         }
+        
+        setImportProgress(100);
+        
+        // Reset progress after a short delay
+        setTimeout(() => setImportProgress(0), 1000);
+        
       } catch (error) {
+        const errorObj: ValidationError = {
+          field: 'import',
+          message: `Import failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+          severity: 'error',
+          code: 'IMPORT_FAILED'
+        };
+        
+        settingsErrorValidator.logError('import', errorObj, { 
+          fileName: file.name,
+          fileSize: file.size
+        });
+        
         toast.error(`Import failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        setImportProgress(0);
+      } finally {
+        setIsValidatingImport(false);
       }
     };
     input.click();
   };
 
   
-  const handleClearCache = () => {
+  const handleClearCache = useCallback(() => {
+    setShowClearCacheDialog(true);
+  }, []);
+
+  const confirmClearCache = useCallback(() => {
     try {
       // Clear application cache but preserve data
       const keys = Object.keys(localStorage);
@@ -279,18 +595,279 @@ export default function SettingsPage() {
           localStorage.removeItem(key);
         }
       });
+      syncData('cache-cleared', { timestamp: Date.now(), clearedKeys: keys.length });
       toast.success('Cache cleared successfully!');
+      setShowClearCacheDialog(false);
     } catch (error) {
       toast.error('Failed to clear cache');
     }
-  };
+  }, []);
 
-  const handleResetOnboarding = () => {
+  const handleResetOnboarding = useCallback(() => {
+    setShowResetOnboardingDialog(true);
+  }, []);
+
+  const confirmResetOnboarding = useCallback(() => {
     resetOnboarding();
     toast.success('Onboarding has been reset. You can start the tour again from the dashboard!');
+    setShowResetOnboardingDialog(false);
+  }, []);
+
+  const handleResetDefaults = useCallback(() => {
+    setShowResetDefaultsDialog(true);
+  }, []);
+
+  const confirmResetDefaults = useCallback(() => {
+    setCurrency('USD' as any);
+    setDateFormat('MM/DD/YYYY' as any);
+    setNumberFormat('1,234.56' as any);
+    toast.success('Settings reset to defaults');
+    setShowResetDefaultsDialog(false);
+  }, []);
+
+  const handleExportAllSettings = useCallback(() => {
+    const settings = {
+      currency,
+      dateFormat,
+      numberFormat,
+      exportFormat,
+      includeDeleted,
+      dateRange,
+      timestamp: new Date().toISOString()
+    };
+    const blob = new Blob([JSON.stringify(settings, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `finance-tracker-settings-${Date.now()}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success('Settings exported successfully');
+  }, [currency, dateFormat, numberFormat, exportFormat, includeDeleted, dateRange]);
+
+  const handleImportSettings = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const settings = JSON.parse(e.target?.result as string);
+        if (settings.currency) setCurrency(settings.currency as any);
+        if (settings.dateFormat) setDateFormat(settings.dateFormat as any);
+        if (settings.numberFormat) setNumberFormat(settings.numberFormat as any);
+        toast.success('Settings imported successfully');
+      } catch (error) {
+        toast.error('Failed to import settings: Invalid file format');
+      }
+    };
+    reader.readAsText(file);
+    event.target.value = '';
+  }, []);
+
+  const handleCurrencyChange = async (newCurrency: string) => {
+    setIsValidatingCurrency(true);
+    
+    try {
+      // Validate currency settings
+      const validation = settingsErrorValidator.validateCurrencySettings(
+        newCurrency, 
+        dateFormat, 
+        numberFormat
+      );
+      
+      setCurrencyErrors(validation.errors);
+      setCurrencyWarnings(validation.warnings);
+      setCurrencyInfo(validation.info);
+
+      if (!validation.isValid) {
+        // Log errors
+        validation.errors.forEach(error => {
+          settingsErrorValidator.logError('currency', error, { 
+            attemptedCurrency: newCurrency,
+            dateFormat,
+            numberFormat
+          });
+        });
+        
+        // Show error toast
+        toast.error('Currency validation failed', {
+          description: validation.errors[0]?.message || 'Invalid currency selection'
+        });
+        return;
+      }
+
+      // Show warnings if any
+      if (validation.warnings.length > 0) {
+        validation.warnings.forEach(warning => {
+          toast.warning(warning.message);
+          settingsErrorValidator.logError('currency', warning, { 
+            attemptedCurrency: newCurrency,
+            dateFormat,
+            numberFormat
+          });
+        });
+      }
+
+      // Show info if any
+      if (validation.info.length > 0) {
+        validation.info.forEach(info => {
+          toast.info(info.message);
+        });
+      }
+
+      // Proceed with currency change if valid
+      setCurrency(newCurrency as any);
+      
+      // Broadcast currency change to other tabs
+      syncCurrency(newCurrency, dateFormat, numberFormat);
+      
+      toast.success('Currency updated successfully');
+      
+    } catch (error) {
+      const errorObj: ValidationError = {
+        field: 'currency',
+        message: `Unexpected error changing currency: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        severity: 'error',
+        code: 'CURRENCY_CHANGE_ERROR'
+      };
+      
+      settingsErrorValidator.logError('currency', errorObj, { attemptedCurrency: newCurrency });
+      toast.error('Failed to change currency');
+      
+    } finally {
+      setIsValidatingCurrency(false);
+    }
   };
 
-  const getStatusColor = (status: string) => {
+  const handleDateFormatChange = async (newDateFormat: string) => {
+    setIsValidatingDateFormat(true);
+    
+    try {
+      const validation = settingsErrorValidator.validateCurrencySettings(
+        currency, 
+        newDateFormat, 
+        numberFormat
+      );
+      
+      setCurrencyErrors(validation.errors);
+      setCurrencyWarnings(validation.warnings);
+      setCurrencyInfo(validation.info);
+
+      if (!validation.isValid) {
+        validation.errors.forEach(error => {
+          settingsErrorValidator.logError('currency', error, { 
+            currency,
+            attemptedDateFormat: newDateFormat,
+            numberFormat
+          });
+        });
+        
+        toast.error('Date format validation failed', {
+          description: validation.errors[0]?.message || 'Invalid date format'
+        });
+        return;
+      }
+
+      setDateFormat(newDateFormat as any);
+      
+      // Broadcast date format change to other tabs
+      syncCurrency(currency, newDateFormat, numberFormat);
+      
+      toast.success('Date format updated successfully');
+      
+    } catch (error) {
+      const errorObj: ValidationError = {
+        field: 'dateFormat',
+        message: `Unexpected error changing date format: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        severity: 'error',
+        code: 'DATE_FORMAT_CHANGE_ERROR'
+      };
+      
+      settingsErrorValidator.logError('currency', errorObj, { attemptedDateFormat: newDateFormat });
+      toast.error('Failed to change date format');
+      
+    } finally {
+      setIsValidatingDateFormat(false);
+    }
+  };
+
+  const handleNumberFormatChange = async (newNumberFormat: string) => {
+    setIsValidatingNumberFormat(true);
+    
+    try {
+      const validation = settingsErrorValidator.validateCurrencySettings(
+        currency, 
+        dateFormat, 
+        newNumberFormat
+      );
+      
+      setCurrencyErrors(validation.errors);
+      setCurrencyWarnings(validation.warnings);
+      setCurrencyInfo(validation.info);
+
+      if (!validation.isValid) {
+        validation.errors.forEach(error => {
+          settingsErrorValidator.logError('currency', error, { 
+            currency,
+            dateFormat,
+            attemptedNumberFormat: newNumberFormat
+          });
+        });
+        
+        toast.error('Number format validation failed', {
+          description: validation.errors[0]?.message || 'Invalid number format'
+        });
+        return;
+      }
+
+      setNumberFormat(newNumberFormat as any);
+      
+      // Broadcast number format change to other tabs
+      syncCurrency(currency, dateFormat, newNumberFormat);
+      
+      toast.success('Number format updated successfully');
+      
+    } catch (error) {
+      const errorObj: ValidationError = {
+        field: 'numberFormat',
+        message: `Unexpected error changing number format: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        severity: 'error',
+        code: 'NUMBER_FORMAT_CHANGE_ERROR'
+      };
+      
+      settingsErrorValidator.logError('currency', errorObj, { attemptedNumberFormat: newNumberFormat });
+      toast.error('Failed to change number format');
+      
+    } finally {
+      setIsValidatingNumberFormat(false);
+    }
+  };
+
+  const getCurrencyDisplayName = useMemo(() => (curr: string): string => {
+    return curr === 'USD' ? 'US Dollar' :
+           curr === 'EUR' ? 'Euro' :
+           curr === 'GBP' ? 'British Pound' :
+           curr === 'JPY' ? 'Japanese Yen' :
+           curr === 'CAD' ? 'Canadian Dollar' :
+           curr === 'AUD' ? 'Australian Dollar' :
+           // East Africa
+           curr === 'KES' ? 'Kenyan Shilling' :
+           curr === 'UGX' ? 'Ugandan Shilling' :
+           curr === 'TZS' ? 'Tanzanian Shilling' :
+           curr === 'ETB' ? 'Ethiopian Birr' :
+           // South Africa
+           curr === 'ZAR' ? 'South African Rand' :
+           curr === 'NAD' ? 'Namibian Dollar' :
+           curr === 'BWP' ? 'Botswana Pula' :
+           // West Africa
+           curr === 'NGN' ? 'Nigerian Naira' :
+           curr === 'GHS' ? 'Ghanaian Cedi' :
+           curr === 'XOF' ? 'West African CFA Franc' :
+           curr === 'XAF' ? 'Central African CFA Franc' : curr;
+  }, []);
+
+  const getStatusColor = useMemo(() => (status: AppStatus): string => {
     switch (status) {
       case 'available':
       case 'connected':
@@ -307,9 +884,9 @@ export default function SettingsPage() {
       default:
         return 'bg-muted';
     }
-  };
+  }, []);
 
-  const getStatusText = (status: string) => {
+  const getStatusText = useMemo(() => (status: AppStatus): string => {
     switch (status) {
       case 'available': return 'Available';
       case 'connected': return 'Connected';
@@ -321,23 +898,43 @@ export default function SettingsPage() {
       case 'checking': return 'Checking...';
       default: return 'Unknown';
     }
-  };
+  }, []);
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">Settings</h1>
-        <p className="text-muted-foreground">
-          Manage your application settings and preferences
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold">Settings</h1>
+          <p className="text-muted-foreground">
+            Manage your application settings and preferences
+          </p>
+        </div>
+        <FavoriteButton size="sm" variant="outline" showLabel={false} />
       </div>
 
+      {isInitialLoading ? (
+        <div className="space-y-6">
+          <Skeleton className="h-32 w-full" />
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <Skeleton className="h-64 w-full" />
+            <Skeleton className="h-64 w-full" />
+          </div>
+          <Skeleton className="h-48 w-full" />
+          <Skeleton className="h-48 w-full" />
+        </div>
+      ) : (
       <div className="space-y-6">
         {/* Onboarding Progress */}
         <OnboardingProgress />
         
         {/* Financial Calculator */}
         <FinancialCalculator />
+        
+        {/* Error Analysis Dashboard */}
+        <ErrorAnalysisDashboard />
+        
+        {/* Data Refresh Manager */}
+        <DataRefreshManager />
         
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Enhanced Theme Settings */}
@@ -346,35 +943,73 @@ export default function SettingsPage() {
         {/* Currency & Formatting */}
         <Card>
           <CardHeader>
-            <CardTitle>
+            <CardTitle className="flex items-center gap-2">
               Currency & Formatting
             </CardTitle>
+            <CardDescription>
+              Configure how currency, dates, and numbers are displayed throughout the application
+            </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
+            {/* Currency Validation Alerts */}
+            {currencyErrors.length > 0 && (
+              <Alert variant="destructive">
+                <AlertTriangle className="h-4 w-4" />
+                <AlertDescription>
+                  {currencyErrors.map((error, index) => (
+                    <div key={index}>{error.message}</div>
+                  ))}
+                </AlertDescription>
+              </Alert>
+            )}
+
+            {currencyWarnings.length > 0 && (
+              <Alert>
+                <AlertTriangle className="h-4 w-4" />
+                <AlertDescription>
+                  {currencyWarnings.map((warning, index) => (
+                    <div key={index}>{warning.message}</div>
+                  ))}
+                </AlertDescription>
+              </Alert>
+            )}
+
+            {currencyInfo.length > 0 && (
+              <Alert variant="default">
+                <Info className="h-4 w-4" />
+                <AlertDescription>
+                  {currencyInfo.map((info, index) => (
+                    <div key={index}>{info.message}</div>
+                  ))}
+                </AlertDescription>
+              </Alert>
+            )}
+
             <div className="grid grid-cols-1 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="currency">Currency</Label>
-                <Select value={currency} onValueChange={setCurrency}>
+                <div className="flex items-center gap-2">
+                  <Label htmlFor="currency">Currency</Label>
+                  {isValidatingCurrency && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
+                </div>
+                <Select value={currency} onValueChange={handleCurrencyChange} disabled={isValidatingCurrency}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select currency" />
                   </SelectTrigger>
                   <SelectContent>
                     {availableCurrencies.map((curr) => (
                       <SelectItem key={curr} value={curr}>
-                        {curr} - {curr === 'USD' ? 'US Dollar' : 
-                               curr === 'EUR' ? 'Euro' :
-                               curr === 'GBP' ? 'British Pound' :
-                               curr === 'JPY' ? 'Japanese Yen' :
-                               curr === 'CAD' ? 'Canadian Dollar' :
-                               curr === 'AUD' ? 'Australian Dollar' : curr} ({getCurrencySymbol(curr)})
+                        {curr} - {getCurrencyDisplayName(curr)} ({getCurrencySymbol(curr)})
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="dateFormat">Date Format</Label>
-                <Select value={dateFormat} onValueChange={setDateFormat}>
+                <div className="flex items-center gap-2">
+                  <Label htmlFor="dateFormat">Date Format</Label>
+                  {isValidatingDateFormat && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
+                </div>
+                <Select value={dateFormat} onValueChange={handleDateFormatChange} disabled={isValidatingDateFormat}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select format" />
                   </SelectTrigger>
@@ -388,8 +1023,11 @@ export default function SettingsPage() {
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="numberFormat">Number Format</Label>
-                <Select value={numberFormat} onValueChange={setNumberFormat}>
+                <div className="flex items-center gap-2">
+                  <Label htmlFor="numberFormat">Number Format</Label>
+                  {isValidatingNumberFormat && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
+                </div>
+                <Select value={numberFormat} onValueChange={handleNumberFormatChange} disabled={isValidatingNumberFormat}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select format" />
                   </SelectTrigger>
@@ -403,131 +1041,10 @@ export default function SettingsPage() {
                 </Select>
               </div>
             </div>
-          </CardContent>
-        </Card>
-
-        {/* Formatting Preview */}
-        <Card>
-          <CardHeader>
-            <CardTitle>
-              Formatting Preview
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="currency">Currency</Label>
-                <Select value={currency} onValueChange={setCurrency}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select currency" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {availableCurrencies.map((curr) => (
-                      <SelectItem key={curr} value={curr}>
-                        {curr} - {curr === 'USD' ? 'US Dollar' : 
-                               curr === 'EUR' ? 'Euro' :
-                               curr === 'GBP' ? 'British Pound' :
-                               curr === 'JPY' ? 'Japanese Yen' :
-                               curr === 'CAD' ? 'Canadian Dollar' :
-                               curr === 'AUD' ? 'Australian Dollar' : curr} ({getCurrencySymbol(curr)})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="dateFormat">Date Format</Label>
-                <Select value={dateFormat} onValueChange={setDateFormat}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select format" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {availableDateFormats.map((format) => (
-                      <SelectItem key={format} value={format}>
-                        {format}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="numberFormat">Number Format</Label>
-                <Select value={numberFormat} onValueChange={setNumberFormat}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select format" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {availableNumberFormats.map((format) => (
-                      <SelectItem key={format} value={format}>
-                        {format}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Currency Converter */}
-        <Card>
-          <CardHeader>
-            <CardTitle>
-              Currency Converter
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="currency">Currency</Label>
-                <Select value={currency} onValueChange={setCurrency}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select currency" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {availableCurrencies.map((curr) => (
-                      <SelectItem key={curr} value={curr}>
-                        {curr} - {curr === 'USD' ? 'US Dollar' : 
-                               curr === 'EUR' ? 'Euro' :
-                               curr === 'GBP' ? 'British Pound' :
-                               curr === 'JPY' ? 'Japanese Yen' :
-                               curr === 'CAD' ? 'Canadian Dollar' :
-                               curr === 'AUD' ? 'Australian Dollar' : curr} ({getCurrencySymbol(curr)})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="dateFormat">Date Format</Label>
-                <Select value={dateFormat} onValueChange={setDateFormat}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select format" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {availableDateFormats.map((format) => (
-                      <SelectItem key={format} value={format}>
-                        {format}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="numberFormat">Number Format</Label>
-                <Select value={numberFormat} onValueChange={setNumberFormat}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select format" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {availableNumberFormats.map((format) => (
-                      <SelectItem key={format} value={format}>
-                        {format}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+            <div className="pt-4 border-t">
+              <Button onClick={handleResetDefaults} variant="outline" className="w-full">
+                Reset to Defaults
+              </Button>
             </div>
           </CardContent>
         </Card>
@@ -536,11 +1053,58 @@ export default function SettingsPage() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center">
-              <Download className="mr-2 h-5 w-5" />
               Import/Export
             </CardTitle>
+            <CardDescription>
+              Backup your data or import transactions from external files
+            </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
+            {/* Import Validation Alerts */}
+            {importErrors.length > 0 && (
+              <Alert variant="destructive">
+                <AlertTriangle className="h-4 w-4" />
+                <AlertDescription>
+                  {importErrors.map((error, index) => (
+                    <div key={index}>{error.message}</div>
+                  ))}
+                </AlertDescription>
+              </Alert>
+            )}
+
+            {importWarnings.length > 0 && (
+              <Alert>
+                <AlertTriangle className="h-4 w-4" />
+                <AlertDescription>
+                  {importWarnings.map((warning, index) => (
+                    <div key={index}>{warning.message}</div>
+                  ))}
+                </AlertDescription>
+              </Alert>
+            )}
+
+            {/* Export Validation Alerts */}
+            {exportErrors.length > 0 && (
+              <Alert variant="destructive">
+                <AlertTriangle className="h-4 w-4" />
+                <AlertDescription>
+                  {exportErrors.map((error, index) => (
+                    <div key={index}>{error.message}</div>
+                  ))}
+                </AlertDescription>
+              </Alert>
+            )}
+
+            {exportWarnings.length > 0 && (
+              <Alert>
+                <AlertTriangle className="h-4 w-4" />
+                <AlertDescription>
+                  {exportWarnings.map((warning, index) => (
+                    <div key={index}>{warning.message}</div>
+                  ))}
+                </AlertDescription>
+              </Alert>
+            )}
             <div className="grid grid-cols-1 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="exportFormat">Export Format</Label>
@@ -568,6 +1132,28 @@ export default function SettingsPage() {
                   </SelectContent>
                 </Select>
               </div>
+              {dateRange === 'custom' && (
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="startDate">Start Date</Label>
+                    <Input
+                      id="startDate"
+                      type="date"
+                      value={customStartDate}
+                      onChange={(e) => setCustomStartDate(e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="endDate">End Date</Label>
+                    <Input
+                      id="endDate"
+                      type="date"
+                      value={customEndDate}
+                      onChange={(e) => setCustomEndDate(e.target.value)}
+                    />
+                  </div>
+                </div>
+              )}
             </div>
             
             <div className="flex items-center space-x-2">
@@ -579,14 +1165,54 @@ export default function SettingsPage() {
               <Label htmlFor="includeDeleted">Include deleted items</Label>
             </div>
 
+            {/* Export Progress Bar */}
+            {exportProgress > 0 && (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-sm">
+                  <span>Export Progress</span>
+                  <span>{exportProgress}%</span>
+                </div>
+                <Progress value={exportProgress} />
+              </div>
+            )}
+
+            {/* Import Progress Bar */}
+            {importProgress > 0 && (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-sm">
+                  <span>Import Progress</span>
+                  <span>{importProgress}%</span>
+                </div>
+                <Progress value={importProgress} />
+              </div>
+            )}
+
             <div className="grid grid-cols-1 gap-2">
-              <Button onClick={handleExportData} className="w-full">
-                <Download className="mr-2 h-4 w-4" />
-                Export Data
+              <Button onClick={handleExportData} className="w-full" disabled={isValidatingExport}>
+                {isValidatingExport ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Exporting...
+                  </>
+                ) : (
+                  <>
+                    <Download className="mr-2 h-4 w-4" />
+                    Export Data
+                  </>
+                )}
               </Button>
-              <Button onClick={handleImportData} variant="outline" className="w-full">
-                <Upload className="mr-2 h-4 w-4" />
-                Import Data
+              <Button onClick={handleImportData} variant="outline" className="w-full" disabled={isValidatingImport}>
+                {isValidatingImport ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Importing...
+                  </>
+                ) : (
+                  <>
+                    <Upload className="mr-2 h-4 w-4" />
+                    Import Data
+                  </>
+                )}
               </Button>
             </div>
           </CardContent>
@@ -596,27 +1222,52 @@ export default function SettingsPage() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center">
-              <Database className="mr-2 h-5 w-5" />
               Data Management
             </CardTitle>
+            <CardDescription>
+              Verify data integrity, seed sample data, or clear application cache
+            </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <Button onClick={handleVerifyData} className="w-full">
-              <CheckCircle className="mr-2 h-4 w-4" />
-              Verify Data Integrity
+            <Button onClick={handleVerifyData} className="w-full" disabled={isVerifyingData}>
+              {isVerifyingData ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Verifying...
+                </>
+              ) : (
+                'Verify Data Integrity'
+              )}
             </Button>
             <Button onClick={handleSeedData} variant="outline" className="w-full">
-              <Database className="mr-2 h-4 w-4" />
               Seed Sample Data
             </Button>
             <Button onClick={handleClearCache} variant="outline" className="w-full">
-              <RefreshCw className="mr-2 h-4 w-4" />
               Clear Cache
             </Button>
             <Button onClick={handleResetOnboarding} variant="outline" className="w-full">
-              <RefreshCw className="mr-2 h-4 w-4" />
               Reset Onboarding
             </Button>
+            <div className="pt-4 border-t space-y-2">
+              <Label>Settings Management</Label>
+              <Button onClick={handleExportAllSettings} variant="outline" className="w-full">
+                Export All Settings
+              </Button>
+              <div>
+                <input
+                  type="file"
+                  accept=".json"
+                  onChange={handleImportSettings}
+                  className="hidden"
+                  id="import-settings"
+                />
+                <Label htmlFor="import-settings" className="cursor-pointer">
+                  <Button variant="outline" className="w-full" asChild>
+                    <span>Import Settings</span>
+                  </Button>
+                </Label>
+              </div>
+            </div>
           </CardContent>
         </Card>
       </div>
@@ -624,13 +1275,17 @@ export default function SettingsPage() {
       {/* Application Status */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center">
-            <SettingsIcon className="mr-2 h-5 w-5" />
-            Application Status
+          <CardTitle className="flex items-center justify-between">
+            <div className="flex items-center">
+              Application Status
+            </div>
             <Button variant="outline" size="sm" onClick={() => window.location.reload()}>
               <RefreshCw className="h-4 w-4" />
             </Button>
           </CardTitle>
+          <CardDescription>
+            Monitor the health and availability of application services
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -670,23 +1325,94 @@ export default function SettingsPage() {
               </div>
             </div>
             <div className="flex items-center space-x-2">
-              <div className="w-3 h-3 bg-success rounded-full"></div>
+              <div className={`w-3 h-3 rounded-full ${getStatusColor(appStatus.recycleBin)}`}></div>
               <div>
                 <div className="font-medium">Recycle Bin</div>
-                <div className="text-sm text-muted-foreground">Active</div>
+                <div className="text-sm text-muted-foreground">{getStatusText(appStatus.recycleBin)}</div>
               </div>
             </div>
             <div className="flex items-center space-x-2">
-              <div className="w-3 h-3 bg-success rounded-full"></div>
+              <div className={`w-3 h-3 rounded-full ${getStatusColor(appStatus.themeSystem)}`}></div>
               <div>
                 <div className="font-medium">Theme System</div>
-                <div className="text-sm text-muted-foreground">Active</div>
+                <div className="text-sm text-muted-foreground">{getStatusText(appStatus.themeSystem)}</div>
               </div>
             </div>
           </div>
         </CardContent>
       </Card>
+
+      {/* Confirmation Dialogs */}
+      <AlertDialog open={showSeedDataDialog} onOpenChange={setShowSeedDataDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Seed Sample Data?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will add sample transactions, categories, and accounts to your application. 
+              If you already have data, this may create duplicates. Are you sure you want to continue?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmSeedData}>Continue</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={showClearCacheDialog} onOpenChange={setShowClearCacheDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Clear Application Cache?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will remove temporary files and cached data from localStorage. 
+              Your financial records will be preserved. Are you sure you want to continue?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmClearCache}>Clear Cache</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={showResetOnboardingDialog} onOpenChange={setShowResetOnboardingDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Reset Onboarding?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will reset the onboarding progress, allowing you to see the tour again. 
+              Your settings and data will not be affected. Are you sure you want to continue?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmResetOnboarding}>Reset</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={showResetDefaultsDialog} onOpenChange={setShowResetDefaultsDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Reset to Defaults?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will reset your currency, date format, and number format to their default values:
+              <br /><br />
+              Currency: USD<br />
+              Date Format: MM/DD/YYYY<br />
+              Number Format: 1,234.56
+              <br /><br />
+              Are you sure you want to continue?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmResetDefaults}>Reset</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       </div>
+      )}
     </div>
   );
 }

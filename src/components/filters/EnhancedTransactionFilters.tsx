@@ -345,7 +345,7 @@ export function EnhancedTransactionFilters({
 
       {/* Save Filter Dialog */}
       {showSaveDialog && (
-        <Card className="mb-4">
+        <Card className="mb-4 rounded-lg">
           <CardHeader>
             <CardTitle className="text-lg">Save Current Filter</CardTitle>
           </CardHeader>
@@ -517,7 +517,7 @@ export function EnhancedTransactionFilters({
 
       {/* Active Filters Summary */}
       {hasActiveFilters && (
-        <Card>
+        <Card className="rounded-lg">
           <CardHeader>
             <CardTitle className="text-sm">Active Filters</CardTitle>
           </CardHeader>

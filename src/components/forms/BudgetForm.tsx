@@ -12,10 +12,14 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { PopupSelector, SelectorOption } from '@/components/ui/popup-selector';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Switch } from '@/components/ui/switch';
+import { Textarea } from '@/components/ui/textarea';
 import { useCategories } from '@/hooks/useCategories';
 import { useCurrency } from '@/contexts/CurrencyContext';
-import { Budget } from '@/lib/types';
-import { Calendar, CalendarDays, CalendarRange, CalendarClock, Calendar as CalendarIcon, Loader2 } from 'lucide-react';
+import { Budget, BudgetTemplate } from '@/lib/types';
+import { Calendar, CalendarDays, CalendarRange, CalendarClock, Calendar as CalendarIcon, Loader2, RotateCcw } from 'lucide-react';
+import { BudgetTemplateSelector } from '@/components/budgets/BudgetTemplateSelector';
+import { toast } from 'sonner';
 
 const budgetSchema = z.object({
   category: z.string().min(1, 'Category is required'),
@@ -23,6 +27,8 @@ const budgetSchema = z.object({
   period: z.enum(['weekly', 'biweekly', 'monthly', 'quarterly', 'yearly', 'custom']),
   startDate: z.string().optional(),
   endDate: z.string().optional(),
+  rolloverEnabled: z.boolean().optional(),
+  notes: z.string().optional(),
 }).refine((data) => {
   if (data.period === 'custom') {
     // Require both dates for custom period
@@ -130,6 +136,8 @@ export function BudgetForm({ budget, onSubmit, onCancel }: BudgetFormProps) {
   const { categories, loading } = useCategories();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [selectedTemplate, setSelectedTemplate] = useState<BudgetTemplate | undefined>(undefined);
+  const [useTemplate, setUseTemplate] = useState(false);
   const form = useForm<BudgetFormData>({
     resolver: zodResolver(budgetSchema),
     defaultValues: {
@@ -138,6 +146,8 @@ export function BudgetForm({ budget, onSubmit, onCancel }: BudgetFormProps) {
       period: budget?.period || 'monthly',
       startDate: budget?.startDate || '',
       endDate: budget?.endDate || '',
+      rolloverEnabled: budget?.rolloverEnabled || false,
+      notes: budget?.notes || '',
     },
   });
 
@@ -154,9 +164,37 @@ export function BudgetForm({ budget, onSubmit, onCancel }: BudgetFormProps) {
         period: budget.period,
         startDate: budget.startDate || '',
         endDate: budget.endDate || '',
+        rolloverEnabled: budget.rolloverEnabled || false,
+        notes: budget.notes || '',
       });
     }
   }, [budget, form]);
+
+  // Handle template selection
+  const handleTemplateSelect = (template: BudgetTemplate) => {
+    setSelectedTemplate(template);
+    setUseTemplate(true);
+    form.setValue('period', template.period);
+    
+    // If template has allocations, set the total budget amount
+    if (template.totalBudget > 0) {
+      form.setValue('amount', template.totalBudget);
+    }
+
+    // Try to find and set the first allocation's category by name
+    if (template.allocations.length > 0) {
+      const firstAllocation = template.allocations[0];
+      const matchingCategory = expenseCategories.find(
+        cat => cat.name.toLowerCase() === firstAllocation.categoryName.toLowerCase()
+      );
+      if (matchingCategory) {
+        form.setValue('category', matchingCategory.id);
+        // Set the amount for this specific allocation
+        const allocationAmount = (template.totalBudget * firstAllocation.percentage) / 100;
+        form.setValue('amount', allocationAmount);
+      }
+    }
+  };
 
   // Debug: Watch for period changes
   useEffect(() => {
@@ -285,11 +323,130 @@ export function BudgetForm({ budget, onSubmit, onCancel }: BudgetFormProps) {
   }
 
   return (
-    <Card className="w-full max-w-md">
+    <Card className="w-full">
       <CardHeader>
         <CardTitle>{budget ? 'Edit Budget' : 'Create Budget'}</CardTitle>
+        {!budget && (
+          <p className="text-sm text-muted-foreground">
+            Start with a template for quick setup or create a custom budget
+          </p>
+        )}
       </CardHeader>
-      <CardContent>
+      <CardContent className="space-y-6">
+        {!budget && (
+          <>
+            {/* Quick Start Templates Section */}
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-lg font-semibold">
+                    Quick Start Templates
+                  </h3>
+                  <p className="text-sm text-muted-foreground">
+                    Choose a pre-configured template to get started quickly
+                  </p>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setSelectedTemplate(undefined);
+                    setUseTemplate(false);
+                  }}
+                >
+                  Skip to Manual
+                </Button>
+              </div>
+              
+              <BudgetTemplateSelector
+                onSelect={handleTemplateSelect}
+                selectedTemplate={selectedTemplate}
+              />
+              
+              {/* Show selected template details */}
+              {selectedTemplate && (
+                <div className="mt-4 p-4 bg-muted/50 rounded-lg border">
+                  <div className="flex items-center justify-between mb-3">
+                    <div>
+                      <h4 className="font-semibold">{selectedTemplate.name}</h4>
+                      <p className="text-sm text-muted-foreground">{selectedTemplate.description}</p>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setSelectedTemplate(undefined);
+                          setUseTemplate(false);
+                          form.setValue('amount', 0);
+                        }}
+                      >
+                        Clear
+                      </Button>
+                      {selectedTemplate.allocations.length > 0 && (
+                        <Button
+                          size="sm"
+                          onClick={() => {
+                            // Apply template by setting the first allocation
+                            const firstAllocation = selectedTemplate.allocations[0];
+                            const matchingCategory = expenseCategories.find(
+                              cat => cat.name.toLowerCase() === firstAllocation.categoryName.toLowerCase()
+                            );
+                            if (matchingCategory) {
+                              form.setValue('category', matchingCategory.id);
+                              const allocationAmount = (selectedTemplate.totalBudget * firstAllocation.percentage) / 100;
+                              form.setValue('amount', allocationAmount);
+                              toast.success(`Applied ${firstAllocation.categoryName} allocation from template`);
+                            } else {
+                              toast.error(`Category "${firstAllocation.categoryName}" not found. Please create it first.`);
+                            }
+                          }}
+                        >
+                          Apply First Allocation
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                  
+                  {selectedTemplate.allocations.length > 0 && (
+                    <div className="space-y-2">
+                      <p className="text-sm font-medium">Template Allocations:</p>
+                      <div className="grid gap-2">
+                        {selectedTemplate.allocations.map((allocation, idx) => (
+                          <div key={idx} className="flex items-center justify-between text-sm p-2 bg-background rounded">
+                            <div>
+                              <span className="font-medium">{allocation.categoryName}</span>
+                              <span className="text-muted-foreground ml-2">- {allocation.description}</span>
+                            </div>
+                            <span className="font-semibold text-primary">
+                              {allocation.percentage}% (${Math.round(selectedTemplate.totalBudget * allocation.percentage / 100).toLocaleString()})
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-2">
+                        Total Budget: ${selectedTemplate.totalBudget.toLocaleString()} per {selectedTemplate.period}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-background px-2 text-muted-foreground">
+                  Or create custom budget
+                </span>
+              </div>
+            </div>
+          </>
+        )}
+
+        {/* Manual Form */}
         <Form {...form}>
           <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
             {submitError && (
@@ -460,6 +617,48 @@ export function BudgetForm({ budget, onSubmit, onCancel }: BudgetFormProps) {
                 />
               </div>
             )}
+
+            {/* Rollover Option */}
+            <FormField
+              control={form.control}
+              name="rolloverEnabled"
+              render={({ field }) => (
+                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                  <div className="space-y-0.5">
+                    <FormLabel className="text-base">Enable Rollover</FormLabel>
+                    <p className="text-sm text-muted-foreground">
+                      Roll over unused budget to the next period
+                    </p>
+                  </div>
+                  <FormControl>
+                    <Switch
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
+                    />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
+
+            {/* Notes Field */}
+            <FormField
+              control={form.control}
+              name="notes"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel htmlFor="budget-notes">Notes (Optional)</FormLabel>
+                  <FormControl>
+                    <Textarea
+                      id="budget-notes"
+                      placeholder="Add any notes about this budget..."
+                      className="resize-none"
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
             <div className="flex gap-2 pt-4">
               <Button

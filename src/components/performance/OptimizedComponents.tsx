@@ -20,6 +20,7 @@ interface NavigationItemProps {
   isCollapsed?: boolean;
   showIcons?: boolean;
   onClick?: () => void;
+  loading?: boolean;
 }
 
 export const NavigationItem = memo(function NavigationItem({
@@ -34,8 +35,17 @@ export const NavigationItem = memo(function NavigationItem({
   isCollapsed = false,
   showIcons = true,
   onClick,
+  loading = false,
 }: NavigationItemProps) {
   const { resolvedTheme } = useTheme();
+  
+  // Check for reduced motion preference
+  const prefersReducedMotion = useMemo(() => {
+    if (typeof window !== 'undefined') {
+      return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    }
+    return false;
+  }, []);
   
   const handleClick = useCallback((e: React.MouseEvent) => {
     // If onClick is provided, call it (for custom handling)
@@ -45,6 +55,29 @@ export const NavigationItem = memo(function NavigationItem({
     }
     // Otherwise, let the Link handle the navigation
   }, [onClick]);
+
+  // Loading skeleton state
+  if (loading) {
+    return (
+      <div 
+        className={cn(
+          'w-full h-10 sm:h-9 px-2 sm:px-3 flex items-center',
+          'animate-pulse'
+        )}
+        role="status"
+        aria-label={`Loading ${name}`}
+      >
+        <div className={cn(
+          "h-4 w-4 rounded mr-2 sm:mr-3",
+          resolvedTheme === 'dark' ? "bg-gray-700" : "bg-gray-200"
+        )} aria-hidden="true" />
+        <div className={cn(
+          "h-4 w-24 rounded",
+          resolvedTheme === 'dark' ? "bg-gray-700" : "bg-gray-200"
+        )} aria-hidden="true" />
+      </div>
+    );
+  }
 
   return (
     <Button
@@ -64,25 +97,36 @@ export const NavigationItem = memo(function NavigationItem({
       variant={isActive ? 'default' : 'ghost'}
       className={cn(
         'w-full justify-start relative transition-all duration-300 ease-out',
-        'active:scale-[0.98]',
+        !prefersReducedMotion && 'active:scale-[0.98]',
+        !prefersReducedMotion && 'hover:translate-x-1',
+        'hover:bg-primary/5',
+        'focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2',
+        'focus-visible:outline-none',
         isActive && 'bg-primary text-primary-foreground',
         'h-10 sm:h-9 px-2 sm:px-3',
-        isCollapsed && 'h-auto py-2 sm:h-10 sm:py-1'
+        isCollapsed && 'h-auto py-2 sm:h-10 sm:py-1',
+        // Active state left border highlight
+        isActive && 'border-l-4 border-l-primary-foreground/50'
       )}
       onClick={handleClick}
       title={isCollapsed ? `${name}: ${description}` : description}
+      aria-label={name}
+      aria-current={isActive ? 'page' : undefined}
       asChild
     >
-      <Link href={href} className="flex items-center w-full">
-      <div className="relative">
+      <Link href={href} className="flex items-center w-full group focus-visible:outline-none">
+      <div className="relative" aria-hidden="true">
         {showIcons && Icon ? (
           <div className="relative">
             <Icon
               className={cn(
                 'h-4 w-4 sm:h-4 sm:w-4 transition-all duration-300 ease-out',
                 'flex-shrink-0',
-                !isCollapsed && 'mr-2 sm:mr-3'
+                !isCollapsed && 'mr-2 sm:mr-3',
+                // Icon animation on hover (disabled for reduced motion)
+                !prefersReducedMotion && 'group-hover:scale-110 group-hover:rotate-3'
               )}
+              aria-hidden="true"
             />
             {isCollapsed && badge && (
               <Badge
@@ -91,6 +135,7 @@ export const NavigationItem = memo(function NavigationItem({
                   'absolute -top-1 -right-1 h-3 w-3 text-[10px] font-bold p-0',
                   'transition-all duration-200'
                 )}
+                aria-label={`${badge} notifications`}
               >
                 {badge === '!'
                   ? '!'
@@ -106,7 +151,7 @@ export const NavigationItem = memo(function NavigationItem({
           <div className={cn(
             "h-4 w-4 mr-3 rounded",
             resolvedTheme === 'dark' ? "bg-gray-600" : "bg-gray-300"
-          )}>
+          )} aria-hidden="true">
             <div className="w-2 h-2 bg-current rounded-full" />
           </div>
         ) : null}
@@ -115,7 +160,9 @@ export const NavigationItem = memo(function NavigationItem({
         <span className={cn(
           'font-medium transition-all duration-200 ease-out',
           isCollapsed ? 'text-xs opacity-80 sm:text-xs' : 'text-sm',
-          'truncate' // Prevent text overflow on mobile
+          'truncate', // Prevent text overflow on mobile
+          // Text animation on hover (disabled for reduced motion)
+          !prefersReducedMotion && 'group-hover:translate-x-1'
         )}>
           {name}
         </span>
@@ -126,6 +173,7 @@ export const NavigationItem = memo(function NavigationItem({
               'ml-2 transition-all duration-200',
               'group-hover:scale-105'
             )}
+            aria-label={`${badge} notifications`}
           >
             {badge}
           </Badge>

@@ -28,6 +28,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatDate } from '@/lib/utils';
+import { FavoriteButton } from '@/components/layout/FavoriteButton';
 
 export default function RecycleBinPage() {
   const { resolvedTheme } = useTheme();
@@ -157,16 +158,19 @@ export default function RecycleBinPage() {
             Restore or permanently delete your deleted items
           </p>
         </div>
-        {items.length > 0 && (
-          <Button
-            variant="destructive"
-            onClick={() => setEmptyDialogOpen(true)}
-            className="flex items-center gap-2"
-          >
-            <Trash2 className="h-4 w-4" />
-            Empty Recycle Bin
-          </Button>
-        )}
+        <div className="flex items-center gap-2">
+          <FavoriteButton size="sm" variant="outline" showLabel={false} />
+          {items.length > 0 && (
+            <Button
+              variant="destructive"
+              onClick={() => setEmptyDialogOpen(true)}
+              className="flex items-center gap-2"
+            >
+              <Trash2 className="h-4 w-4" />
+              Empty Recycle Bin
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Stats Cards */}

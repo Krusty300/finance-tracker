@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
-import { Transaction } from '@/lib/types';
+import { useState, useMemo, useEffect, useCallback, memo } from 'react';
+import { Transaction, TransactionAttachment } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
@@ -18,7 +18,8 @@ import {
   ArrowDownRight,
   ArrowUpDown,
   Copy,
-  FileDown
+  FileDown,
+  GripVertical
 } from 'lucide-react';
 import { useCurrency } from '@/contexts/CurrencyContext';
 import { useFormatting } from '@/contexts/FormattingContext';
@@ -26,6 +27,11 @@ import { useTheme } from '@/contexts/ThemeContext';
 import { useCategories } from '@/hooks/useCategories';
 import { useAccounts } from '@/hooks/useAccounts';
 import { DuplicateTransactionDialog } from '@/components/dialogs/DuplicateTransactionDialog';
+import { TransactionNotes } from '@/components/transactions/TransactionNotes';
+import { TransactionAttachments } from '@/components/transactions/TransactionAttachments';
+import { TransactionQuickActions, useTransactionQuickActions } from '@/components/transactions/TransactionQuickActions';
+import { InlineTransactionEdit } from '@/components/transactions/InlineTransactionEdit';
+import { cn } from '@/lib/utils';
 
 interface EnhancedTransactionTableProps {
   transactions: Transaction[];
@@ -39,10 +45,208 @@ interface EnhancedTransactionTableProps {
   onSelectionChange?: (ids: string[]) => void;
   onBulkCategoryChange?: () => void;
   onBulkDateEdit?: () => void;
+  onUpdateTransaction?: (id: string, updates: Partial<Transaction>) => void;
+  onReorderTransactions?: (fromIndex: number, toIndex: number) => void;
+  enableDragDrop?: boolean;
 }
 
 type SortField = 'date' | 'description' | 'category' | 'amount' | 'account';
 type SortDirection = 'asc' | 'desc';
+
+interface TransactionRowProps {
+  transaction: Transaction;
+  index: number;
+  category: any;
+  account: any;
+  isIncome: boolean;
+  isSelected: boolean;
+  isEditing: boolean;
+  enableDragDrop: boolean;
+  draggedItemId: string | null;
+  categories: any[];
+  accounts: any[];
+  onEdit?: (transaction: Transaction) => void;
+  onDelete?: (id: string) => void;
+  onSelectOne: (id: string, checked: boolean) => void;
+  onDoubleClick: (id: string) => void;
+  onContextMenu: (id: string, e: React.MouseEvent) => void;
+  onNotesUpdate: (transactionId: string, notes: string) => void;
+  onAttachmentAdd: (transactionId: string, attachment: Omit<TransactionAttachment, 'id' | 'createdAt'>) => void;
+  onAttachmentRemove: (transactionId: string, attachmentId: string) => void;
+  onInlineEditSave: (transactionId: string, updates: Partial<Transaction>) => void;
+  onInlineEditCancel: () => void;
+  onDragStart: (id: string, index: number) => void;
+  onDragOver: (id: string, index: number) => void;
+  onDragDropReorder: (draggedId: string, toIndex: number) => void;
+  onDragEnd: () => void;
+  onDuplicate: (transaction: Transaction) => void;
+}
+
+const TransactionRow = memo(function TransactionRow({
+  transaction,
+  index,
+  category,
+  account,
+  isIncome,
+  isSelected,
+  isEditing,
+  enableDragDrop,
+  draggedItemId,
+  categories,
+  accounts,
+  onEdit,
+  onDelete,
+  onSelectOne,
+  onDoubleClick,
+  onContextMenu,
+  onNotesUpdate,
+  onAttachmentAdd,
+  onAttachmentRemove,
+  onInlineEditSave,
+  onInlineEditCancel,
+  onDragStart,
+  onDragOver,
+  onDragDropReorder,
+  onDragEnd,
+  onDuplicate
+}: TransactionRowProps) {
+  const { formatCurrency } = useCurrency();
+  const { formatDate } = useFormatting();
+
+  if (isEditing) {
+    return (
+      <TableRow key={transaction.id} className={isSelected ? 'bg-muted/50' : ''}>
+        <TableCell colSpan={7}>
+          <InlineTransactionEdit
+            transaction={transaction}
+            categories={categories}
+            accounts={accounts}
+            onSave={(updates) => onInlineEditSave(transaction.id, updates)}
+            onCancel={onInlineEditCancel}
+          />
+        </TableCell>
+      </TableRow>
+    );
+  }
+
+  return (
+    <TableRow 
+      key={transaction.id}
+      className={isSelected ? 'bg-muted/50' : ''}
+      onContextMenu={(e) => onContextMenu(transaction.id, e)}
+      onDoubleClick={() => onDoubleClick(transaction.id)}
+      draggable={enableDragDrop}
+      onDragStart={(e) => {
+        if (!enableDragDrop) return;
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('transactionId', transaction.id);
+        e.dataTransfer.setData('index', index.toString());
+        onDragStart(transaction.id, index);
+      }}
+      onDragOver={(e) => {
+        if (!enableDragDrop) return;
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        onDragOver(transaction.id, index);
+      }}
+      onDrop={(e) => {
+        if (!enableDragDrop) return;
+        e.preventDefault();
+        const draggedTransactionId = e.dataTransfer.getData('transactionId');
+        onDragDropReorder(draggedTransactionId, index);
+        onDragEnd();
+      }}
+      onDragEnd={() => {
+        if (!enableDragDrop) return;
+        onDragEnd();
+      }}
+      style={enableDragDrop && draggedItemId === transaction.id ? { opacity: 0.5, transform: 'scale(0.95)' } : {}}
+    >
+      <TableCell>
+        <Checkbox
+          checked={isSelected}
+          onCheckedChange={(checked) => onSelectOne(transaction.id, !!checked)}
+        />
+      </TableCell>
+      <TableCell className="font-medium">
+        {formatDate(transaction.date)}
+      </TableCell>
+      <TableCell className="max-w-[300px]">
+        <div className="flex items-center gap-2">
+          <span className="truncate flex-1">{transaction.description}</span>
+          <div className="flex gap-1 flex-shrink-0">
+            <TransactionNotes
+              notes={transaction.notes}
+              onSave={(notes) => onNotesUpdate(transaction.id, notes)}
+            />
+            <TransactionAttachments
+              attachments={transaction.attachments}
+              onAdd={(attachment) => onAttachmentAdd(transaction.id, attachment)}
+              onRemove={(attachmentId) => onAttachmentRemove(transaction.id, attachmentId)}
+            />
+          </div>
+        </div>
+      </TableCell>
+      <TableCell>
+        {category && (
+          <Badge variant="secondary" style={{ backgroundColor: category.color + '20', color: category.color }}>
+            {category.name}
+          </Badge>
+        )}
+      </TableCell>
+      <TableCell className="text-muted-foreground">
+        {account?.name || '-'}
+      </TableCell>
+      <TableCell className={`text-right font-medium ${isIncome ? 'text-success' : 'text-destructive'}`}>
+        <div className="flex items-center justify-end">
+          {isIncome ? (
+            <ArrowUpRight className="mr-1 h-4 w-4 text-success" />
+          ) : (
+            <ArrowDownRight className="mr-1 h-4 w-4 text-destructive" />
+          )}
+          {formatCurrency(transaction.amount)}
+        </div>
+      </TableCell>
+      <TableCell>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" className="h-8 w-8 p-0">
+              <MoreHorizontal className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            {onEdit && (
+              <DropdownMenuItem key="edit" onClick={() => onEdit(transaction)}>
+                <Edit className="mr-2 h-4 w-4" />
+                Edit
+              </DropdownMenuItem>
+            )}
+            <DropdownMenuItem key="duplicate" onClick={() => onDuplicate(transaction)}>
+              <Copy className="mr-2 h-4 w-4" />
+              Duplicate
+            </DropdownMenuItem>
+            {onDelete && (
+              <DropdownMenuItem 
+                key="delete"
+                onClick={() => {
+                  if (!transaction) {
+                    console.error('Attempted to delete invalid transaction');
+                    return;
+                  }
+                  onDelete(transaction.id);
+                }}
+                className="text-destructive"
+              >
+                <Trash2 className="mr-2 h-4 w-4" />
+                Delete
+              </DropdownMenuItem>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </TableCell>
+    </TableRow>
+  );
+});
 
 export function EnhancedTransactionTable({ 
   transactions,
@@ -55,7 +259,10 @@ export function EnhancedTransactionTable({
   onExportDialog, 
   onSelectionChange,
   onBulkCategoryChange,
-  onBulkDateEdit
+  onBulkDateEdit,
+  onUpdateTransaction,
+  onReorderTransactions,
+  enableDragDrop: propEnableDragDrop = false
 }: EnhancedTransactionTableProps) {
   const { formatCurrency } = useCurrency();
   const { formatDate } = useFormatting();
@@ -68,6 +275,23 @@ export function EnhancedTransactionTable({
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
   const [duplicateDialogOpen, setDuplicateDialogOpen] = useState(false);
   const [transactionToDuplicate, setTransactionToDuplicate] = useState<Transaction | null>(null);
+  const [editingTransactionId, setEditingTransactionId] = useState<string | null>(null);
+  const [enableDragDrop, setEnableDragDrop] = useState(propEnableDragDrop);
+  const [draggedItemId, setDraggedItemId] = useState<string | null>(null);
+
+  // Update enableDragDrop when prop changes
+  useEffect(() => {
+    setEnableDragDrop(propEnableDragDrop);
+  }, [propEnableDragDrop]);
+
+  // Quick actions menu
+  const {
+    menuOpen,
+    menuPosition,
+    selectedTransactionId: quickActionTransactionId,
+    openMenu,
+    closeMenu
+  } = useTransactionQuickActions();
 
   const getCategoryInfo = (categoryId: string) => {
     return categories.find(cat => cat.id === categoryId);
@@ -103,7 +327,99 @@ export function EnhancedTransactionTable({
     } else {
       setSelectedIds(prev => prev.filter(selectedId => selectedId !== id));
     }
+    onSelectionChange?.(selectedIds);
   };
+
+  // Handle notes update
+  const handleNotesUpdate = useCallback((transactionId: string, notes: string) => {
+    onUpdateTransaction?.(transactionId, { notes });
+  }, [onUpdateTransaction]);
+
+  // Handle attachments update
+  const handleAttachmentAdd = useCallback((transactionId: string, attachment: Omit<TransactionAttachment, 'id' | 'createdAt'>) => {
+    const transaction = transactions.find(t => t.id === transactionId);
+    if (!transaction) return;
+    
+    const newAttachment: TransactionAttachment = {
+      ...attachment,
+      id: `attachment-${Date.now()}`,
+      createdAt: new Date().toISOString()
+    };
+    
+    const updatedAttachments = [...(transaction.attachments || []), newAttachment];
+    onUpdateTransaction?.(transactionId, { attachments: updatedAttachments });
+  }, [transactions, onUpdateTransaction]);
+
+  const handleAttachmentRemove = useCallback((transactionId: string, attachmentId: string) => {
+    const transaction = transactions.find(t => t.id === transactionId);
+    if (!transaction) return;
+    
+    const updatedAttachments = (transaction.attachments || []).filter(a => a.id !== attachmentId);
+    onUpdateTransaction?.(transactionId, { attachments: updatedAttachments });
+  }, [transactions, onUpdateTransaction]);
+
+  // Handle inline edit save
+  const handleInlineEditSave = useCallback((transactionId: string, updates: Partial<Transaction>) => {
+    onUpdateTransaction?.(transactionId, updates);
+    setEditingTransactionId(null);
+  }, [onUpdateTransaction]);
+
+  // Handle drag and drop reorder
+  const handleDragDropReorder = useCallback((draggedId: string, toIndex: number) => {
+    // Find the from index from the current transactions
+    const fromIndex = transactions.findIndex(t => t.id === draggedId);
+    if (fromIndex === -1) return;
+    
+    onReorderTransactions?.(fromIndex, toIndex);
+  }, [transactions, onReorderTransactions]);
+
+  const handleDragStart = useCallback((id: string, index: number) => {
+    setDraggedItemId(id);
+  }, []);
+
+  const handleDragOver = useCallback((id: string, index: number) => {
+    // Handle drag over if needed
+  }, []);
+
+  const handleDragEnd = useCallback(() => {
+    setDraggedItemId(null);
+  }, []);
+
+  // Quick actions for right-click menu
+  const getQuickActions = useCallback((transaction: Transaction) => {
+    const actions = [
+      {
+        id: 'edit',
+        label: 'Edit',
+        icon: Edit,
+        onClick: () => onEdit?.(transaction)
+      },
+      {
+        id: 'duplicate',
+        label: 'Duplicate',
+        icon: Copy,
+        onClick: () => {
+          setTransactionToDuplicate(transaction);
+          setDuplicateDialogOpen(true);
+        }
+      },
+      {
+        id: 'divider-1',
+        label: '',
+        icon: () => null,
+        onClick: () => {},
+        divider: true
+      },
+      {
+        id: 'delete',
+        label: 'Delete',
+        icon: Trash2,
+        onClick: () => onDelete?.(transaction.id)
+      }
+    ];
+
+    return actions;
+  }, [onEdit, onDelete]);
 
   const handleBulkDelete = () => {
     if (onBulkDelete && selectedIds.length > 0) {
@@ -190,7 +506,7 @@ export function EnhancedTransactionTable({
 
   if (transactions.length === 0) {
     return (
-      <Card>
+      <Card className="rounded-lg">
         <CardContent className="flex items-center justify-center h-64">
           <div className="text-center">
             <p className="text-muted-foreground">No transactions found</p>
@@ -214,11 +530,20 @@ export function EnhancedTransactionTable({
 
   return (
     <>
-      <Card>
+      <Card className="rounded-lg">
         <CardHeader>
           <div className="flex items-center justify-between">
             <CardTitle>Transactions</CardTitle>
             <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setEnableDragDrop(!enableDragDrop)}
+                className={cn(enableDragDrop && "bg-primary text-primary-foreground")}
+              >
+                <GripVertical className="h-4 w-4 mr-2" />
+                {enableDragDrop ? 'Reorder On' : 'Reorder'}
+              </Button>
               {selectedIds.length > 0 && (
                 <>
                   <Badge variant="secondary">
@@ -244,6 +569,9 @@ export function EnhancedTransactionTable({
           </div>
         </CardHeader>
         <CardContent>
+          <div className="text-xs text-muted-foreground mb-2">
+            Double-click a row to edit inline • Right-click for quick actions • Toggle Reorder to drag and drop
+          </div>
           <div className="rounded-md border">
             <Table>
               <TableHeader>
@@ -313,83 +641,46 @@ export function EnhancedTransactionTable({
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredTransactions.map((transaction) => {
+                {filteredTransactions.map((transaction, index) => {
                   const category = getCategoryInfo(transaction.category);
                   const account = getAccountInfo(transaction.account);
                   const isIncome = transaction.type === 'income';
                   const isSelected = selectedIds.includes(transaction.id);
+                  const isEditing = editingTransactionId === transaction.id;
 
                   return (
-                    <TableRow key={transaction.id} className={isSelected ? 'bg-muted/50' : ''}>
-                      <TableCell>
-                        <Checkbox
-                          checked={isSelected}
-                          onCheckedChange={(checked) => handleSelectOne(transaction.id, !!checked)}
-                        />
-                      </TableCell>
-                      <TableCell className="font-medium">
-                        {formatDate(transaction.date)}
-                      </TableCell>
-                      <TableCell className="max-w-[200px] truncate">
-                        {transaction.description}
-                      </TableCell>
-                      <TableCell>
-                        {category && (
-                          <Badge variant="secondary" style={{ backgroundColor: category.color + '20', color: category.color }}>
-                            {category.name}
-                          </Badge>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-muted-foreground">
-                        {account?.name || '-'}
-                      </TableCell>
-                      <TableCell className={`text-right font-medium ${isIncome ? 'text-success' : 'text-destructive'}`}>
-                        <div className="flex items-center justify-end">
-                          {isIncome ? (
-                            <ArrowUpRight className="mr-1 h-4 w-4 text-success" />
-                          ) : (
-                            <ArrowDownRight className="mr-1 h-4 w-4 text-destructive" />
-                          )}
-                          {formatCurrency(transaction.amount)}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" className="h-8 w-8 p-0">
-                              <MoreHorizontal className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            {onEdit && (
-                              <DropdownMenuItem onClick={() => onEdit(transaction)}>
-                                <Edit className="mr-2 h-4 w-4" />
-                                Edit
-                              </DropdownMenuItem>
-                            )}
-                            <DropdownMenuItem onClick={() => handleDuplicateTransaction(transaction)}>
-                              <Copy className="mr-2 h-4 w-4" />
-                              Duplicate
-                            </DropdownMenuItem>
-                            {onDelete && (
-                              <DropdownMenuItem 
-                                onClick={() => {
-                                  if (!transaction) {
-                                    console.error('Attempted to delete invalid transaction');
-                                    return;
-                                  }
-                                  onDelete(transaction.id);
-                                }}
-                                className="text-destructive"
-                              >
-                                <Trash2 className="mr-2 h-4 w-4" />
-                                Delete
-                              </DropdownMenuItem>
-                            )}
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </TableCell>
-                    </TableRow>
+                    <TransactionRow
+                      key={transaction.id}
+                      transaction={transaction}
+                      index={index}
+                      category={category}
+                      account={account}
+                      isIncome={isIncome}
+                      isSelected={isSelected}
+                      isEditing={isEditing}
+                      enableDragDrop={enableDragDrop}
+                      draggedItemId={draggedItemId}
+                      categories={categories}
+                      accounts={accounts}
+                      onEdit={onEdit}
+                      onDelete={onDelete}
+                      onSelectOne={handleSelectOne}
+                      onDoubleClick={setEditingTransactionId}
+                      onContextMenu={openMenu}
+                      onNotesUpdate={handleNotesUpdate}
+                      onAttachmentAdd={handleAttachmentAdd}
+                      onAttachmentRemove={handleAttachmentRemove}
+                      onInlineEditSave={handleInlineEditSave}
+                      onInlineEditCancel={() => setEditingTransactionId(null)}
+                      onDragStart={handleDragStart}
+                      onDragOver={handleDragOver}
+                      onDragDropReorder={handleDragDropReorder}
+                      onDragEnd={handleDragEnd}
+                      onDuplicate={(transaction) => {
+                        setTransactionToDuplicate(transaction);
+                        setDuplicateDialogOpen(true);
+                      }}
+                    />
                   );
                 })}
               </TableBody>
@@ -410,6 +701,15 @@ export function EnhancedTransactionTable({
         transaction={transactionToDuplicate}
         onSubmit={handleDuplicateSubmit}
       />
+
+      {/* Quick Actions Menu */}
+      {menuOpen && menuPosition && quickActionTransactionId && (
+        <TransactionQuickActions
+          actions={getQuickActions(transactions.find(t => t.id === quickActionTransactionId)!)}
+          position={menuPosition}
+          onClose={closeMenu}
+        />
+      )}
     </>
   );
 }

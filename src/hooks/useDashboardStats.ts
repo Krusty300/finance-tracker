@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { DashboardStats } from '@/lib/types';
 import { useTransactions } from './useTransactions';
 import { useCategories } from './useCategories';
@@ -7,10 +7,10 @@ import { useAccounts } from './useAccounts';
 import { useRealtime } from './useRealtime';
 import { useCurrency } from '@/contexts/CurrencyContext';
 import { useCurrencyConversion } from './useCurrencyConversion';
-import { getMonthStart, getMonthEnd } from '@/lib/utils';
+import { getMonthStart, getMonthEnd, parseDateWithTimezone } from '@/lib/utils';
 import { calculatePeriodSpending, getPeriodDisplayText } from '@/utils/period-aware-calculations';
 
-export function useDashboardStats() {
+export function useDashboardStats(recentTransactionsLimit: number = 10) {
   const { transactions } = useTransactions();
   const { categories } = useCategories();
   const { budgets } = useBudgets();
@@ -21,20 +21,33 @@ export function useDashboardStats() {
   
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
+  const isCalculatingRef = useRef(false);
+  const manualRefreshRef = useRef(false);
 
   const calculateStats = useCallback(() => {
+    // Prevent race conditions by checking if already calculating
+    if (isCalculatingRef.current) {
+      console.log('Dashboard stats: Calculation already in progress, skipping');
+      return;
+    }
+    
+    isCalculatingRef.current = true;
     setLoading(true);
     
     try {
       if (!transactions || !Array.isArray(transactions)) {
         console.warn('Invalid transactions data:', transactions);
         setStats(null);
+        isCalculatingRef.current = false;
+        setLoading(false);
         return;
       }
       
       if (!budgets || !Array.isArray(budgets)) {
         console.warn('Invalid budgets data:', budgets);
         setStats(null);
+        isCalculatingRef.current = false;
+        setLoading(false);
         return;
       }
 
@@ -42,10 +55,10 @@ export function useDashboardStats() {
       const monthStart = getMonthStart(now);
       const monthEnd = getMonthEnd(now);
       
-      // Filter transactions for current month with validation
+      // Filter transactions for current month with validation and timezone handling
       const currentMonthTransactions = transactions.filter(t => {
         if (!t || !t.date) return false;
-        const transactionDate = new Date(t.date);
+        const transactionDate = parseDateWithTimezone(t.date);
         if (isNaN(transactionDate.getTime())) return false;
         return transactionDate >= monthStart && transactionDate <= monthEnd;
       });
@@ -62,15 +75,23 @@ export function useDashboardStats() {
       // Calculate total balance from accounts
       const totalBalance = getTotalBalance() || 0;
 
-      // Calculate net worth (total balance)
-      const netWorth = totalBalance;
+      // Calculate net worth (assets - liabilities)
+      // Liabilities include credit accounts (negative balances)
+      const liabilities = accounts.reduce((total, account) => {
+        if (!account || typeof account.balance !== 'number') return total;
+        if (account.type === 'credit') {
+          return total + Math.abs(account.balance);
+        }
+        return total;
+      }, 0);
+      const netWorth = totalBalance - liabilities;
 
-      // Get recent transactions (last 10)
+      // Get recent transactions (configurable limit)
       const recentTransactions = transactions
         .filter(t => t && t.id && t.date) // Ensure transaction has required fields
         .filter(t => !t.deletedAt) // Exclude soft-deleted transactions
         .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-        .slice(0, 10);
+        .slice(0, recentTransactionsLimit);
 
       // Calculate additional stats for sidebar badges
       const transactionCount = transactions.filter(t => !t.deletedAt).length;
@@ -87,39 +108,32 @@ export function useDashboardStats() {
       const overdueTransactions = transactions.filter(t => 
         !t.deletedAt && 
         t.type === 'expense' && 
-        new Date(t.date) < new Date() // Overdue if date is in the past
+        parseDateWithTimezone(t.date) < new Date() // Overdue if date is in the past
       ).length;
       const activeGoals = 0; // Could be calculated from goals data
       const hasReports = currentMonthTransactions.length > 0;
 
       // Calculate category breakdown for expenses
-      const expensesByCategory = currentMonthTransactions
-        .filter(t => t.type === 'expense')
-        .reduce((acc, t) => {
-          const existing = acc.find(item => item.category === t.category);
-          if (existing) {
-            existing.amount += t.amount;
-          } else {
-            acc.push({
-              category: t.category,
-              amount: t.amount,
-              percentage: 0,
-            });
-          }
-          return acc;
-        }, [] as Array<{ category: string; amount: number; percentage: number }>);
+      // Use a Map to aggregate by category ID to prevent duplicates
+      const categoryMap = new Map<string, number>();
+      currentMonthTransactions
+        .filter(t => t.type === 'expense' && typeof t.amount === 'number' && !isNaN(t.amount))
+        .forEach(t => {
+          const current = categoryMap.get(t.category) || 0;
+          categoryMap.set(t.category, current + t.amount);
+        });
 
-      // Map category IDs to names
-      const categoryBreakdown = expensesByCategory.map(item => {
-        const category = categories.find(c => c.id === item.category);
+      // Map category IDs to names with deduplication
+      const categoryBreakdown = Array.from(categoryMap.entries()).map(([categoryId, amount]) => {
+        const category = categories.find(c => c.id === categoryId);
         return {
-          category: category ? category.name : item.category, // Fallback to original if category not found
-          amount: item.amount,
+          category: category?.name || categoryId, // Fallback to category ID if not found
+          amount,
           percentage: 0, // Will be calculated below
         };
       });
 
-      // Calculate percentages for category breakdown
+      // Calculate percentages for category breakdown with zero division protection
       const totalExpenses = categoryBreakdown.reduce((sum, item) => sum + (typeof item.amount === 'number' && !isNaN(item.amount) ? item.amount : 0), 0);
       categoryBreakdown.forEach(item => {
         const validAmount = typeof item.amount === 'number' && !isNaN(item.amount) ? item.amount : 0;
@@ -174,7 +188,8 @@ export function useDashboardStats() {
         const trendEnd = getMonthEnd(trendDate);
         
         const trendTransactions = transactions.filter(t => {
-          const transactionDate = new Date(t.date);
+          const transactionDate = parseDateWithTimezone(t.date);
+          if (isNaN(transactionDate.getTime())) return false;
           return transactionDate >= trendStart && transactionDate <= trendEnd;
         });
 
@@ -220,14 +235,20 @@ export function useDashboardStats() {
       setStats(null);
     } finally {
       setLoading(false);
+      isCalculatingRef.current = false;
     }
-  }, [transactions, getTotalBalance, budgets]);
+  }, [transactions, getTotalBalance, budgets, recentTransactionsLimit]);
 
   useEffect(() => {
     calculateStats();
 
     // Listen for storage changes to refresh stats in real-time
     const handleStorageChange = () => {
+      // Skip if manual refresh is in progress
+      if (manualRefreshRef.current) {
+        console.log('Dashboard stats: Skipping storage change during manual refresh');
+        return;
+      }
       // Small delay to ensure data is written
       setTimeout(calculateStats, 100);
     };
@@ -237,23 +258,48 @@ export function useDashboardStats() {
     // Listen for real-time events
     const unsubscribers = [
       subscribe('transaction', (event) => {
+        // Skip if manual refresh is in progress
+        if (manualRefreshRef.current) {
+          console.log('Dashboard stats: Skipping transaction event during manual refresh');
+          return;
+        }
         console.log('Dashboard stats: Transaction event received', event);
         setTimeout(calculateStats, 50);
       }),
       subscribe('budget', (event) => {
+        // Skip if manual refresh is in progress
+        if (manualRefreshRef.current) {
+          console.log('Dashboard stats: Skipping budget event during manual refresh');
+          return;
+        }
         console.log('Dashboard stats: Budget event received', event);
         // Use a longer delay for budget events to ensure database is updated
         setTimeout(calculateStats, 200);
       }),
       subscribe('account', (event) => {
+        // Skip if manual refresh is in progress
+        if (manualRefreshRef.current) {
+          console.log('Dashboard stats: Skipping account event during manual refresh');
+          return;
+        }
         console.log('Dashboard stats: Account event received', event);
         setTimeout(calculateStats, 50);
       }),
       subscribe('category', (event) => {
+        // Skip if manual refresh is in progress
+        if (manualRefreshRef.current) {
+          console.log('Dashboard stats: Skipping category event during manual refresh');
+          return;
+        }
         console.log('Dashboard stats: Category event received', event);
         setTimeout(calculateStats, 50);
       }),
       subscribe('notification', (event) => {
+        // Skip if manual refresh is in progress
+        if (manualRefreshRef.current) {
+          console.log('Dashboard stats: Skipping notification event during manual refresh');
+          return;
+        }
         console.log('Dashboard stats: Notification event received', event);
         // Also listen for notification events (like budget restores from recycle bin)
         setTimeout(calculateStats, 100);
@@ -275,9 +321,18 @@ export function useDashboardStats() {
     }
   }, [budgets, calculateStats]);
 
+  const refreshStats = useCallback(() => {
+    manualRefreshRef.current = true;
+    calculateStats();
+    // Reset flag after a short delay
+    setTimeout(() => {
+      manualRefreshRef.current = false;
+    }, 500);
+  }, [calculateStats]);
+
   return {
     stats,
     loading,
-    refreshStats: calculateStats,
+    refreshStats,
   };
 }

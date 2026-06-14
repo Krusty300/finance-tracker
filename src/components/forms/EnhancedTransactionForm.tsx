@@ -37,6 +37,13 @@ import {
 } from 'lucide-react';
 import { useCurrency } from '@/contexts/CurrencyContext';
 
+// Utility function to get today's date string in local timezone
+const getTodayDateString = (): string => {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0); // Set to midnight local time
+  return today.toISOString().split('T')[0];
+};
+
 interface EnhancedTransactionFormProps {
   onSubmit: (transaction: Omit<Transaction, 'id'>) => void;
   onSubmitRecurring?: (transaction: Omit<Transaction, 'id'>, recurringRule: RecurringTransactionRule) => void;
@@ -110,7 +117,7 @@ export function EnhancedTransactionForm({
         amount: initialData.amount?.toString() || '',
         type: initialData.type || 'expense',
         category: initialData.category || '',
-        date: initialData.date || new Date().toISOString().split('T')[0],
+        date: initialData.date || getTodayDateString(),
         description: initialData.description || '',
         account: initialData.account || '',
         tags: initialData.tags?.join(', ') || '',
@@ -338,17 +345,25 @@ export function EnhancedTransactionForm({
     
     const date = new Date(dateString);
     const now = new Date();
-    const oneYearFromNow = new Date(now.getFullYear() + 1, now.getMonth(), now.getDate());
     
     // Check if date is valid
     if (isNaN(date.getTime())) return false;
     
+    // Set both dates to midnight for fair comparison
+    const todayMidnight = new Date();
+    todayMidnight.setHours(0, 0, 0, 0);
+    const dateMidnight = new Date(date);
+    dateMidnight.setHours(0, 0, 0, 0);
+    
     // Check if date is not too far in the future (max 1 year)
-    if (date > oneYearFromNow) return false;
+    const oneYearFromNow = new Date(now.getFullYear() + 1, now.getMonth(), now.getDate());
+    oneYearFromNow.setHours(0, 0, 0, 0);
+    if (dateMidnight > oneYearFromNow) return false;
     
     // Check if date is not too far in the past (min 10 years)
     const tenYearsAgo = new Date(now.getFullYear() - 10, now.getMonth(), now.getDate());
-    if (date < tenYearsAgo) return false;
+    tenYearsAgo.setHours(0, 0, 0, 0);
+    if (dateMidnight < tenYearsAgo) return false;
     
     return true;
   };
@@ -415,7 +430,7 @@ export function EnhancedTransactionForm({
               value={formData.date}
               onChange={(e) => setFormData({ ...formData, date: e.target.value })}
               required
-              max={new Date().toISOString().split('T')[0]}
+              max={getTodayDateString()}
             />
             {!isValidDate && formData.date && (
               <p className="text-xs text-destructive">

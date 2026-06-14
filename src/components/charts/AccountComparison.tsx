@@ -244,7 +244,7 @@ export function AccountComparison({
   const topAccounts = getTopAccounts(selectedMetric);
 
   return (
-    <Card>
+    <Card className="rounded-xl">
       <CardHeader>
         <div className="flex items-center justify-between">
           <CardTitle className="flex items-center gap-2">

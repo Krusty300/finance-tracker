@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useMemo } from 'react';
+import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -18,6 +19,7 @@ interface RecentTransactionsProps {
 }
 
 export function RecentTransactions({ transactions }: RecentTransactionsProps) {
+  const router = useRouter();
   const { categories } = useCategories();
   const { accounts } = useAccounts();
   const { addTransaction } = useTransactions();
@@ -39,7 +41,7 @@ export function RecentTransactions({ transactions }: RecentTransactionsProps) {
 
   const handleAddTransaction = () => {
     // Navigate to transactions page or open add dialog
-    window.location.href = '/transactions?action=add';
+    router.push('/transactions?action=add');
   };
 
   const getCategoryInfo = (categoryId: string) => {
@@ -53,7 +55,7 @@ export function RecentTransactions({ transactions }: RecentTransactionsProps) {
 
   if (safeTransactions.length === 0) {
     return (
-      <Card className="rounded-none">
+      <Card className="rounded-lg">
         <CardHeader>
           <CardTitle>Recent Transactions</CardTitle>
         </CardHeader>
@@ -79,7 +81,7 @@ export function RecentTransactions({ transactions }: RecentTransactionsProps) {
   }
 
   return (
-    <Card>
+    <Card className="rounded-lg">
       <CardHeader>
         <CardTitle>Recent Transactions</CardTitle>
       </CardHeader>
@@ -91,7 +93,7 @@ export function RecentTransactions({ transactions }: RecentTransactionsProps) {
             const isIncome = transaction.type === 'income';
 
             return (
-              <div key={transaction.id} className="flex items-center justify-between">
+              <div key={transaction.id} className="flex items-center justify-between p-2 rounded-lg hover:bg-muted/50 transition-colors cursor-pointer">
                 <div className="flex items-center space-x-3">
                   <div className={`rounded-full p-2 ${isIncome ? 'bg-success/20' : 'bg-destructive/20'}`}>
                     {isIncome ? (
@@ -115,7 +117,7 @@ export function RecentTransactions({ transactions }: RecentTransactionsProps) {
                     </div>
                   </div>
                 </div>
-                <div className={`font-medium ${isIncome ? 'text-success' : 'text-destructive'}`}>
+                <div className={`font-bold text-lg tabular-nums ${isIncome ? 'text-success' : 'text-destructive'}`}>
                   {isIncome ? '+' : '-'}{formatCurrency(transaction.amount)}
                 </div>
               </div>

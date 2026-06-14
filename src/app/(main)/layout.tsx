@@ -12,6 +12,7 @@ import { OnboardingTour, OnboardingTrigger, OnboardingNotifications, OnboardingH
 import { Button } from '@/components/ui/button';
 import { QuickAddModal } from '@/components/forms/QuickAddModal';
 import { KeyboardShortcutsHelp } from '@/components/help/KeyboardShortcutsHelp';
+import { QuickAddProvider, useQuickAdd } from '@/contexts/QuickAddContext';
 import { Menu, Eye, EyeOff, ChevronRight, Search, Plus, HelpCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -20,8 +21,21 @@ import { AppErrorBoundary } from '@/components/error/AppErrorBoundary';
 import { PageLoader, PageSkeleton } from '@/components/loading/PageLoader';
 import { useDataLoader } from '@/hooks/useDataLoader';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
+import { PageTransitionWrapper } from '@/components/ui/PageTransitionWrapper';
 
 export default function MainLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <QuickAddProvider>
+      <MainLayoutContent children={children} />
+    </QuickAddProvider>
+  );
+}
+
+function MainLayoutContent({
   children,
 }: {
   children: React.ReactNode;
@@ -31,9 +45,9 @@ export default function MainLayout({
   const [showSidebarIcons, setShowSidebarIcons] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
-  const [isQuickAddOpen, setIsQuickAddOpen] = useState(false);
   const [isKeyboardHelpOpen, setIsKeyboardHelpOpen] = useState(false);
   const { resolvedTheme } = useTheme();
+  const { isOpen: isQuickAddOpen, openQuickAdd, closeQuickAdd } = useQuickAdd();
   const [isPageLoading, setIsPageLoading] = useState(false);
   
   // Initialize data loading system
@@ -41,7 +55,7 @@ export default function MainLayout({
 
   // Initialize keyboard shortcuts
   useKeyboardShortcuts({
-    onQuickAdd: () => setIsQuickAddOpen(true),
+    onQuickAdd: openQuickAdd,
     onSearchFocus: () => {
       if ((window as any).openGlobalSearch) {
         (window as any).openGlobalSearch();
@@ -55,7 +69,7 @@ export default function MainLayout({
     onClose: () => {
       // Close quick add modal if open
       if (isQuickAddOpen) {
-        setIsQuickAddOpen(false);
+        closeQuickAdd();
       }
     }
   });
@@ -283,7 +297,7 @@ export default function MainLayout({
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => setIsQuickAddOpen(true)}
+                  onClick={openQuickAdd}
                   className="relative"
                   aria-label="Quick Add Transaction (Ctrl+Q)"
                 >
@@ -352,7 +366,9 @@ export default function MainLayout({
               />
               
               <div className="container mx-auto px-3 sm:px-4 md:px-6 py-4 sm:py-6">
-                {children}
+                <PageTransitionWrapper>
+                  {children}
+                </PageTransitionWrapper>
               </div>
             </Suspense>
           </AppErrorBoundary>
@@ -372,7 +388,7 @@ export default function MainLayout({
         {/* Quick Add Modal */}
         <QuickAddModal 
           open={isQuickAddOpen} 
-          onOpenChange={setIsQuickAddOpen} 
+          onOpenChange={(open) => open ? openQuickAdd() : closeQuickAdd()} 
         />
         
         {/* Keyboard Shortcuts Help Modal */}

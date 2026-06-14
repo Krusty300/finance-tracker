@@ -1,6 +1,7 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Budget } from '@/lib/types';
 import { db } from '@/lib/db';
+import { calculatePeriodSpending } from '@/utils/period-aware-calculations';
 
 // Retry configuration
 const MAX_RETRIES = 3;
@@ -44,10 +45,39 @@ async function retryOperation<T>(
   throw new Error(`${operationName} failed after ${maxRetries} attempts: ${errorMessage}`);
 }
 
+// Helper function to calculate rollover amount for a budget
+async function calculateRolloverAmount(budget: Budget): Promise<number> {
+  try {
+    const transactions = await db.getTransactions();
+    // Guard against undefined transactions
+    if (!transactions || !Array.isArray(transactions)) {
+      return 0;
+    }
+    const spent = calculatePeriodSpending(budget, transactions);
+    const remaining = budget.amount - spent;
+    
+    // Only rollover if enabled and there's a positive remaining amount
+    if (budget.rolloverEnabled && remaining > 0) {
+      return remaining;
+    }
+    
+    return 0;
+  } catch (error) {
+    console.error('Error calculating rollover amount:', error);
+    return 0;
+  }
+}
+
 export function useBudgetSync() {
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const [loading, setLoading] = useState(true);
   const [lastUpdate, setLastUpdate] = useState<number>(0);
+  const lastUpdateRef = useRef(lastUpdate);
+
+  // Keep ref in sync with state
+  useEffect(() => {
+    lastUpdateRef.current = lastUpdate;
+  }, [lastUpdate]);
 
   // Load initial budgets
   const loadBudgets = useCallback(async () => {
@@ -59,7 +89,17 @@ export function useBudgetSync() {
       }, 'Load budgets');
       // Validate the data is an array of budgets
       if (Array.isArray(data)) {
-        setBudgets(data);
+        // Calculate rollover amounts for budgets with rollover enabled
+        const budgetsWithRollover = await Promise.all(
+          data.map(async (budget) => {
+            if (budget.rolloverEnabled) {
+              const rolloverAmount = await calculateRolloverAmount(budget);
+              return { ...budget, rolloverAmount };
+            }
+            return budget;
+          })
+        );
+        setBudgets(budgetsWithRollover);
       } else {
         console.warn('Invalid data format from getBudgets:', data);
         setBudgets([]);
@@ -111,8 +151,20 @@ export function useBudgetSync() {
       }, 'Update budget');
       if (updated) {
         console.log('useBudgetSync: Budget updated successfully:', updated);
+        
+        // Calculate rollover amount if rollover is enabled
+        let rolloverAmount = updated.rolloverAmount || 0;
+        if (updated.rolloverEnabled) {
+          rolloverAmount = await calculateRolloverAmount(updated);
+          // Update the budget with the calculated rollover amount
+          const updatedWithRollover = await db.updateBudget(id, { rolloverAmount });
+          if (updatedWithRollover) {
+            updated.rolloverAmount = rolloverAmount;
+          }
+        }
+        
         setBudgets(prev => {
-          const newBudgets = prev.map(b => b.id === id ? { ...b, ...updates } : b);
+          const newBudgets = prev.map(b => b.id === id ? { ...b, ...updates, rolloverAmount } : b);
           console.log('useBudgetSync: Budgets state updated:', {
             previousCount: prev.length,
             newCount: newBudgets.length,
@@ -175,8 +227,8 @@ export function useBudgetSync() {
         try {
           const event = JSON.parse(e.newValue);
           
-          // Only process if from a different tab (check timestamp)
-          if (event.timestamp > lastUpdate) {
+          // Only process if from a different tab (check timestamp using ref)
+          if (event.timestamp > lastUpdateRef.current) {
             switch (event.type) {
               case 'create':
                 setBudgets(prev => [...prev, event.data]);
@@ -204,7 +256,7 @@ export function useBudgetSync() {
     return () => {
       window.removeEventListener('storage', handleStorageChange);
     };
-  }, [lastUpdate]);
+  }, []); // No dependencies needed since we use ref
 
   // Initial load
   useEffect(() => {

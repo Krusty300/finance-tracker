@@ -7,9 +7,14 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Progress } from '@/components/ui/progress';
 import { useDashboardStats } from '@/hooks/useDashboardStats';
 import { useTransactions } from '@/hooks/useTransactions';
 import { useRealtime } from '@/hooks/useRealtime';
+import { useReportExport } from '@/hooks/useReportExport';
+import { useGoalActions } from '@/hooks/useGoalActions';
+import { useExportDialog } from '@/hooks/useExportDialog';
+import { useGoals } from '@/hooks/useGoals';
 import { MonthlyTrendsReport } from '@/components/reports/MonthlyTrendsReport';
 import { CategoryBreakdownReport } from '@/components/reports/CategoryBreakdownReport';
 import { FinancialSummaryReport } from '@/components/reports/FinancialSummaryReport';
@@ -21,9 +26,7 @@ import { GoalProgressChart } from '@/components/charts/GoalProgressChart';
 import { ReportErrorBoundary, ReportErrorFallback } from '@/components/error/ReportErrorBoundary';
 import { GoalDialog } from '@/components/dialogs/GoalDialog';
 import { DeleteConfirmDialog } from '@/components/dialogs/DeleteConfirmDialog';
-import { ReportExporter, ExportOptions } from '@/lib/exportUtils';
-import { useGoals } from '@/hooks/useGoals';
-import { FinancialGoal } from '@/lib/types';
+import { FavoriteButton } from '@/components/layout/FavoriteButton';
 import { 
   FileDown, 
   FileText, 
@@ -34,30 +37,35 @@ import {
   Target, 
   RefreshCw,
   Download,
-  Mail,
-  Calendar
+  MoreVertical,
+  Plus,
+  BookOpen,
+  Lightbulb,
+  BarChart3
 } from 'lucide-react';
 import { useCurrency } from '@/contexts/CurrencyContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { toast } from 'sonner';
+import { cn } from '@/lib/utils';
 
 export default function ReportsPage() {
   const { formatCurrency } = useCurrency();
   const { resolvedTheme } = useTheme();
   const { stats, loading, refreshStats } = useDashboardStats();
   const { transactions, loading: transactionsLoading } = useTransactions();
-  const { goals, addGoal, updateGoal, deleteGoal } = useGoals();
+  const { goals } = useGoals();
   const { subscribe } = useRealtime();
+  
+  // Use custom hooks for state management
+  const goalActions = useGoalActions();
+  const exportDialog = useExportDialog();
+  
+  const { isExporting, exportProgress, exportReport, quickExport } = useReportExport();
+  
+  // Local state for refresh, initial load, and active tab
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isInitialLoad, setIsInitialLoad] = useState(true);
-  const [exportFormat, setExportFormat] = useState<'pdf' | 'excel' | 'csv' | 'json'>('pdf');
-  const [includeCharts, setIncludeCharts] = useState(true);
-  const [selectedSections, setSelectedSections] = useState<string[]>(['summary', 'categories', 'trends']);
-  const [showExportDialog, setShowExportDialog] = useState(false);
-  const [showGoalDialog, setShowGoalDialog] = useState(false);
-  const [editingGoal, setEditingGoal] = useState<FinancialGoal | null>(null);
-  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-  const [goalToDelete, setGoalToDelete] = useState<FinancialGoal | null>(null);
+  const [activeTab, setActiveTab] = useState('summary');
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
@@ -73,126 +81,15 @@ export default function ReportsPage() {
   };
 
   const handleExportReport = async () => {
-    if (!stats) {
-      toast.error('No data available to export');
-      return;
-    }
-    
-    // Enhanced validation for stats structure
-    if (!stats.monthlyIncome || !stats.monthlyExpenses || typeof stats.monthlyIncome !== 'number' || typeof stats.monthlyExpenses !== 'number') {
-      toast.error('Invalid data format for export');
-      console.error('Invalid stats structure:', stats);
-      return;
-    }
-    
-    // Validate transactions data
-    if (!transactions || !Array.isArray(transactions)) {
-      toast.error('No transaction data available for export');
-      return;
-    }
-    
-    try {
-      const exportOptions: ExportOptions = {
-        format: exportFormat,
-        includeCharts: includeCharts,
-        sections: selectedSections
-      };
-      
-      console.log('Exporting report with options:', exportOptions);
-      await ReportExporter.exportReport(stats, exportOptions);
-      toast.success(`Report exported successfully as ${exportFormat.toUpperCase()}`);
-      setShowExportDialog(false);
-    } catch (error) {
-      console.error('Export error:', error);
-      toast.error(`Failed to export report as ${exportFormat.toUpperCase()}: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    }
+    await exportReport(stats, exportDialog.exportFormat, {
+      includeCharts: exportDialog.includeCharts,
+      sections: exportDialog.selectedSections as any
+    });
+    exportDialog.closeExportDialog();
   };
 
   const handleQuickExport = async (format: 'pdf' | 'excel' | 'csv' | 'json') => {
-    if (!stats) {
-      toast.error('No data available to export');
-      return;
-    }
-    
-    // Validate stats structure
-    if (!stats.monthlyIncome || !stats.monthlyExpenses || typeof stats.monthlyIncome !== 'number' || typeof stats.monthlyExpenses !== 'number') {
-      toast.error('Invalid data format for export');
-      console.error('Invalid stats structure for quick export:', stats);
-      return;
-    }
-    
-    // Validate transactions data
-    if (!transactions || !Array.isArray(transactions)) {
-      toast.error('No transaction data available for export');
-      return;
-    }
-    
-    try {
-      const exportOptions: ExportOptions = {
-        format,
-        includeCharts: true,
-        sections: ['summary', 'categories', 'trends']
-      };
-      
-      console.log('Quick exporting report with options:', exportOptions);
-      await ReportExporter.exportReport(stats, exportOptions);
-      toast.success(`Report exported successfully as ${format.toUpperCase()}`);
-    } catch (error) {
-      console.error('Quick export error:', error);
-      toast.error(`Failed to export report as ${format.toUpperCase()}: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    }
-  };
-
-  const handleGoalAction = (action: 'add' | 'edit' | 'delete', goal?: FinancialGoal) => {
-    switch (action) {
-      case 'add':
-        setEditingGoal(null);
-        setShowGoalDialog(true);
-        break;
-      case 'edit':
-        if (goal) {
-          setEditingGoal(goal);
-          setShowGoalDialog(true);
-        }
-        break;
-      case 'delete':
-        if (goal) {
-          setGoalToDelete(goal);
-          setShowDeleteDialog(true);
-        }
-        break;
-    }
-  };
-
-  const handleSaveGoal = (goalData: Omit<FinancialGoal, 'id' | 'createdAt'>) => {
-    try {
-      if (editingGoal) {
-        updateGoal(editingGoal.id, goalData);
-        toast.success('Goal updated successfully!');
-      } else {
-        addGoal(goalData);
-        toast.success('Goal added successfully!');
-      }
-      setShowGoalDialog(false);
-      setEditingGoal(null);
-    } catch (error) {
-      console.error('Error saving goal:', error);
-      toast.error(`Failed to save goal: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    }
-  };
-
-  const handleDeleteGoal = () => {
-    if (goalToDelete) {
-      try {
-        deleteGoal(goalToDelete.id);
-        toast.success('Goal deleted successfully!');
-        setGoalToDelete(null);
-        setShowDeleteDialog(false);
-      } catch (error) {
-        console.error('Error deleting goal:', error);
-        toast.error(`Failed to delete goal: ${error instanceof Error ? error.message : 'Unknown error'}`);
-      }
-    }
+    await quickExport(stats, format);
   };
 
   // Handle initial loading state to prevent flash
@@ -205,6 +102,18 @@ export default function ReportsPage() {
       return () => clearTimeout(timer);
     }
   }, [loading, transactionsLoading, stats, transactions]);
+  
+  // Compute recommendation conditions for better readability
+  const savingsRate = stats && stats.monthlyIncome > 0 
+    ? ((stats.monthlyIncome - stats.monthlyExpenses) / stats.monthlyIncome * 100) 
+    : 0;
+  
+  const shouldReduceExpenses = stats && stats.monthlyExpenses > stats.monthlyIncome;
+  const shouldIncreaseSavings = savingsRate < 10 && stats && stats.monthlyIncome > 0;
+  const shouldDiversifySpending = stats && stats.categoryBreakdown.length > 0 && stats.categoryBreakdown[0].percentage > 40;
+  const shouldBuildEmergencyFund = stats && stats.netWorth < 0;
+  const shouldInvestForGrowth = stats && stats.monthlyIncome > 0 && stats.monthlyExpenses < stats.monthlyIncome && savingsRate >= 20;
+  const hasExcellentFinancialHealth = stats && stats.monthlyIncome > 0 && stats.monthlyExpenses < stats.monthlyIncome && savingsRate >= 20 && stats.netWorth >= 0;
 
   // Listen for real-time events that should refresh reports
   useEffect(() => {
@@ -257,61 +166,72 @@ export default function ReportsPage() {
   if (loading || isInitialLoad) {
     return (
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold">Reports & Analytics</h1>
-            <p className="text-muted-foreground">
+            <h1 className="text-2xl sm:text-3xl font-bold">Reports & Analytics</h1>
+            <p className="text-sm sm:text-base text-muted-foreground">
               Detailed insights into your financial patterns
             </p>
           </div>
-          <Button disabled>
-            <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
-            Refreshing...
-          </Button>
+          <div className="flex items-center gap-2">
+            <FavoriteButton size="sm" variant="outline" showLabel={false} />
+            <Button disabled size="sm">
+              <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+              <span className="hidden sm:inline">Refreshing...</span>
+            </Button>
+          </div>
         </div>
 
-        <div className="grid gap-6">
-          <Card>
-            <CardHeader>
-              <Skeleton className="h-6 w-32" />
-            </CardHeader>
-            <CardContent>
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-                {[...Array(4)].map((_, i) => (
-                  <div key={i} className="space-y-2">
-                    <Skeleton className="h-4 w-20" />
-                    <Skeleton className="h-8 w-24" />
-                    <Skeleton className="h-3 w-16" />
-                  </div>
-                ))}
+        {/* Enhanced loading skeleton with progress indicator */}
+        <Card>
+          <CardContent className="pt-6">
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <Skeleton className="h-6 w-32" />
+                <Skeleton className="h-4 w-24" />
               </div>
-            </CardContent>
-          </Card>
+              <Progress value={33} className="h-2" />
+              <p className="text-sm text-muted-foreground text-center">Loading financial data...</p>
+            </div>
+          </CardContent>
+        </Card>
 
-          <Card>
+        <div className="grid gap-4 sm:gap-6">
+          {/* Summary cards skeleton */}
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {[...Array(4)].map((_, i) => (
+              <Card key={i} className="rounded-lg">
+                <CardHeader className="pb-2">
+                  <Skeleton className="h-4 w-20" />
+                </CardHeader>
+                <CardContent>
+                  <Skeleton className="h-8 w-24 mb-2" />
+                  <Skeleton className="h-3 w-16" />
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+
+          {/* Chart skeletons with mobile responsiveness */}
+          <div className="grid gap-4 sm:gap-6 md:grid-cols-2">
+            {[...Array(2)].map((_, i) => (
+              <Card key={i} className="rounded-lg">
+                <CardHeader>
+                  <Skeleton className="h-6 w-32" />
+                </CardHeader>
+                <CardContent>
+                  <Skeleton className="h-48 sm:h-64 w-full" />
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+
+          <Card className="rounded-lg">
             <CardHeader>
               <Skeleton className="h-6 w-32" />
             </CardHeader>
             <CardContent>
-              <Skeleton className="h-64 w-full" />
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <Skeleton className="h-6 w-32" />
-            </CardHeader>
-            <CardContent>
-              <Skeleton className="h-64 w-full" />
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <Skeleton className="h-6 w-32" />
-            </CardHeader>
-            <CardContent>
-              <Skeleton className="h-64 w-full" />
+              <Skeleton className="h-48 sm:h-64 w-full" />
             </CardContent>
           </Card>
         </div>
@@ -322,29 +242,66 @@ export default function ReportsPage() {
   if (!stats && !loading && !isInitialLoad) {
     return (
       <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold">Reports & Analytics</h1>
-          <p className="text-muted-foreground">
-            Detailed insights into your financial patterns
-          </p>
-        </div>
-
-        <Card className="text-center py-12">
-          <div className="space-y-4">
-            <div className="mx-auto w-12 h-12 bg-muted rounded-full flex items-center justify-center">
-              <Target className="h-6 w-6 text-muted-foreground" />
-            </div>
-            <div>
-              <h3 className="text-lg font-semibold">No data available</h3>
-              <p className="text-muted-foreground">
-                Add some transactions to see your financial reports
-              </p>
-            </div>
-            <Button onClick={handleRefresh}>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-bold">Reports & Analytics</h1>
+            <p className="text-sm sm:text-base text-muted-foreground">
+              Detailed insights into your financial patterns
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <FavoriteButton size="sm" variant="outline" showLabel={false} />
+            <Button onClick={handleRefresh} size="sm">
               <RefreshCw className="mr-2 h-4 w-4" />
-              Refresh Data
+              <span className="hidden sm:inline">Refresh</span>
             </Button>
           </div>
+        </div>
+
+        {/* Enhanced empty state with CTAs and educational content */}
+        <Card className="text-center py-8 sm:py-12 rounded-lg">
+          <CardContent className="space-y-6">
+            <div className="mx-auto w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-br from-primary/20 to-primary/5 rounded-full flex items-center justify-center">
+              <Target className="h-8 w-8 sm:h-10 sm:w-10 text-primary" />
+            </div>
+            <div className="space-y-2">
+              <h3 className="text-lg sm:text-xl font-semibold">No financial data available</h3>
+              <p className="text-sm sm:text-base text-muted-foreground max-w-md mx-auto">
+                Start tracking your finances by adding transactions, accounts, and budgets to generate comprehensive reports.
+              </p>
+            </div>
+            
+            {/* Quick action buttons */}
+            <div className="flex flex-col sm:flex-row gap-3 justify-center">
+              <Button onClick={() => window.location.href = '/transactions'} className="w-full sm:w-auto">
+                <Plus className="mr-2 h-4 w-4" />
+                Add Transaction
+              </Button>
+              <Button onClick={handleRefresh} variant="outline" className="w-full sm:w-auto">
+                <RefreshCw className="mr-2 h-4 w-4" />
+                Refresh Data
+              </Button>
+            </div>
+            
+            {/* Educational content */}
+            <div className="mt-6 p-4 bg-muted/50 rounded-lg max-w-lg mx-auto">
+              <div className="flex items-start gap-3">
+                <BookOpen className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
+                <div className="text-left">
+                  <h4 className="font-medium mb-1">Getting Started with Reports</h4>
+                  <p className="text-sm text-muted-foreground">
+                    Once you add transactions, you'll see:
+                  </p>
+                  <ul className="text-sm text-muted-foreground mt-2 space-y-1 list-disc list-inside">
+                    <li>Financial health score and key metrics</li>
+                    <li>Spending patterns and category breakdowns</li>
+                    <li>Monthly trends and cash flow analysis</li>
+                    <li>Personalized insights and recommendations</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </CardContent>
         </Card>
       </div>
     );
@@ -358,31 +315,106 @@ export default function ReportsPage() {
   // At this point, stats is guaranteed to be non-null
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Reports & Analytics</h1>
-          <p className="text-muted-foreground">
+    <div className="space-y-4 sm:space-y-6">
+      {/* Header with mobile responsiveness */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex-1">
+          <h1 className="text-2xl sm:text-3xl font-bold">Reports & Analytics</h1>
+          <p className="text-sm sm:text-base text-muted-foreground">
             Detailed insights into your financial patterns
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex items-center gap-2">
+          <FavoriteButton size="sm" variant="outline" showLabel={false} />
           <Button 
             variant="outline" 
             onClick={handleRefresh}
             disabled={isRefreshing}
+            size="sm"
           >
             <RefreshCw className={`mr-2 h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
-            Refresh
+            <span className="hidden sm:inline">Refresh</span>
           </Button>
           
-          {/* Quick Export Buttons */}
-          <div className="flex gap-1">
+          {/* Mobile export menu button */}
+          <div className="relative md:hidden">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={exportDialog.toggleMobileExportMenu}
+            >
+              <Download className="h-4 w-4" />
+            </Button>
+            {exportDialog.showMobileExportMenu && (
+              <div className="absolute right-0 top-full mt-2 bg-background border rounded-lg shadow-lg p-2 z-50 min-w-[150px]">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    handleQuickExport('pdf');
+                  }}
+                  className="w-full justify-start"
+                >
+                  <FileText className="mr-2 h-4 w-4" />
+                  PDF
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    handleQuickExport('excel');
+                  }}
+                  className="w-full justify-start"
+                >
+                  <Table className="mr-2 h-4 w-4" />
+                  Excel
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    handleQuickExport('csv');
+                  }}
+                  className="w-full justify-start"
+                >
+                  <Database className="mr-2 h-4 w-4" />
+                  CSV
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    handleQuickExport('json');
+                  }}
+                  className="w-full justify-start"
+                >
+                  <FileDown className="mr-2 h-4 w-4" />
+                  JSON
+                </Button>
+                <div className="border-t my-1" />
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    exportDialog.openExportDialog();
+                  }}
+                  className="w-full justify-start"
+                >
+                  <MoreVertical className="mr-2 h-4 w-4" />
+                  Advanced
+                </Button>
+              </div>
+            )}
+          </div>
+          
+          {/* Desktop Quick Export Buttons */}
+          <div className="hidden md:flex gap-1">
             <Button 
               variant="outline" 
               size="sm"
               onClick={() => handleQuickExport('pdf')}
               title="Export as PDF"
+              disabled={isExporting}
             >
               <FileText className="h-4 w-4" />
             </Button>
@@ -391,6 +423,7 @@ export default function ReportsPage() {
               size="sm"
               onClick={() => handleQuickExport('excel')}
               title="Export as Excel"
+              disabled={isExporting}
             >
               <Table className="h-4 w-4" />
             </Button>
@@ -399,6 +432,7 @@ export default function ReportsPage() {
               size="sm"
               onClick={() => handleQuickExport('csv')}
               title="Export as CSV"
+              disabled={isExporting}
             >
               <Database className="h-4 w-4" />
             </Button>
@@ -407,43 +441,79 @@ export default function ReportsPage() {
               size="sm"
               onClick={() => handleQuickExport('json')}
               title="Export as JSON"
+              disabled={isExporting}
             >
               <FileDown className="h-4 w-4" />
             </Button>
           </div>
           
-          <Button onClick={() => setShowExportDialog(true)}>
+          <Button 
+            onClick={exportDialog.openExportDialog} 
+            size="sm"
+            className="hidden sm:flex"
+            disabled={isExporting}
+          >
             <Download className="mr-2 h-4 w-4" />
-            Advanced Export
+            <span className="hidden lg:inline">Advanced Export</span>
           </Button>
         </div>
       </div>
-
-      <Tabs defaultValue="summary" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-6">
-          <TabsTrigger value="summary" className="flex items-center gap-2">
-            <Target className="h-4 w-4" />
-            Summary
+      
+      {/* Export progress indicator */}
+      {isExporting && (
+        <Card className="border-primary/50">
+          <CardContent className="pt-6">
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <RefreshCw className="h-4 w-4 animate-spin" />
+                  <span className="text-sm font-medium">Exporting report...</span>
+                </div>
+                <span className="text-sm text-muted-foreground">{exportProgress}%</span>
+              </div>
+              <Progress value={exportProgress} className="h-2" />
+            </div>
+          </CardContent>
+        </Card>
+      )}
+      
+      <Tabs 
+        defaultValue="summary" 
+        value={activeTab}
+        onValueChange={setActiveTab}
+        className="space-y-4 sm:space-y-6"
+      >
+        {/* Mobile-responsive tab navigation */}
+        <TabsList className="grid w-full grid-cols-3 sm:grid-cols-6 h-auto">
+          <TabsTrigger value="summary" className="flex items-center gap-1 sm:gap-2">
+            <Target className="h-3 w-3 sm:h-4 sm:w-4" />
+            <span className="hidden sm:inline">Summary</span>
+            <span className="sm:hidden">Sum</span>
           </TabsTrigger>
-          <TabsTrigger value="visualizations" className="flex items-center gap-2">
-            <PieChartIcon className="h-4 w-4" />
-            Visualizations
+          <TabsTrigger value="visualizations" className="flex items-center gap-1 sm:gap-2">
+            <PieChartIcon className="h-3 w-3 sm:h-4 sm:w-4" />
+            <span className="hidden sm:inline">Visualizations</span>
+            <span className="sm:hidden">Vis</span>
           </TabsTrigger>
-          <TabsTrigger value="trends" className="flex items-center gap-2">
-            <TrendingUp className="h-4 w-4" />
-            Trends
+          <TabsTrigger value="trends" className="flex items-center gap-1 sm:gap-2">
+            <TrendingUp className="h-3 w-3 sm:h-4 sm:w-4" />
+            <span className="hidden sm:inline">Trends</span>
+            <span className="sm:hidden">Trd</span>
           </TabsTrigger>
-          <TabsTrigger value="categories" className="flex items-center gap-2">
-            <PieChartIcon className="h-4 w-4" />
-            Categories
+          <TabsTrigger value="categories" className="flex items-center gap-1 sm:gap-2">
+            <BarChart3 className="h-3 w-3 sm:h-4 sm:w-4" />
+            <span className="hidden sm:inline">Categories</span>
+            <span className="sm:hidden">Cat</span>
           </TabsTrigger>
-          <TabsTrigger value="patterns" className="flex items-center gap-2">
-            <Target className="h-4 w-4" />
-            Patterns
+          <TabsTrigger value="patterns" className="flex items-center gap-1 sm:gap-2">
+            <Target className="h-3 w-3 sm:h-4 sm:w-4" />
+            <span className="hidden sm:inline">Patterns</span>
+            <span className="sm:hidden">Pat</span>
           </TabsTrigger>
-          <TabsTrigger value="insights" className="flex items-center gap-2">
-            <Target className="h-4 w-4" />
-            Insights
+          <TabsTrigger value="insights" className="flex items-center gap-1 sm:gap-2">
+            <Lightbulb className="h-3 w-3 sm:h-4 sm:w-4" />
+            <span className="hidden sm:inline">Insights</span>
+            <span className="sm:hidden">Ins</span>
           </TabsTrigger>
         </TabsList>
 
@@ -451,23 +521,29 @@ export default function ReportsPage() {
           <FinancialSummaryReport stats={stats} />
         </TabsContent>
 
-        <TabsContent value="visualizations" className="space-y-6">
-          <div className="grid gap-6">
-            <CategoryBreakdownReport categoryBreakdown={stats.categoryBreakdown} />
-            <MonthlyTrendsReport monthlyTrend={stats.monthlyTrend} />
-            <CashFlowChart 
-              income={stats.monthlyIncome}
-              expenses={stats.monthlyExpenses}
-              categories={stats.categoryBreakdown
-                .filter(cat => cat.amount !== 0)
-                .map(cat => ({
-                  category: cat.category,
-                  amount: Math.abs(cat.amount),
-                  type: cat.amount > 0 ? 'income' : 'expense' as const
-                }))}
-              title="Cash Flow Analysis"
-              showDetails={true}
-            />
+        <TabsContent value="visualizations" className="space-y-4 sm:space-y-6">
+          <div className="grid gap-4 sm:gap-6">
+            <div className="min-h-[300px] sm:min-h-[400px]">
+              <CategoryBreakdownReport categoryBreakdown={stats.categoryBreakdown} />
+            </div>
+            <div className="min-h-[300px] sm:min-h-[400px]">
+              <MonthlyTrendsReport monthlyTrend={stats.monthlyTrend} />
+            </div>
+            <div className="min-h-[300px] sm:min-h-[400px]">
+              <CashFlowChart 
+                income={stats.monthlyIncome}
+                expenses={stats.monthlyExpenses}
+                categories={stats.categoryBreakdown
+                  .filter(cat => cat.amount !== 0)
+                  .map(cat => ({
+                    category: cat.category,
+                    amount: Math.abs(cat.amount),
+                    type: cat.amount > 0 ? 'income' : 'expense' as const
+                  }))}
+                title="Cash Flow Analysis"
+                showDetails={true}
+              />
+            </div>
           </div>
         </TabsContent>
 
@@ -504,20 +580,22 @@ export default function ReportsPage() {
           </div>
         </TabsContent>
 
-        <TabsContent value="patterns" className="space-y-6">
-          <div className="grid gap-6">
-            <SpendingHeatMap 
-              data={transactions.map((t: any) => ({
-                amount: Math.abs(t.amount),
-                date: t.date,
-                category: t.category,
-                dayOfWeek: new Date(t.date).toLocaleDateString('en-US', { weekday: 'short' }),
-                week: Math.ceil(new Date(t.date).getDate() / 7),
-                month: new Date(t.date).toLocaleDateString('en-US', { month: 'short' })
-              }))}
-              title="Spending Patterns Heat Map"
-              period="month"
-            />
+        <TabsContent value="patterns" className="space-y-4 sm:space-y-6">
+          <div className="grid gap-4 sm:gap-6">
+            <div className="min-h-[300px] sm:min-h-[400px]">
+              <SpendingHeatMap 
+                data={transactions.map((t: any) => ({
+                  amount: Math.abs(t.amount),
+                  date: t.date,
+                  category: t.category,
+                  dayOfWeek: new Date(t.date).toLocaleDateString('en-US', { weekday: 'short' }),
+                  week: Math.ceil(new Date(t.date).getDate() / 7),
+                  month: new Date(t.date).toLocaleDateString('en-US', { month: 'short' })
+                }))}
+                title="Spending Patterns Heat Map"
+                period="month"
+              />
+            </div>
             <Card>
               <CardHeader>
                 <CardTitle>Spending Patterns</CardTitle>
@@ -546,42 +624,48 @@ export default function ReportsPage() {
           </div>
         </TabsContent>
 
-        <TabsContent value="trends" className="space-y-6">
-          <div className="grid gap-6">
-            <ComparisonChart 
-              data={stats.monthlyTrend}
-              title="Monthly Trends Analysis"
-            />
-            <SpendingHeatMap 
-              data={transactions.map((t: any) => ({
-                amount: Math.abs(t.amount),
-                date: t.date,
-                category: t.category,
-                dayOfWeek: new Date(t.date).toLocaleDateString('en-US', { weekday: 'short' }),
-                week: Math.ceil(new Date(t.date).getDate() / 7),
-                month: new Date(t.date).toLocaleDateString('en-US', { month: 'short' })
-              }))}
-              title="Spending Patterns Heat Map"
-              period="month"
-            />
-            <GoalProgressChart 
-              goals={goals}
-              title="Financial Goals Progress"
-              showAddGoal={true}
-              onGoalAction={handleGoalAction}
-            />
+        <TabsContent value="trends" className="space-y-4 sm:space-y-6">
+          <div className="grid gap-4 sm:gap-6">
+            <div className="min-h-[300px] sm:min-h-[400px]">
+              <ComparisonChart 
+                data={stats.monthlyTrend}
+                title="Monthly Trends Analysis"
+              />
+            </div>
+            <div className="min-h-[300px] sm:min-h-[400px]">
+              <SpendingHeatMap 
+                data={transactions.map((t: any) => ({
+                  amount: Math.abs(t.amount),
+                  date: t.date,
+                  category: t.category,
+                  dayOfWeek: new Date(t.date).toLocaleDateString('en-US', { weekday: 'short' }),
+                  week: Math.ceil(new Date(t.date).getDate() / 7),
+                  month: new Date(t.date).toLocaleDateString('en-US', { month: 'short' })
+                }))}
+                title="Spending Patterns Heat Map"
+                period="month"
+              />
+            </div>
+            <div className="min-h-[300px] sm:min-h-[400px]">
+              <GoalProgressChart 
+                goals={goals}
+                title="Financial Goals Progress"
+                showAddGoal={true}
+                onGoalAction={goalActions.handleGoalAction}
+              />
+            </div>
           </div>
         </TabsContent>
 
-        <TabsContent value="insights" className="space-y-6">
-          <div className="grid gap-6">
+        <TabsContent value="insights" className="space-y-4 sm:space-y-6">
+          <div className="grid gap-4 sm:gap-6">
             {/* Financial Health Insights */}
             <Card>
               <CardHeader>
                 <CardTitle>Key Insights</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="grid gap-4 md:grid-cols-2">
+                <div className="grid gap-4 sm:grid-cols-2">
                   <div className="p-4 bg-muted/50 rounded-lg">
                     <h4 className="font-medium mb-2">Spending Pattern</h4>
                     <p className="text-sm text-muted-foreground">
@@ -603,10 +687,10 @@ export default function ReportsPage() {
                           ((stats.monthlyIncome - stats.monthlyExpenses) / stats.monthlyIncome * 100) : 0;
                         
                         return savingsRate >= 20 ?
-                          ' Excellent! You\'re saving more than the recommended 20%.' :
+                          "Excellent! You're saving more than the recommended 20%." :
                           savingsRate >= 10 ?
-                            ' Good! Try to aim for 20% savings rate.' :
-                            ' Consider increasing your savings rate for better financial health.';
+                            "Good! Try to aim for 20% savings rate." :
+                            "Consider increasing your savings rate for better financial health.";
                       })()}
                     </p>
                   </div>
@@ -648,12 +732,12 @@ export default function ReportsPage() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
-                  {stats.monthlyExpenses > stats.monthlyIncome && (
+                  {shouldReduceExpenses && (
                     <div className={`flex items-start gap-3 p-3 rounded-lg ${
                       resolvedTheme === 'dark' ? 'bg-destructive/20 text-destructive' : 'bg-destructive/10 text-destructive'
                     }`}>
-                      <Target className="h-5 w-5 text-destructive mt-0.5" />
-                      <div>
+                      <Target className="h-5 w-5 text-destructive mt-0.5 flex-shrink-0" />
+                      <div className="min-w-0">
                         <h4 className="font-medium text-destructive">Reduce Expenses</h4>
                         <p className="text-sm text-muted-foreground">
                           Your expenses exceed income by {formatCurrency(stats.monthlyExpenses - stats.monthlyIncome)}. 
@@ -663,12 +747,12 @@ export default function ReportsPage() {
                     </div>
                   )}
 
-                  {((stats.monthlyIncome - stats.monthlyExpenses) / stats.monthlyIncome * 100) < 10 && stats.monthlyIncome > 0 && (
+                  {shouldIncreaseSavings && (
                     <div className={`flex items-start gap-3 p-3 rounded-lg ${
                       resolvedTheme === 'dark' ? 'bg-warning/20 text-warning' : 'bg-warning/10 text-warning'
                     }`}>
-                      <Target className="h-5 w-5 text-warning mt-0.5" />
-                      <div>
+                      <Target className="h-5 w-5 text-warning mt-0.5 flex-shrink-0" />
+                      <div className="min-w-0">
                         <h4 className="font-medium text-warning">Increase Savings</h4>
                         <p className="text-sm text-muted-foreground">
                           Your savings rate is below the recommended 20%. 
@@ -678,12 +762,12 @@ export default function ReportsPage() {
                     </div>
                   )}
 
-                  {stats.categoryBreakdown.length > 0 && stats.categoryBreakdown[0].percentage > 40 && (
+                  {shouldDiversifySpending && (
                     <div className={`flex items-start gap-3 p-3 rounded-lg ${
                       resolvedTheme === 'dark' ? 'bg-primary/20 text-primary' : 'bg-primary/10 text-primary'
                     }`}>
-                      <Target className="h-5 w-5 text-primary mt-0.5" />
-                      <div>
+                      <Target className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
+                      <div className="min-w-0">
                         <h4 className="font-medium text-primary">Diversify Spending</h4>
                         <p className="text-sm text-muted-foreground">
                           {stats.categoryBreakdown[0].category} represents {stats.categoryBreakdown[0].percentage}% of expenses. 
@@ -693,12 +777,12 @@ export default function ReportsPage() {
                     </div>
                   )}
 
-                  {stats.netWorth < 0 && (
+                  {shouldBuildEmergencyFund && (
                     <div className={`flex items-start gap-3 p-3 rounded-lg ${
                       resolvedTheme === 'dark' ? 'bg-warning/20 text-warning' : 'bg-warning/10 text-warning'
                     }`}>
-                      <Target className="h-5 w-5 text-warning mt-0.5" />
-                      <div>
+                      <Target className="h-5 w-5 text-warning mt-0.5 flex-shrink-0" />
+                      <div className="min-w-0">
                         <h4 className="font-medium text-warning">Build Emergency Fund</h4>
                         <p className="text-sm text-muted-foreground">
                           Focus on building an emergency fund of 3-6 months of expenses. 
@@ -708,17 +792,31 @@ export default function ReportsPage() {
                     </div>
                   )}
 
-                  {stats.monthlyIncome > 0 && stats.monthlyExpenses < stats.monthlyIncome && 
-                   ((stats.monthlyIncome - stats.monthlyExpenses) / stats.monthlyIncome * 100) >= 20 && (
+                  {shouldInvestForGrowth && (
                     <div className={`flex items-start gap-3 p-3 rounded-lg ${
                       resolvedTheme === 'dark' ? 'bg-success/20 text-success' : 'bg-success/10 text-success'
                     }`}>
-                      <Target className="h-5 w-5 text-success mt-0.5" />
-                      <div>
+                      <Target className="h-5 w-5 text-success mt-0.5 flex-shrink-0" />
+                      <div className="min-w-0">
                         <h4 className="font-medium text-success">Invest for Growth</h4>
                         <p className="text-sm text-muted-foreground">
                           With a healthy savings rate, consider investing for long-term growth. 
                           Explore investment options that match your risk tolerance.
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* Show positive reinforcement when no issues */}
+                  {hasExcellentFinancialHealth && (
+                    <div className={`flex items-start gap-3 p-3 rounded-lg ${
+                      resolvedTheme === 'dark' ? 'bg-success/20 text-success' : 'bg-success/10 text-success'
+                    }`}>
+                      <Target className="h-5 w-5 text-success mt-0.5 flex-shrink-0" />
+                      <div className="min-w-0">
+                        <h4 className="font-medium text-success">Excellent Financial Health</h4>
+                        <p className="text-sm text-muted-foreground">
+                          You're doing great! Keep maintaining your healthy savings rate and continue building your net worth.
                         </p>
                       </div>
                     </div>
@@ -730,10 +828,10 @@ export default function ReportsPage() {
         </TabsContent>
       </Tabs>
 
-      {/* Advanced Export Dialog */}
-      {showExportDialog && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <Card className="w-full max-w-md mx-4">
+      {/* Advanced Export Dialog - Mobile responsive */}
+      {exportDialog.showExportDialog && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <Card className="w-full max-w-md mx-auto">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Download className="h-5 w-5" />
@@ -743,7 +841,7 @@ export default function ReportsPage() {
             <CardContent className="space-y-4">
               <div className="space-y-2">
                 <label className="text-sm font-medium">Export Format</label>
-                <Select value={exportFormat} onValueChange={(value: any) => setExportFormat(value)}>
+                <Select value={exportDialog.exportFormat} onValueChange={(value: any) => exportDialog.setExportFormat(value)}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select format" />
                   </SelectTrigger>
@@ -783,12 +881,12 @@ export default function ReportsPage() {
                     <div key={section} className="flex items-center space-x-2">
                       <Checkbox 
                         id={section}
-                        checked={selectedSections.includes(section)}
+                        checked={exportDialog.selectedSections.includes(section)}
                         onCheckedChange={(checked) => {
                           if (checked) {
-                            setSelectedSections([...selectedSections, section]);
+                            exportDialog.setSelectedSections([...exportDialog.selectedSections, section]);
                           } else {
-                            setSelectedSections(selectedSections.filter(s => s !== section));
+                            exportDialog.setSelectedSections(exportDialog.selectedSections.filter((s: string) => s !== section));
                           }
                         }}
                       />
@@ -803,8 +901,8 @@ export default function ReportsPage() {
               <div className="flex items-center space-x-2">
                 <Checkbox 
                   id="includeCharts"
-                  checked={includeCharts}
-                  onCheckedChange={(checked) => setIncludeCharts(checked === true)}
+                  checked={exportDialog.includeCharts}
+                  onCheckedChange={(checked) => exportDialog.setIncludeCharts(checked === true)}
                 />
                 <label htmlFor="includeCharts" className="text-sm">
                   Include charts and visualizations (PDF only)
@@ -814,17 +912,28 @@ export default function ReportsPage() {
               <div className="flex gap-2 pt-4">
                 <Button 
                   variant="outline" 
-                  onClick={() => setShowExportDialog(false)}
+                  onClick={exportDialog.closeExportDialog}
                   className="flex-1"
+                  disabled={isExporting}
                 >
                   Cancel
                 </Button>
                 <Button 
                   onClick={handleExportReport}
                   className="flex-1"
+                  disabled={isExporting}
                 >
-                  <Download className="mr-2 h-4 w-4" />
-                  Export Report
+                  {isExporting ? (
+                    <>
+                      <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                      Exporting...
+                    </>
+                  ) : (
+                    <>
+                      <Download className="mr-2 h-4 w-4" />
+                      Export Report
+                    </>
+                  )}
                 </Button>
               </div>
             </CardContent>
@@ -834,22 +943,22 @@ export default function ReportsPage() {
 
       {/* Goal Dialog */}
       <GoalDialog
-        open={showGoalDialog}
-        onOpenChange={setShowGoalDialog}
-        goal={editingGoal}
-        onSave={handleSaveGoal}
+        open={goalActions.showGoalDialog}
+        onOpenChange={goalActions.closeGoalDialog}
+        goal={goalActions.editingGoal}
+        onSave={goalActions.handleSaveGoal}
       />
 
       {/* Delete Confirmation Dialog */}
       <DeleteConfirmDialog
-        open={showDeleteDialog}
-        onOpenChange={setShowDeleteDialog}
-        onConfirm={handleDeleteGoal}
+        open={goalActions.showDeleteDialog}
+        onOpenChange={goalActions.closeDeleteDialog}
+        onConfirm={goalActions.handleDeleteGoal}
         title="Delete Financial Goal"
         description="Are you sure you want to delete this financial goal? This action cannot be undone."
-        itemName={goalToDelete?.name}
-        itemDetails={goalToDelete ? 
-          `Target: ${formatCurrency(goalToDelete.targetAmount)} | Progress: ${formatCurrency(goalToDelete.currentAmount)}` 
+        itemName={goalActions.goalToDelete?.name}
+        itemDetails={goalActions.goalToDelete ? 
+          `Target: ${formatCurrency(goalActions.goalToDelete.targetAmount)} | Progress: ${formatCurrency(goalActions.goalToDelete.currentAmount)}` 
           : undefined
         }
       />

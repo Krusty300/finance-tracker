@@ -13,7 +13,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Search, Filter, Download, Calendar, X, RotateCcw } from 'lucide-react';
+import { Search, Filter, Download, Calendar, X, RotateCcw, Loader2, Table, LayoutGrid, Infinity } from 'lucide-react';
 import { useCurrency } from '@/contexts/CurrencyContext';
 import { useFormatting } from '@/contexts/FormattingContext';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -21,11 +21,14 @@ import { useRealtime } from '@/hooks/useRealtime';
 import { toast } from 'sonner';
 import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
 import { DeleteConfirmDialog } from '@/components/dialogs/DeleteConfirmDialog';
+import { DeleteDialogProvider, useDeleteDialog } from '@/contexts/DeleteDialogContext';
+import { QuickAddProvider } from '@/contexts/QuickAddContext';
 import { ExportDialog } from '@/components/dialogs/ExportDialog';
 import { BulkCategoryChangeDialog } from '@/components/dialogs/BulkCategoryChangeDialog';
 import { BulkDateEditDialog } from '@/components/dialogs/BulkDateEditDialog';
 import { EnhancedTransactionFilters } from '@/components/filters/EnhancedTransactionFilters';
 import { InfiniteScrollTransactions } from '@/components/transactions/InfiniteScrollTransactions';
+import { FavoriteButton } from '@/components/layout/FavoriteButton';
 import { MonthlyComparison } from '@/components/charts/MonthlyComparison';
 import { SparklineChart } from '@/components/charts/SparklineChart';
 import { 
@@ -46,6 +49,7 @@ import { useCategories } from '@/hooks/useCategories';
 import { useAccounts } from '@/hooks/useAccounts';
 import { useDebounce } from '@/hooks/useDebounce';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
+import { Skeleton } from '@/components/ui/skeleton';
 
 interface FilterState {
   searchTerm: string;
@@ -58,6 +62,17 @@ interface FilterState {
 }
 
 export default function TransactionsPage() {
+  return (
+    <QuickAddProvider>
+      <DeleteDialogProvider>
+        <MainLayoutContent />
+      </DeleteDialogProvider>
+    </QuickAddProvider>
+  );
+}
+
+function MainLayoutContent() {
+  const { dialog } = useDeleteDialog();
   const { formatCurrency } = useCurrency();
   const { formatDate } = useFormatting();
   const { resolvedTheme } = useTheme();
@@ -103,6 +118,15 @@ export default function TransactionsPage() {
     }
   }, [amountRange.max, filters.amountRange.max, setFilters]);
 
+  // Filter loading state
+  useEffect(() => {
+    setIsFiltering(true);
+    const timer = setTimeout(() => {
+      setIsFiltering(false);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [filters.searchTerm, filters.type, filters.category, filters.account, filters.tags, filters.dateRange, filters.amountRange]);
+
   // Keyboard shortcuts
   const searchInputRef = useRef<HTMLInputElement>(null);
   
@@ -124,48 +148,36 @@ export default function TransactionsPage() {
   });
   
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [transactionToDelete, setTransactionToDelete] = useState<string | null>(null);
-  const [bulkDeleteIds, setBulkDeleteIds] = useState<string[]>([]);
-  const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false);
-
-  // Ensure only one delete dialog is open at a time
-  useEffect(() => {
-    if (deleteDialogOpen && bulkDeleteDialogOpen) {
-      console.warn('Both delete dialogs are open, closing bulk dialog');
-      setBulkDeleteDialogOpen(false);
-      setBulkDeleteIds([]);
-    }
-  }, [deleteDialogOpen, bulkDeleteDialogOpen]);
+  const { openIndividualDelete, openBulkDelete, closeDeleteDialog } = useDeleteDialog();
 
   // Listen for real-time transaction events
   useEffect(() => {
-    console.log('Transactions: Setting up real-time event listeners');
-    
     const unsubscribe = subscribe('transaction', (event) => {
-      console.log('Transactions: Real-time transaction event received', event);
-      
-      // Show toast notification for user feedback (optional, since useNotifications handles this)
+      // Real-time transaction event received
       // Note: Toast notifications are handled by useNotifications hook to avoid duplicates
     });
 
     return unsubscribe;
   }, [subscribe]);
-  const [useEnhancedTable, setUseEnhancedTable] = useState(true);
+  const [useEnhancedTable, setUseEnhancedTable] = useState<boolean | null>(true);
   const [exportDialogOpen, setExportDialogOpen] = useState(false);
   const [bulkCategoryDialogOpen, setBulkCategoryDialogOpen] = useState(false);
   const [bulkDateDialogOpen, setBulkDateDialogOpen] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [templateData, setTemplateData] = useState<Partial<Transaction> | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isFiltering, setIsFiltering] = useState(false);
   const [bulkOperationProgress, setBulkOperationProgress] = useState<{
     operation: string;
     total: number;
     completed: number;
     failed: number;
-    status: 'pending' | 'running' | 'completed' | 'error';
+    status: 'pending' | 'running' | 'completed' | 'error' | 'cancelled';
     error?: string;
   } | null>(null);
+
+  // AbortController for cancelling bulk operations
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   // Handle URL parameters from template navigation
   useEffect(() => {
@@ -185,7 +197,6 @@ export default function TransactionsPage() {
         account: account || undefined,
         tags: tags ? tags.split(',').map(tag => tag.trim()).filter(Boolean) : undefined,
       };
-      console.log('TransactionsPage: Setting templateData', templateDataToSet);
       setTemplateData(templateDataToSet);
 
       // Pre-fill the filters
@@ -282,17 +293,15 @@ export default function TransactionsPage() {
     return () => {
       clearTimeout(timer);
     };
-  }, []); // Remove setTemplateData dependency to prevent memory leaks
+  }, []);
 
   // Cleanup bulk operation progress timers
   useEffect(() => {
     return () => {
-      // Clear any pending progress timers
-      if (bulkOperationProgress) {
-        setBulkOperationProgress(null);
-      }
+      // Clear any pending progress timers using functional update
+      setBulkOperationProgress(null);
     };
-  }, [bulkOperationProgress, setBulkOperationProgress]);
+  }, []);
 
   const handleEditTransaction = (transaction: Transaction) => {
     setEditingTransaction(transaction);
@@ -312,40 +321,35 @@ export default function TransactionsPage() {
   };
 
   const handleDeleteTransaction = (id: string) => {
-    console.log('handleDeleteTransaction called with id:', id);
-    console.log('Current deleteDialogOpen state:', deleteDialogOpen);
-    
     // Validate transaction exists before proceeding
     const transaction = transactions.find(t => t.id === id);
     if (!transaction) {
-      toast.error('Transaction not found');
+      toast.error('Transaction not found. Please refresh and try again.');
       return;
     }
     
-    // Close any existing dialogs first
-    setBulkDeleteDialogOpen(false);
-    setBulkDeleteIds([]);
+    // Get transaction details for the dialog
+    const transactionDetails = getTransactionDetails(transaction.id);
     
-    setTransactionToDelete(id);
-    setDeleteDialogOpen(true);
-  };
-
-  const handleConfirmDelete = () => {
-    console.log('handleConfirmDelete called with transactionToDelete:', transactionToDelete);
-    if (transactionToDelete) {
-      try {
-        deleteTransaction(transactionToDelete);
-        toast.success('Transaction deleted successfully!');
-      } catch (error) {
-        console.error('Failed to delete transaction:', error);
-        toast.error('Failed to delete transaction. Please try again.');
-      } finally {
-        setTransactionToDelete(null);
-        // Dialog closing is now handled by DeleteConfirmDialog component
+    // Open individual delete dialog
+    openIndividualDelete({
+      title: "Delete Transaction",
+      description: "Are you sure you want to delete this transaction? This action cannot be undone.",
+      itemName: transaction.description,
+      itemDetails: transactionDetails,
+      onConfirm: async () => {
+        try {
+          await deleteTransaction(id);
+          toast.success('Transaction deleted successfully');
+        } catch (error) {
+          console.error('Failed to delete transaction:', error);
+          toast.error('Failed to delete transaction. Please try again.');
+        }
       }
-    }
+    });
   };
 
+  
   const getTransactionDescription = (id: string) => {
     const transaction = transactions.find(t => t.id === id);
     return transaction?.description || 'Unknown transaction';
@@ -513,40 +517,99 @@ export default function TransactionsPage() {
   };
 
   const handleBulkDelete = (ids: string[]) => {
-    console.log('handleBulkDelete called with ids:', ids);
-    
-    // Close any existing individual delete dialog first
-    setDeleteDialogOpen(false);
-    setTransactionToDelete(null);
-    
-    setBulkDeleteIds(ids);
-    setBulkDeleteDialogOpen(true);
-  };
+    // Cancel any existing operation
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
 
-  const handleConfirmBulkDelete = async () => {
-    console.log('handleConfirmBulkDelete called with ids:', bulkDeleteIds);
-    let successCount = 0;
-    let failCount = 0;
+    // Create new AbortController
+    abortControllerRef.current = new AbortController();
+
+    // Get details for bulk delete dialog
+    const totalAmount = ids.reduce((sum, id) => {
+      const transaction = transactions.find(t => t.id === id);
+      return sum + (transaction?.amount || 0);
+    }, 0);
     
-    for (const id of bulkDeleteIds) {
-      try {
-        deleteTransaction(id);
-        successCount++;
-      } catch (error) {
-        console.error(`Failed to delete transaction ${id}:`, error);
-        failCount++;
+    // Open bulk delete dialog
+    openBulkDelete({
+      title: `Delete ${ids.length} Transaction${ids.length > 1 ? 's' : ''}`,
+      description: `Are you sure you want to delete ${ids.length} transaction${ids.length > 1 ? 's' : ''}? This action cannot be undone.`,
+      itemName: undefined,
+      itemDetails: `Total amount: ${formatCurrency(totalAmount)}`,
+      onConfirm: async () => {
+        setBulkOperationProgress({
+          operation: 'Deleting Transactions',
+          total: ids.length,
+          completed: 0,
+          failed: 0,
+          status: 'running'
+        });
+
+        try {
+          let completed = 0;
+          let failed = 0;
+
+          for (const id of ids) {
+            // Check if operation was cancelled
+            if (abortControllerRef.current?.signal.aborted) {
+              setBulkOperationProgress({
+                operation: 'Deleting Transactions',
+                total: ids.length,
+                completed,
+                failed,
+                status: 'cancelled'
+              });
+              return;
+            }
+
+            try {
+              await deleteTransaction(id);
+              completed++;
+            } catch (error) {
+              failed++;
+            }
+
+            // Update progress
+            setBulkOperationProgress(prev => prev ? {
+              ...prev,
+              completed,
+              failed
+            } : null);
+
+            // Small delay to show progress
+            await new Promise(resolve => setTimeout(resolve, 50));
+          }
+
+          const finalStatus = failed > 0 ? 'error' : 'completed';
+          setBulkOperationProgress({
+            operation: 'Deleting Transactions',
+            total: ids.length,
+            completed,
+            failed,
+            status: finalStatus,
+            error: failed > 0 ? `Failed to delete ${failed} transactions` : undefined
+          });
+
+          toast.success(`${ids.length} transaction${ids.length > 1 ? 's' : ''} deleted successfully`);
+          
+          // Hide progress after 2 seconds
+          setTimeout(() => setBulkOperationProgress(null), 2000);
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+          setBulkOperationProgress({
+            operation: 'Deleting Transactions',
+            total: ids.length,
+            completed: 0,
+            failed: ids.length,
+            status: 'error',
+            error: errorMessage
+          });
+          toast.error('Failed to delete transactions. Please try again.');
+          setTimeout(() => setBulkOperationProgress(null), 3000);
+        }
       }
-    }
-    
-    if (successCount > 0) {
-      toast.success(`${successCount} transaction${successCount > 1 ? 's' : ''} deleted successfully!`);
-    }
-    if (failCount > 0) {
-      toast.error(`Failed to delete ${failCount} transaction${failCount > 1 ? 's' : ''}.`);
-    }
-    
-    setBulkDeleteIds([]);
-    // Dialog closing is now handled by DeleteConfirmDialog component
+    });
   };
 
   const handleBulkExport = (ids: string[]) => {
@@ -568,7 +631,14 @@ export default function TransactionsPage() {
   };
 
   const handleBulkCategoryChange = async (updates: { ids: string[]; category: string }) => {
-    const startTime = Date.now();
+    // Cancel any existing operation
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+
+    // Create new AbortController
+    abortControllerRef.current = new AbortController();
+
     setBulkOperationProgress({
       operation: 'Changing Categories',
       total: updates.ids.length,
@@ -582,6 +652,18 @@ export default function TransactionsPage() {
       let failed = 0;
 
       for (const id of updates.ids) {
+        // Check if operation was cancelled
+        if (abortControllerRef.current?.signal.aborted) {
+          setBulkOperationProgress({
+            operation: 'Changing Categories',
+            total: updates.ids.length,
+            completed,
+            failed,
+            status: 'cancelled'
+          });
+          return;
+        }
+
         try {
           const transaction = transactions.find(t => t.id === id);
           if (transaction) {
@@ -591,7 +673,6 @@ export default function TransactionsPage() {
             failed++;
           }
         } catch (error) {
-          console.error(`Failed to update transaction ${id}:`, error);
           failed++;
         }
 
@@ -619,13 +700,10 @@ export default function TransactionsPage() {
       setSelectedIds([]);
       
       // Hide progress after 2 seconds
-      const hideTimer = setTimeout(() => setBulkOperationProgress(null), 2000);
-      return () => clearTimeout(hideTimer);
+      setTimeout(() => setBulkOperationProgress(null), 2000);
       
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-      console.error('Bulk category change failed:', error);
-      
       setBulkOperationProgress({
         operation: 'Changing Categories',
         total: updates.ids.length,
@@ -635,13 +713,19 @@ export default function TransactionsPage() {
         error: errorMessage
       });
       
-      const errorTimer = setTimeout(() => setBulkOperationProgress(null), 3000);
-      return () => clearTimeout(errorTimer);
+      setTimeout(() => setBulkOperationProgress(null), 3000);
     }
   };
 
   const handleBulkDateEdit = async (updates: { ids: string[]; date: string; mode: 'set' | 'adjust' }) => {
-    const startTime = Date.now();
+    // Cancel any existing operation
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+
+    // Create new AbortController
+    abortControllerRef.current = new AbortController();
+
     setBulkOperationProgress({
       operation: 'Editing Dates',
       total: updates.ids.length,
@@ -655,6 +739,18 @@ export default function TransactionsPage() {
       let failed = 0;
 
       for (const id of updates.ids) {
+        // Check if operation was cancelled
+        if (abortControllerRef.current?.signal.aborted) {
+          setBulkOperationProgress({
+            operation: 'Editing Dates',
+            total: updates.ids.length,
+            completed,
+            failed,
+            status: 'cancelled'
+          });
+          return;
+        }
+
         try {
           const transaction = transactions.find(t => t.id === id);
           if (transaction) {
@@ -664,7 +760,6 @@ export default function TransactionsPage() {
             failed++;
           }
         } catch (error) {
-          console.error(`Failed to update transaction ${id}:`, error);
           failed++;
         }
 
@@ -692,13 +787,10 @@ export default function TransactionsPage() {
       setSelectedIds([]);
       
       // Hide progress after 2 seconds
-      const hideTimer = setTimeout(() => setBulkOperationProgress(null), 2000);
-      return () => clearTimeout(hideTimer);
+      setTimeout(() => setBulkOperationProgress(null), 2000);
       
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-      console.error('Bulk date edit failed:', error);
-      
       setBulkOperationProgress({
         operation: 'Editing Dates',
         total: updates.ids.length,
@@ -708,121 +800,244 @@ export default function TransactionsPage() {
         error: errorMessage
       });
       
-      const errorTimer = setTimeout(() => setBulkOperationProgress(null), 3000);
-      return () => clearTimeout(errorTimer);
+      setTimeout(() => setBulkOperationProgress(null), 3000);
     }
   };
 
+  const handleUpdateTransactionInline = async (id: string, updates: Partial<Transaction>) => {
+    try {
+      await updateTransaction(id, updates);
+      toast.success('Transaction updated successfully');
+    } catch (error) {
+      toast.error('Failed to update transaction');
+    }
+  };
+
+  const handleReorderTransactions = (fromIndex: number, toIndex: number) => {
+    // Implement reorder logic
+    const reorderedTransactions = [...filteredTransactions];
+    const [movedItem] = reorderedTransactions.splice(fromIndex, 1);
+    reorderedTransactions.splice(toIndex, 0, movedItem);
+    // Update the transactions array with the new order
+    // This would need to be implemented in the data layer
+    toast.success('Transactions reordered');
+  };
+
   return (
-    <div className="space-y-4 sm:space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-bold">Transactions</h1>
-          <p className="text-sm sm:text-base text-muted-foreground">
-            Manage your income and expenses
-          </p>
+    <ErrorBoundary>
+      <div className="space-y-4 sm:space-y-6" role="main" aria-label="Transactions page">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-bold" id="transactions-heading">Transactions</h1>
+            <p className="text-sm sm:text-base text-muted-foreground">
+              Manage your income and expenses
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <FavoriteButton size="sm" variant="outline" showLabel={false} />
+            <TransactionForm 
+              onSubmit={handleAddTransaction} 
+              initialData={templateData || undefined}
+              onDialogClose={() => setTemplateData(null)}
+            />
+          </div>
         </div>
-        <div className="flex items-center gap-2">
-          <TransactionForm 
-            onSubmit={handleAddTransaction} 
-            initialData={templateData || undefined}
-            onDialogClose={() => setTemplateData(null)}
+
+        {/* Bulk Operation Progress */}
+        {bulkOperationProgress && (
+          <BulkOperationProgress
+            operation={bulkOperationProgress.operation}
+            total={bulkOperationProgress.total}
+            completed={bulkOperationProgress.completed}
+            failed={bulkOperationProgress.failed}
+            status={bulkOperationProgress.status}
+            error={bulkOperationProgress.error}
           />
-        </div>
-      </div>
+        )}
 
-      {/* Bulk Operation Progress */}
-      {bulkOperationProgress && (
-        <BulkOperationProgress
-          operation={bulkOperationProgress.operation}
-          total={bulkOperationProgress.total}
-          completed={bulkOperationProgress.completed}
-          failed={bulkOperationProgress.failed}
-          status={bulkOperationProgress.status}
-          error={bulkOperationProgress.error}
-        />
-      )}
+        {/* Enhanced Filters */}
+        {isLoading ? (
+          <FiltersSkeleton />
+        ) : (
+          <>
+            <EnhancedTransactionFilters
+              filters={filters}
+              onFiltersChange={setFilters}
+              categories={categories}
+              accounts={accounts}
+              transactions={transactions}
+            />
+            {/* Active Filters Visual Feedback */}
+            {hasActiveFilters && (
+              <div className="flex flex-wrap gap-2 items-center mt-2">
+                <span className="text-sm text-muted-foreground">Active filters:</span>
+                {filters.searchTerm && (
+                  <Badge variant="secondary" className="gap-1">
+                    Search: "{filters.searchTerm}"
+                    <button 
+                      onClick={() => setFilters(prev => ({ ...prev, searchTerm: '' }))}
+                      className="ml-1 hover:text-destructive"
+                      aria-label="Clear search filter"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </Badge>
+                )}
+                {filters.type !== 'all' && (
+                  <Badge variant="secondary" className="gap-1">
+                    Type: {filters.type}
+                    <button 
+                      onClick={() => setFilters(prev => ({ ...prev, type: 'all' }))}
+                      className="ml-1 hover:text-destructive"
+                      aria-label="Clear type filter"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </Badge>
+                )}
+                {filters.category !== 'all' && (
+                  <Badge variant="secondary" className="gap-1">
+                    Category: {filters.category}
+                    <button 
+                      onClick={() => setFilters(prev => ({ ...prev, category: 'all' }))}
+                      className="ml-1 hover:text-destructive"
+                      aria-label="Clear category filter"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </Badge>
+                )}
+                {filters.account !== 'all' && (
+                  <Badge variant="secondary" className="gap-1">
+                    Account: {filters.account}
+                    <button 
+                      onClick={() => setFilters(prev => ({ ...prev, account: 'all' }))}
+                      className="ml-1 hover:text-destructive"
+                      aria-label="Clear account filter"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </Badge>
+                )}
+                {(filters.dateRange.start || filters.dateRange.end) && (
+                  <Badge variant="secondary" className="gap-1">
+                    Date Range
+                    <button 
+                      onClick={() => setFilters(prev => ({ ...prev, dateRange: { start: '', end: '' } }))}
+                      className="ml-1 hover:text-destructive"
+                      aria-label="Clear date range filter"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </Badge>
+                )}
+                {filters.tags.length > 0 && (
+                  <Badge variant="secondary" className="gap-1">
+                    Tags: {filters.tags.length}
+                    <button 
+                      onClick={() => setFilters(prev => ({ ...prev, tags: [] }))}
+                      className="ml-1 hover:text-destructive"
+                      aria-label="Clear tags filter"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </Badge>
+                )}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={clearAllFilters}
+                  className="h-6 text-xs"
+                  aria-label="Clear all filters"
+                >
+                  Clear All
+                </Button>
+              </div>
+            )}
+            {isFiltering && (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground mt-2">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Applying filters...
+              </div>
+            )}
+          </>
+        )}
 
-      {/* Enhanced Filters */}
-      {isLoading ? (
-        <FiltersSkeleton />
-      ) : (
-        <EnhancedTransactionFilters
-          filters={filters}
-          onFiltersChange={setFilters}
-          categories={categories}
-          accounts={accounts}
-          transactions={transactions}
-        />
-      )}
-
-      
-      {/* Summary Stats with Sparklines */}
-      {isLoading ? (
-        <SummaryCardsSkeleton />
-      ) : filteredTransactions.length === 0 ? (
-        <EmptyTransactionsState />
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Card className="rounded-none">
+        
+        {/* Summary Stats with Sparklines */}
+        {isLoading ? (
+          <SummaryCardsSkeleton />
+        ) : transactions.length === 0 ? (
+          <EmptyTransactionsState />
+        ) : filteredTransactions.length === 0 ? (
+          hasActiveFilters ? (
+            <NoFilterResultsState onClearFilters={clearAllFilters} />
+          ) : (
+            <EmptyTransactionsState />
+          )
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4" role="region" aria-label="Financial summary statistics">
+            <Card className="rounded-xl" aria-labelledby="total-income-label">
+              <CardContent className="pt-6">
+                <div className="flex items-center justify-between mb-3">
+                  <div>
+                    <div className="text-2xl font-bold text-success" id="total-income-label">
+                      +{formatCurrency(summaryStats.totalIncome)}
+                    </div>
+                    <p className="text-xs text-muted-foreground">Total Income</p>
+                  </div>
+                  {hasActiveFilters && (
+                    <Badge variant="outline" className="text-xs" aria-label={`Number of income transactions: ${filteredTransactions.filter(t => t.type === 'income').length}`}>
+                      {filteredTransactions.filter(t => t.type === 'income').length} items
+                    </Badge>
+                  )}
+                </div>
+                <SparklineChart 
+                  data={getMonthlyTrendData(transactions.filter(t => t.type === 'income'))}
+                  color={resolvedTheme === 'dark' ? '#22c55e' : '#16a34a'}
+                  height={40}
+                  positive={true}
+                  aria-label="Income trend over time"
+                />
+              </CardContent>
+            </Card>
+        
+          <Card className="rounded-xl" aria-labelledby="total-expenses-label">
             <CardContent className="pt-6">
               <div className="flex items-center justify-between mb-3">
-                <div>
-                  <div className="text-2xl font-bold text-success">
-                    +{formatCurrency(summaryStats.totalIncome)}
+                  <div>
+                    <div className="text-2xl font-bold text-destructive" id="total-expenses-label">
+                      -{formatCurrency(summaryStats.totalExpenses)}
+                    </div>
+                    <p className="text-xs text-muted-foreground">Total Expenses</p>
                   </div>
-                  <p className="text-xs text-muted-foreground">Total Income</p>
+                  {hasActiveFilters && (
+                    <Badge variant="outline" className="text-xs" aria-label={`Number of expense transactions: ${filteredTransactions.filter(t => t.type === 'expense').length}`}>
+                      {filteredTransactions.filter(t => t.type === 'expense').length} items
+                    </Badge>
+                  )}
                 </div>
-                {hasActiveFilters && (
-                  <Badge variant="outline" className="text-xs">
-                    {filteredTransactions.filter(t => t.type === 'income').length} items
-                  </Badge>
-                )}
-              </div>
               <SparklineChart 
-                data={getMonthlyTrendData(transactions.filter(t => t.type === 'income'))}
-                color={resolvedTheme === 'dark' ? '#22c55e' : '#16a34a'}
+                data={getMonthlyTrendData(transactions.filter(t => t.type === 'expense'))}
+                color={resolvedTheme === 'dark' ? '#ef4444' : '#dc2626'}
                 height={40}
-                positive={true}
+                positive={false}
+                aria-label="Expense trend over time"
               />
-            </CardContent>
-          </Card>
-        
-        <Card className="rounded-none">
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between mb-3">
-                <div>
-                  <div className="text-2xl font-bold text-destructive">
-                    -{formatCurrency(summaryStats.totalExpenses)}
-                  </div>
-                  <p className="text-xs text-muted-foreground">Total Expenses</p>
-                </div>
-                {hasActiveFilters && (
-                  <Badge variant="outline" className="text-xs">
-                    {filteredTransactions.filter(t => t.type === 'expense').length} items
-                  </Badge>
-                )}
-              </div>
-            <SparklineChart 
-              data={getMonthlyTrendData(transactions.filter(t => t.type === 'expense'))}
-              color={resolvedTheme === 'dark' ? '#ef4444' : '#dc2626'}
-              height={40}
-              positive={false}
-            />
           </CardContent>
         </Card>
         
-        <Card className="rounded-none">
+        <Card className="rounded-xl" aria-labelledby="net-balance-label">
           <CardContent className="pt-6">
             <div className="flex items-center justify-between mb-3">
               <div>
-                <div className={`text-2xl font-bold ${summaryStats.net >= 0 ? 'text-success' : 'text-destructive'}`}>
+                <div className={`text-2xl font-bold ${summaryStats.net >= 0 ? 'text-success' : 'text-destructive'}`} id="net-balance-label">
                   {formatCurrency(summaryStats.net)}
                 </div>
                 <p className="text-xs text-muted-foreground">Net</p>
               </div>
               {hasActiveFilters && (
-                <Badge variant="outline" className="text-xs">
+                <Badge variant="outline" className="text-xs" aria-label={`Total number of transactions: ${filteredTransactions.length}`}>
                   {filteredTransactions.length} total
                 </Badge>
               )}
@@ -832,6 +1047,7 @@ export default function TransactionsPage() {
               color="currentColor"
               height={40}
               positive={true}
+              aria-label="Net balance trend over time"
             />
           </CardContent>
         </Card>
@@ -839,18 +1055,47 @@ export default function TransactionsPage() {
       )}
 
       {/* Table Toggle */}
-      <div className="flex justify-end mb-2">
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => setUseEnhancedTable(!useEnhancedTable)}
-        >
-          {useEnhancedTable ? 'Simple View' : 'Enhanced View'}
-        </Button>
+      <div className="flex justify-end mb-2 gap-2" role="group" aria-label="Table view options">
+        <TooltipWrapper content="Simple table view with basic columns">
+          <Button
+            variant={useEnhancedTable === false ? "default" : "outline"}
+            size="sm"
+            onClick={() => setUseEnhancedTable(false)}
+            aria-pressed={useEnhancedTable === false}
+            aria-label="Switch to simple table view"
+          >
+            <Table className="h-4 w-4 mr-2" />
+            Simple
+          </Button>
+        </TooltipWrapper>
+        <TooltipWrapper content="Enhanced table with sorting, filtering, and bulk actions">
+          <Button
+            variant={useEnhancedTable === true ? "default" : "outline"}
+            size="sm"
+            onClick={() => setUseEnhancedTable(true)}
+            aria-pressed={useEnhancedTable === true}
+            aria-label="Switch to enhanced table view"
+          >
+            <LayoutGrid className="h-4 w-4 mr-2" />
+            Enhanced
+          </Button>
+        </TooltipWrapper>
+        <TooltipWrapper content="Infinite scroll for large datasets">
+          <Button
+            variant={useEnhancedTable === null ? "default" : "outline"}
+            size="sm"
+            onClick={() => setUseEnhancedTable(null)}
+            aria-pressed={useEnhancedTable === null}
+            aria-label="Switch to infinite scroll view"
+          >
+            <Infinity className="h-4 w-4 mr-2" />
+            Infinite
+          </Button>
+        </TooltipWrapper>
       </div>
 
       {/* Transactions Table */}
-      <ErrorBoundary>
+      <div role="region" aria-labelledby="transactions-heading" aria-live="polite" aria-atomic="false">
         {useEnhancedTable ? (
           <EnhancedTransactionTable
             transactions={filteredTransactions}
@@ -864,6 +1109,9 @@ export default function TransactionsPage() {
             onSelectionChange={setSelectedIds}
             onBulkCategoryChange={() => setBulkCategoryDialogOpen(true)}
             onBulkDateEdit={() => setBulkDateDialogOpen(true)}
+            onUpdateTransaction={handleUpdateTransactionInline}
+            onReorderTransactions={handleReorderTransactions}
+            enableDragDrop={true}
           />
         ) : useEnhancedTable === false ? (
           <InfiniteScrollTransactions
@@ -885,40 +1133,41 @@ export default function TransactionsPage() {
             onDuplicate={handleDuplicateTransaction}
           />
         )}
-      </ErrorBoundary>
+      </div>
 
       {/* Edit Transaction Dialog */}
-      <ErrorBoundary>
-        <EditTransactionForm
-          transaction={editingTransaction}
-          open={!!editingTransaction}
-          onClose={() => setEditingTransaction(null)}
-          onSubmit={handleUpdateTransaction}
-        />
-      </ErrorBoundary>
-
-      {/* Delete Confirmation Dialog */}
-      <DeleteConfirmDialog
-        key="individual-delete"
-        open={deleteDialogOpen}
-        onOpenChange={setDeleteDialogOpen}
-        onConfirm={handleConfirmDelete}
-        title="Delete Transaction"
-        description="Are you sure you want to delete this transaction? This action cannot be undone."
-        itemName={transactionToDelete ? getTransactionDescription(transactionToDelete) : undefined}
-        itemDetails={transactionToDelete ? getTransactionDetails(transactionToDelete) : undefined}
+      <EditTransactionForm
+        transaction={editingTransaction}
+        open={!!editingTransaction}
+        onClose={() => setEditingTransaction(null)}
+        onSubmit={handleUpdateTransaction}
       />
+
+      {/* Single Delete Confirmation Dialog */}
+      {dialog && dialog.mode === 'individual' && (
+        <DeleteConfirmDialog
+          open={dialog.isOpen}
+          onOpenChange={closeDeleteDialog}
+          onConfirm={dialog.onConfirm}
+          title={dialog.title}
+          description={dialog.description}
+          itemName={dialog.itemName}
+          itemDetails={dialog.itemDetails}
+        />
+      )}
 
       {/* Bulk Delete Confirmation Dialog */}
-      <DeleteConfirmDialog
-        key="bulk-delete"
-        open={bulkDeleteDialogOpen}
-        onOpenChange={setBulkDeleteDialogOpen}
-        onConfirm={handleConfirmBulkDelete}
-        title={`Delete ${bulkDeleteIds.length} Transaction${bulkDeleteIds.length > 1 ? 's' : ''}`}
-        description={`Are you sure you want to delete ${bulkDeleteIds.length} transaction${bulkDeleteIds.length > 1 ? 's' : ''}? This action cannot be undone.`}
-        itemDetails={bulkDeleteIds.length > 0 ? getBulkDeleteDetails(bulkDeleteIds) : undefined}
-      />
+      {dialog && dialog.mode === 'bulk' && (
+        <DeleteConfirmDialog
+          open={dialog.isOpen}
+          onOpenChange={closeDeleteDialog}
+          onConfirm={dialog.onConfirm}
+          title={dialog.title}
+          description={dialog.description}
+          itemName={dialog.itemName}
+          itemDetails={dialog.itemDetails}
+        />
+      )}
 
       {/* Export Dialog */}
       <ExportDialog
@@ -951,12 +1200,11 @@ export default function TransactionsPage() {
       />
 
       {/* Data Visualization - Bottom Section */}
-      <ErrorBoundary>
-        <div className="mt-8 pt-8 border-t">
-          <h2 className="text-xl font-semibold mb-4">Financial Insights</h2>
-          <MonthlyComparison transactions={filteredTransactions} />
-        </div>
-      </ErrorBoundary>
-    </div>
+      <div className="mt-8 pt-8 border-t" role="region" aria-labelledby="financial-insights-heading">
+        <h2 className="text-xl font-semibold mb-4" id="financial-insights-heading">Financial Insights</h2>
+        <MonthlyComparison transactions={filteredTransactions} aria-label="Monthly comparison chart" />
+      </div>
+      </div>
+    </ErrorBoundary>
   );
 }

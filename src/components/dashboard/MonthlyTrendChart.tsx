@@ -27,7 +27,7 @@ export function MonthlyTrendChart({ data }: MonthlyTrendChartProps) {
         <div className="bg-background border rounded-none p-3 shadow-lg">
           <p className="font-medium mb-2">{label}</p>
           {payload.map((entry: any, index: number) => (
-            <p key={index} className="text-sm" style={{ color: entry.color }}>
+            <p key={index} className="text-sm font-bold tabular-nums" style={{ color: entry.color }}>
               {entry.name}: {formatCurrency(entry.value)}
             </p>
           ))}
@@ -52,12 +52,12 @@ export function MonthlyTrendChart({ data }: MonthlyTrendChartProps) {
   }
 
   return (
-    <Card className="rounded-none">
+    <Card className="rounded-lg">
       <CardHeader>
         <CardTitle>Monthly Trend</CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="h-80">
+        <div className="h-80 w-full min-w-0 min-h-0">
           <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={undefined}>
             <LineChart data={data}>
               <CartesianGrid strokeDasharray="3 3" />

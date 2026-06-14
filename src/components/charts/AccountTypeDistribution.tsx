@@ -195,7 +195,7 @@ export function AccountTypeDistribution({
     const typeData = accountTypeData.find(d => d.name.toLowerCase() === selectedType.toLowerCase());
     
     return (
-      <Card>
+      <Card className="rounded-xl">
         <CardHeader>
           <div className="flex items-center justify-between">
             <CardTitle className="flex items-center gap-2">

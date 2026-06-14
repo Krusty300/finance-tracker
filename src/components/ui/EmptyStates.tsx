@@ -96,7 +96,7 @@ export function NoSearchResultsState() {
   );
 }
 
-export function NoFilterResultsState() {
+export function NoFilterResultsState({ onClearFilters }: { onClearFilters?: () => void }) {
   return (
     <EmptyState
       title="No transactions match your filters"
@@ -104,11 +104,11 @@ export function NoFilterResultsState() {
       icon={<Filter className="w-8 h-8 text-muted-foreground" />}
       secondaryAction={{
         label: "Clear Filters",
-        onClick: () => {
+        onClick: onClearFilters || (() => {
           // Clear all filters
           const event = new CustomEvent('clear-all-filters');
           document.dispatchEvent(event);
-        }
+        })
       }}
     />
   );

@@ -41,12 +41,15 @@ export function AccountAnalytics({ account, transactions }: AccountAnalyticsProp
     .filter(t => t.type === 'expense')
     .reduce((sum, t) => sum + t.amount, 0);
   
-  // Get recent transactions (last 30 days)
+  // Get recent transactions (last 30 days) - use UTC for consistency
   const thirtyDaysAgo = new Date();
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-  const recentTransactions = accountTransactions.filter(t => 
-    new Date(t.date) >= thirtyDaysAgo
-  );
+  const recentTransactions = accountTransactions.filter(t => {
+    if (!t || !t.date) return false;
+    const transactionDate = new Date(t.date);
+    if (isNaN(transactionDate.getTime())) return false;
+    return transactionDate.getTime() >= thirtyDaysAgo.getTime();
+  });
   
   // Calculate category breakdown for expenses
   const expensesByCategory = accountTransactions
@@ -66,7 +69,7 @@ export function AccountAnalytics({ account, transactions }: AccountAnalyticsProp
     .sort((a, b) => b.amount - a.amount)
     .slice(0, 5);
 
-  // Calculate monthly trend (last 6 months)
+  // Calculate monthly trend (last 6 months) - use UTC for consistency
   const monthlyTrend = [];
   for (let i = 5; i >= 0; i--) {
     const trendDate = new Date();
@@ -75,8 +78,12 @@ export function AccountAnalytics({ account, transactions }: AccountAnalyticsProp
     const monthEnd = new Date(trendDate.getFullYear(), trendDate.getMonth() + 1, 0);
     
     const monthTransactions = accountTransactions.filter(t => {
+      if (!t || !t.date) return false;
       const transactionDate = new Date(t.date);
-      return transactionDate >= monthStart && transactionDate <= monthEnd;
+      if (isNaN(transactionDate.getTime())) return false;
+      // Use timestamp comparison for consistency
+      return transactionDate.getTime() >= monthStart.getTime() && 
+             transactionDate.getTime() <= monthEnd.getTime();
     });
 
     const monthIncome = monthTransactions
@@ -121,7 +128,7 @@ export function AccountAnalytics({ account, transactions }: AccountAnalyticsProp
     <div className="space-y-6">
       {/* Key Metrics */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
+        <Card className="rounded-xl">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Transactions</CardTitle>
             <Activity className="h-4 w-4 text-muted-foreground" />
@@ -134,7 +141,7 @@ export function AccountAnalytics({ account, transactions }: AccountAnalyticsProp
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="rounded-xl">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Income</CardTitle>
             <TrendingUp className="h-4 w-4 text-green-600" />
@@ -149,7 +156,7 @@ export function AccountAnalytics({ account, transactions }: AccountAnalyticsProp
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="rounded-xl">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Expenses</CardTitle>
             <TrendingDown className="h-4 w-4 text-red-600" />
@@ -164,7 +171,7 @@ export function AccountAnalytics({ account, transactions }: AccountAnalyticsProp
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="rounded-xl">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Net Flow</CardTitle>
             <Target className="h-4 w-4 text-blue-600" />
@@ -181,7 +188,7 @@ export function AccountAnalytics({ account, transactions }: AccountAnalyticsProp
       </div>
 
       {/* Monthly Trend */}
-      <Card>
+      <Card className="rounded-xl">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Calendar className="h-5 w-5" />
@@ -229,7 +236,7 @@ export function AccountAnalytics({ account, transactions }: AccountAnalyticsProp
 
       {/* Expense Categories */}
       {expensesByCategory.length > 0 && (
-        <Card>
+        <Card className="rounded-xl">
           <CardHeader>
             <CardTitle>Top Expense Categories</CardTitle>
           </CardHeader>
@@ -297,7 +304,7 @@ export function AccountAnalytics({ account, transactions }: AccountAnalyticsProp
       )}
 
       {/* Activity Insights */}
-      <Card>
+      <Card className="rounded-xl">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Activity className="h-5 w-5" />

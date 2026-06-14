@@ -4,6 +4,8 @@ import { ThemeProvider } from "@/contexts/ThemeContext";
 import { OnboardingProvider } from "@/contexts/OnboardingContext";
 import { CurrencyProvider } from "@/contexts/CurrencyContext";
 import { FormattingProvider } from "@/contexts/FormattingContext";
+import { GlobalLoadingProvider } from "@/contexts/GlobalLoadingContext";
+import { GlobalLoadingOverlay } from "@/components/ui/GlobalLoadingOverlay";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -53,8 +55,11 @@ export default function RootLayout({
           <CurrencyProvider>
             <FormattingProvider>
               <OnboardingProvider>
-                {children}
-                <Toaster />
+                <GlobalLoadingProvider>
+                  {children}
+                  <GlobalLoadingOverlay />
+                  <Toaster />
+                </GlobalLoadingProvider>
               </OnboardingProvider>
             </FormattingProvider>
           </CurrencyProvider>

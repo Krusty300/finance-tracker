@@ -43,7 +43,7 @@ export function TransactionTable({ transactions, onEdit, onDelete, onDuplicate }
 
   if (transactions.length === 0) {
     return (
-      <Card>
+      <Card className="rounded-lg">
         <CardContent className="flex items-center justify-center h-64">
           <div className="text-center">
             <p className="text-muted-foreground">No transactions found</p>

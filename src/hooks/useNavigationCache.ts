@@ -33,7 +33,7 @@ const CACHE_TTL = 30 * 60 * 1000; // 30 minutes
 const DEFAULT_NAVIGATION: NavigationItem[] = [
   {
     id: 'dashboard',
-    name: 'Dashboard',
+    name: 'Sprint Dashboard',
     href: '/dashboard',
     icon: 'LayoutDashboard',
     description: 'View your financial overview and key metrics',
@@ -141,14 +141,14 @@ export function useNavigationCache() {
   }, []);
 
   // Track page visits for recently viewed
-  const trackPageVisit = useCallback((href: string) => {
+  const trackPageVisit = useCallback((href: string, limit: number = 10) => {
     setNavigationState(prevState => {
       const recentlyViewed = prevState.recentlyViewed.filter(item => item !== href);
       recentlyViewed.unshift(href);
-      
-      // Keep only last 10 items
-      if (recentlyViewed.length > 10) {
-        recentlyViewed.splice(10);
+
+      // Keep only last N items based on limit
+      if (recentlyViewed.length > limit) {
+        recentlyViewed.splice(limit);
       }
 
       // Update access count and last accessed
@@ -284,7 +284,7 @@ export function useNavigationCache() {
 
   // Get recently viewed items
   const recentlyViewedItems = useMemo(() => {
-    const hrefs = navigationState.recentlyViewed.slice(0, 5); // Top 5
+    const hrefs = navigationState.recentlyViewed.slice(0, 5); // Top 5 displayed in sidebar
     return hrefs.map(href => sortedItems.find(item => item.href === href)).filter(Boolean) as NavigationItem[];
   }, [navigationState.recentlyViewed, sortedItems]);
 
@@ -343,6 +343,15 @@ export function useNavigationCache() {
     resetToDefault();
   }, [resetToDefault]);
 
+  // Clear recently viewed
+  const clearRecentlyViewed = useCallback(() => {
+    setNavigationState(prevState => {
+      const newState = { ...prevState, recentlyViewed: [] };
+      saveNavigationState(newState);
+      return newState;
+    });
+  }, [saveNavigationState]);
+
   return {
     // State
     navigationState,
@@ -360,6 +369,7 @@ export function useNavigationCache() {
     updateItem,
     searchItems,
     trackPageVisit,
+    clearRecentlyViewed,
 
     // Utilities
     resetToDefault,
@@ -378,6 +388,7 @@ export function useNavigationPreferences() {
     showBadges: true,
     showDescriptions: true,
     animationsEnabled: true,
+    recentlyViewedLimit: 10,
   });
 
   const updatePreference = useCallback((key: string, value: any) => {

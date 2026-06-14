@@ -33,7 +33,7 @@ export function AccountCard({
   onViewTransactions,
   onViewDetails,
 }: AccountCardProps) {
-  const { formatCurrency } = useCurrency();
+  const { formatCurrency, convertCurrency, currency: userCurrency } = useCurrency();
   const { resolvedTheme } = useTheme();
   
   // Validate account data
@@ -41,9 +41,19 @@ export function AccountCard({
     return null;
   }
 
+  // Validate balance
+  const validBalance = typeof account.balance === 'number' && !isNaN(account.balance) ? account.balance : 0;
+  
+  // Handle account-specific currency
+  const accountCurrency = (account.currency as any) || 'USD';
+  const displayBalance = accountCurrency !== userCurrency 
+    ? convertCurrency(validBalance, accountCurrency as any, userCurrency)
+    : validBalance;
+
   const isCredit = account.type === 'credit';
-  const isPositive = typeof account.balance === 'number' && account.balance > 0;
-  const isZero = typeof account.balance === 'number' && account.balance === 0;
+  const isPositive = displayBalance > 0;
+  const isZero = displayBalance === 0;
+  const isNegative = displayBalance < 0;
 
   const getBalanceColor = () => {
     if (isCredit) {
@@ -67,7 +77,7 @@ export function AccountCard({
   };
 
   return (
-    <Card className="relative hover:shadow-lg transition-all duration-200 hover:scale-[1.02] hover:border-primary/20 rounded-none">
+    <Card className="relative hover:shadow-lg transition-all duration-200 hover:scale-[1.02] hover:border-primary/20 rounded-xl">
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -76,7 +86,8 @@ export function AccountCard({
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <span>{accountTypeLabels[account.type]}</span>
                 <Badge variant="outline" className="text-xs">
-                  {account.currency}
+                  {accountCurrency}
+                  {accountCurrency !== userCurrency && ` → ${userCurrency}`}
                 </Badge>
               </div>
             </div>
@@ -117,10 +128,17 @@ export function AccountCard({
               {getBalanceIcon()}
               {getBalanceText()}
             </span>
-            <span className={`text-2xl font-bold ${getBalanceColor()}`}>
-              {isCredit && isPositive ? '-' : ''}
-              {formatCurrency(Math.abs(typeof account.balance === 'number' ? account.balance : 0))}
-            </span>
+            <div className="text-right">
+              <span className={`text-2xl font-bold ${getBalanceColor()}`}>
+                {isCredit && isPositive ? '-' : ''}
+                {formatCurrency(Math.abs(displayBalance))}
+              </span>
+              {accountCurrency !== userCurrency && (
+                <div className="text-xs text-muted-foreground">
+                  Original: {formatCurrency(Math.abs(validBalance), accountCurrency as any)}
+                </div>
+              )}
+            </div>
           </div>
           
           {recentTransactions > 0 && (
@@ -136,20 +154,20 @@ export function AccountCard({
             resolvedTheme === 'dark' ? 'bg-warning/20 text-warning' : 'bg-warning/10 text-warning'
           }`}>
             <TrendingUp className="h-4 w-4" />
-            <span>Credit card debt of {formatCurrency(typeof account.balance === 'number' ? account.balance : 0)}</span>
+            <span>Credit card debt of {formatCurrency(displayBalance)}</span>
           </div>
         )}
 
-        {!isCredit && typeof account.balance === 'number' && account.balance < 0 && (
+        {!isCredit && isNegative && (
           <div className={`flex items-center gap-2 text-sm p-2 rounded ${
             resolvedTheme === 'dark' ? 'bg-destructive/20 text-destructive' : 'bg-destructive/10 text-destructive'
           }`}>
             <TrendingDown className="h-4 w-4" />
-            <span>Account overdrawn by {formatCurrency(Math.abs(account.balance))}</span>
+            <span>Account overdrawn by {formatCurrency(Math.abs(displayBalance))}</span>
           </div>
         )}
 
-        {!isCredit && typeof account.balance === 'number' && account.balance > 0 && account.balance < 100 && (
+        {!isCredit && isPositive && displayBalance < 100 && (
           <div className={`flex items-center gap-2 text-sm p-2 rounded ${
             resolvedTheme === 'dark' ? 'bg-warning/20 text-warning' : 'bg-warning/10 text-warning'
           }`}>

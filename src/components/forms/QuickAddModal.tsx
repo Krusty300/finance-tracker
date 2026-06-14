@@ -27,6 +27,13 @@ import {
   Loader2
 } from 'lucide-react';
 
+// Utility function to get today's date string in local timezone
+const getTodayDateString = (): string => {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0); // Set to midnight local time
+  return today.toISOString().split('T')[0];
+};
+
 interface QuickAddModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -69,7 +76,7 @@ export function QuickAddModal({ open, onOpenChange }: QuickAddModalProps) {
     description: '',
     category: '',
     account: '',
-    date: new Date().toISOString().split('T')[0]
+    date: getTodayDateString()
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -93,6 +100,9 @@ export function QuickAddModal({ open, onOpenChange }: QuickAddModalProps) {
     today.setHours(0, 0, 0, 0);
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
+    
+    // Set selected date to midnight for fair comparison
+    selectedDate.setHours(0, 0, 0, 0);
     
     setIsFutureDate(selectedDate > tomorrow);
   }, [formData.date]);
@@ -134,6 +144,9 @@ export function QuickAddModal({ open, onOpenChange }: QuickAddModalProps) {
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
     
+    // Set selected date to midnight for fair comparison
+    selectedDate.setHours(0, 0, 0, 0);
+    
     const isFutureDate = selectedDate > tomorrow;
     if (isFutureDate) {
       toast.warning('Date is in the future. Please confirm this is correct.');
@@ -159,7 +172,7 @@ export function QuickAddModal({ open, onOpenChange }: QuickAddModalProps) {
         description: '',
         category: '',
         account: '',
-        date: new Date().toISOString().split('T')[0]
+        date: getTodayDateString()
       });
       
       onOpenChange(false);
@@ -182,18 +195,20 @@ export function QuickAddModal({ open, onOpenChange }: QuickAddModalProps) {
 
   // Quick date functions
   const setToday = () => {
-    setFormData(prev => ({ ...prev, date: new Date().toISOString().split('T')[0] }));
+    setFormData(prev => ({ ...prev, date: getTodayDateString() }));
   };
 
   const setYesterday = () => {
     const yesterday = new Date();
     yesterday.setDate(yesterday.getDate() - 1);
+    yesterday.setHours(0, 0, 0, 0); // Set to midnight local time
     setFormData(prev => ({ ...prev, date: yesterday.toISOString().split('T')[0] }));
   };
 
   const setLastWeek = () => {
     const lastWeek = new Date();
     lastWeek.setDate(lastWeek.getDate() - 7);
+    lastWeek.setHours(0, 0, 0, 0); // Set to midnight local time
     setFormData(prev => ({ ...prev, date: lastWeek.toISOString().split('T')[0] }));
   };
 
@@ -387,6 +402,7 @@ export function QuickAddModal({ open, onOpenChange }: QuickAddModalProps) {
                 value={formData.date}
                 onChange={(e) => setFormData(prev => ({ ...prev, date: e.target.value }))}
                 className="pl-10 pr-4 h-11 bg-background border-2 border-input rounded-lg text-sm font-medium transition-all duration-200 focus:border-primary focus:ring-2 focus:ring-primary/20 hover:border-muted-foreground"
+                max={getTodayDateString()}
                 required
               />
             </div>

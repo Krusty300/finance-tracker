@@ -16,6 +16,8 @@ import { useCategories } from '@/hooks/useCategories';
 import { useAccounts } from '@/hooks/useAccounts';
 import { useCurrency } from '@/contexts/CurrencyContext';
 import { Plus, Loader2, Calendar } from 'lucide-react';
+import { ButtonLoadingState, FormLoadingState } from '@/components/ui/EnhancedLoadingState';
+import { useLoadingState } from '@/hooks/useLoadingState';
 
 const formSchema = createTransactionSchema.extend({
   date: z.string().min(1, 'Date is required'),
@@ -60,8 +62,17 @@ export function TransactionForm({ onSubmit, trigger, initialData, onDialogClose 
   const { accounts } = useAccounts();
 
   const [open, setOpen] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [isClient, setIsClient] = useState(false);
+  const [hasOpenedFromInitialData, setHasOpenedFromInitialData] = useState(false);
+  
+  const { 
+    isLoading: isSubmitting, 
+    error: submitError, 
+    startLoading: startSubmitting, 
+    stopLoading: stopSubmitting, 
+    setError: setSubmitError,
+    reset: resetSubmitState 
+  } = useLoadingState();
 
   // Set client-side flag for SSR
   useEffect(() => {
@@ -121,9 +132,10 @@ export function TransactionForm({ onSubmit, trigger, initialData, onDialogClose 
   const transactionType = form.watch('type');
   const filteredCategories = categories.filter(cat => cat.type === transactionType);
   useEffect(() => {
-    if (initialData) {
+    if (initialData && !hasOpenedFromInitialData) {
       console.log('TransactionForm: Setting initialData', initialData);
       setOpen(true);
+      setHasOpenedFromInitialData(true);
       
       // Small delay to ensure form is fully initialized
       const timer = setTimeout(() => {
@@ -162,8 +174,15 @@ export function TransactionForm({ onSubmit, trigger, initialData, onDialogClose 
     }
   }, [initialData, form]);
 
+  // Reset the flag when dialog closes without initial data
+  useEffect(() => {
+    if (!open && !initialData) {
+      setHasOpenedFromInitialData(false);
+    }
+  }, [open, initialData]);
+
   const handleSubmit = async (data: FormData) => {
-    setIsSubmitting(true);
+    startSubmitting('Submitting transaction...');
     try {
       // Validate data before submission
       if (!data.amount || data.amount <= 0) {
@@ -184,16 +203,16 @@ export function TransactionForm({ onSubmit, trigger, initialData, onDialogClose 
       setTimeout(() => {
         form.reset();
         setOpen(false);
+        resetSubmitState();
       }, 100);
     } catch (error) {
       console.error('Error submitting transaction:', error);
+      setSubmitError(error instanceof Error ? error : new Error('Failed to submit transaction'));
       // Show user-friendly error message
       const errorMessage = error instanceof Error ? error.message : 'Failed to add transaction. Please try again.';
       // You could add a toast notification here if needed
       // Don't close dialog on error - let user fix the issue
       return;
-    } finally {
-      setIsSubmitting(false);
     }
   };
 
@@ -208,8 +227,11 @@ export function TransactionForm({ onSubmit, trigger, initialData, onDialogClose 
     <ErrorBoundary fallback={TransactionFormErrorFallback}>
       <Dialog open={open} onOpenChange={(newOpen) => {
         setOpen(newOpen);
-        if (!newOpen && onDialogClose) {
-          onDialogClose();
+        if (!newOpen) {
+          setHasOpenedFromInitialData(false);
+          if (onDialogClose) {
+            onDialogClose();
+          }
         }
       }}>
         <DialogTrigger asChild>
@@ -408,19 +430,14 @@ export function TransactionForm({ onSubmit, trigger, initialData, onDialogClose 
               >
                 Cancel
               </Button>
-              <Button type="submit" disabled={isSubmitting}>
-                {isSubmitting ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Adding...
-                  </>
-                ) : (
-                  <>
-                    <Plus className="mr-2 h-4 w-4" />
-                    Add Transaction
-                  </>
-                )}
-              </Button>
+              <ButtonLoadingState
+                isLoading={isSubmitting}
+                loadingText="Adding..."
+                onClick={form.handleSubmit(handleSubmit)}
+              >
+                <Plus className="mr-2 h-4 w-4" />
+                Add Transaction
+              </ButtonLoadingState>
             </div>
           </form>
         </Form>

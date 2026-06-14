@@ -16,7 +16,7 @@ export function TransactionTableSkeleton() {
       </div>
 
       {/* Table skeleton */}
-      <Card>
+      <Card className="rounded-lg">
         <CardHeader>
           <Skeleton className="h-6 w-48" />
         </CardHeader>
@@ -43,7 +43,7 @@ export function SummaryCardsSkeleton() {
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
       {Array.from({ length: 3 }).map((_, i) => (
-        <Card key={i}>
+        <Card key={i} className="rounded-lg">
           <CardContent className="pt-6">
             <div className="flex items-center justify-between mb-3">
               <div className="space-y-2">

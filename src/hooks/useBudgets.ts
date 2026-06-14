@@ -18,7 +18,7 @@ export function useBudgets() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, []); // No dependencies needed as it only uses external functions
 
   useEffect(() => {
     loadBudgets();
@@ -31,7 +31,7 @@ export function useBudgets() {
     return () => {
       window.removeEventListener('storage', handleStorageChange);
     };
-  }, []);
+  }, [loadBudgets]); // Include loadBudgets in dependencies
 
   // Listen for real-time budget events
   useEffect(() => {
@@ -51,6 +51,11 @@ export function useBudgets() {
 
   const addBudget = useCallback((budget: Omit<Budget, 'id'>) => {
     try {
+      // Validate budget amount is not negative
+      if (budget.amount < 0) {
+        throw new Error('Budget amount cannot be negative');
+      }
+      
       const newBudget = db.addBudget(budget);
       
       // Update local state immediately
@@ -71,6 +76,11 @@ export function useBudgets() {
 
   const updateBudget = useCallback((id: string, updates: Partial<Budget>) => {
     try {
+      // Validate budget amount is not negative if being updated
+      if (updates.amount !== undefined && updates.amount < 0) {
+        throw new Error('Budget amount cannot be negative');
+      }
+      
       const updated = db.updateBudget(id, updates);
       if (updated) {
         setBudgets(prev => 

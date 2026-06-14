@@ -3,7 +3,10 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { exchangeRateService } from '@/services/currencyConversion';
 
-type Currency = 'USD' | 'EUR' | 'GBP' | 'JPY' | 'CAD' | 'AUD';
+type Currency = 'USD' | 'EUR' | 'GBP' | 'JPY' | 'CAD' | 'AUD' | 
+  'KES' | 'UGX' | 'TZS' | 'ETB' | // East Africa
+  'ZAR' | 'NAD' | 'BWP' | // South Africa
+  'NGN' | 'GHS' | 'XOF' | 'XAF'; // West Africa
 
 interface CurrencyContextType {
   currency: Currency;
@@ -11,11 +14,18 @@ interface CurrencyContextType {
   formatCurrency: (amount: number, overrideCurrency?: Currency) => string;
   availableCurrencies: Currency[];
   getCurrencySymbol: (currency: Currency) => string;
+  convertCurrency: (amount: number, fromCurrency: Currency, toCurrency: Currency) => number;
+  baseCurrency: Currency;
 }
 
 const CurrencyContext = createContext<CurrencyContextType | undefined>(undefined);
 
-const CURRENCIES: Currency[] = ['USD', 'EUR', 'GBP', 'JPY', 'CAD', 'AUD'];
+const CURRENCIES: Currency[] = [
+  'USD', 'EUR', 'GBP', 'JPY', 'CAD', 'AUD',
+  'KES', 'UGX', 'TZS', 'ETB', // East Africa
+  'ZAR', 'NAD', 'BWP', // South Africa
+  'NGN', 'GHS', 'XOF', 'XAF' // West Africa
+];
 
 const CURRENCY_SYMBOLS: Record<Currency, string> = {
   USD: '$',
@@ -24,6 +34,20 @@ const CURRENCY_SYMBOLS: Record<Currency, string> = {
   JPY: '¥',
   CAD: 'C$',
   AUD: 'A$',
+  // East Africa
+  KES: 'KSh',
+  UGX: 'UGX',
+  TZS: 'TSh',
+  ETB: 'Br',
+  // South Africa
+  ZAR: 'R',
+  NAD: 'N$',
+  BWP: 'P',
+  // West Africa
+  NGN: '₦',
+  GHS: 'GH₵',
+  XOF: 'CFA',
+  XAF: 'FCFA',
 };
 
 export function CurrencyProvider({ children }: { children: ReactNode }) {
@@ -108,18 +132,56 @@ export function CurrencyProvider({ children }: { children: ReactNode }) {
     }
   }, [isLoaded]);
 
+  // Convert amount from one currency to another
+  const convertCurrency = (amount: number, fromCurrency: Currency, toCurrency: Currency): number => {
+    // If same currency, no conversion needed
+    if (fromCurrency === toCurrency) {
+      return amount;
+    }
+
+    // Validate amount
+    if (typeof amount !== 'number' || isNaN(amount)) {
+      console.warn('Invalid amount for currency conversion:', amount);
+      return 0;
+    }
+
+    // Check if conversion rates are available
+    if (!conversionRates[fromCurrency] || !conversionRates[toCurrency]) {
+      console.warn('Conversion rates not available for:', fromCurrency, 'to', toCurrency);
+      // Fallback: return original amount if rates not available
+      return amount;
+    }
+
+    try {
+      // Convert to base currency (USD) first, then to target currency
+      const baseAmount = amount / conversionRates[fromCurrency];
+      const targetAmount = baseAmount * conversionRates[toCurrency];
+      
+      // Round to 2 decimal places for most currencies, 0 for JPY
+      const decimals = toCurrency === 'JPY' ? 0 : 2;
+      return Math.round(targetAmount * Math.pow(10, decimals)) / Math.pow(10, decimals);
+    } catch (error) {
+      console.error('Currency conversion error:', error);
+      return amount; // Fallback to original amount
+    }
+  };
+
   // Format currency with the selected currency and user's number format preference
   const formatCurrency = (amount: number, overrideCurrency?: Currency): string => {
     const targetCurrency = overrideCurrency || currency;
     const symbol = CURRENCY_SYMBOLS[targetCurrency];
     
+    // Validate amount
+    if (typeof amount !== 'number' || isNaN(amount)) {
+      console.warn('Invalid amount for formatting:', amount);
+      return `${symbol}0.00`;
+    }
+    
     // Convert amount from base currency to target currency
     let convertedAmount = amount;
     if (targetCurrency !== baseCurrency && conversionRates[baseCurrency] && conversionRates[targetCurrency]) {
       try {
-        // Convert to USD first (base), then to target currency
-        const usdAmount = amount / conversionRates[baseCurrency];
-        convertedAmount = usdAmount * conversionRates[targetCurrency];
+        convertedAmount = convertCurrency(amount, baseCurrency, targetCurrency);
       } catch (error) {
         console.warn('Currency conversion failed:', error);
         // Fallback to original amount if conversion fails
@@ -192,17 +254,14 @@ export function CurrencyProvider({ children }: { children: ReactNode }) {
     return () => clearInterval(interval);
   }, []);
 
-  // Prevent rendering until currency is loaded to avoid flash
-  if (!isLoaded) {
-    return null;
-  }
-
   const value: CurrencyContextType = {
     currency,
     setCurrency,
     formatCurrency,
     availableCurrencies: CURRENCIES,
     getCurrencySymbol: (curr: Currency) => CURRENCY_SYMBOLS[curr],
+    convertCurrency,
+    baseCurrency,
   };
 
   return (

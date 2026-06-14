@@ -7,6 +7,7 @@ import { TransactionReconciliation } from '@/components/banking/TransactionRecon
 import { CSVImport } from '@/components/banking/CSVImport';
 import { useBankIntegration } from '@/hooks/useBankIntegration';
 import { useTheme } from '@/contexts/ThemeContext';
+import { FavoriteButton } from '@/components/layout/FavoriteButton';
 
 export default function BankingPage() {
   const { bankFeedStatus } = useBankIntegration();
@@ -16,11 +17,14 @@ export default function BankingPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold">Bank Integration</h1>
-        <p className="text-muted-foreground">
-          Connect your bank accounts, import transactions, and reconcile your finances
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold">Bank Integration</h1>
+          <p className="text-muted-foreground">
+            Connect your bank accounts, import transactions, and reconcile your finances
+          </p>
+        </div>
+        <FavoriteButton size="sm" variant="outline" showLabel={false} />
       </div>
 
       {/* Bank Feed Status */}

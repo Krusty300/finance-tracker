@@ -3,9 +3,42 @@ import { Account } from '@/lib/types';
 import { db } from '@/lib/db';
 import { useRealtimeAccounts } from './useRealtime';
 
+// Retry configuration
+const MAX_RETRIES = 3;
+const RETRY_DELAY = 1000; // 1 second
+
+// Helper function for retry logic with exponential backoff
+async function withRetry<T>(
+  operation: () => T,
+  maxRetries: number = MAX_RETRIES,
+  delay: number = RETRY_DELAY
+): Promise<T> {
+  let lastError: Error;
+  
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      return await operation();
+    } catch (error) {
+      lastError = error as Error;
+      console.warn(`Operation failed (attempt ${attempt + 1}/${maxRetries + 1}):`, error);
+      
+      if (attempt < maxRetries) {
+        // Exponential backoff
+        const backoffDelay = delay * Math.pow(2, attempt);
+        await new Promise(resolve => setTimeout(resolve, backoffDelay));
+      }
+    }
+  }
+  
+  throw lastError!;
+}
+
 export function useAccounts() {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [loading, setLoading] = useState(true);
+  const [addingAccount, setAddingAccount] = useState(false);
+  const [updatingAccount, setUpdatingAccount] = useState<string | null>(null);
+  const [deletingAccount, setDeletingAccount] = useState<string | null>(null);
   const { notifyAccountChange, lastAccountEvent } = useRealtimeAccounts();
 
   const loadAccounts = useCallback(() => {
@@ -49,9 +82,10 @@ export function useAccounts() {
     }
   }, [lastAccountEvent, loadAccounts]);
 
-  const addAccount = useCallback((account: Omit<Account, 'id'>) => {
+  const addAccount = useCallback(async (account: Omit<Account, 'id'>) => {
+    setAddingAccount(true);
     try {
-      const newAccount = db.addAccount(account);
+      const newAccount = await withRetry(() => db.addAccount(account));
       
       // Update local state immediately
       setAccounts(prev => [...prev, newAccount]);
@@ -64,14 +98,17 @@ export function useAccounts() {
       
       return newAccount;
     } catch (error) {
-      console.error('Error adding account:', error);
-      throw error;
+      console.error('Error adding account after retries:', error);
+      throw new Error(`Failed to add account: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setAddingAccount(false);
     }
   }, [notifyAccountChange]);
 
-  const updateAccount = useCallback((id: string, updates: Partial<Account>) => {
+  const updateAccount = useCallback(async (id: string, updates: Partial<Account>) => {
+    setUpdatingAccount(id);
     try {
-      const updated = db.updateAccount(id, updates);
+      const updated = await withRetry(() => db.updateAccount(id, updates));
       if (updated) {
         setAccounts(prev => 
           prev.map(a => a.id === id ? updated : a)
@@ -85,15 +122,18 @@ export function useAccounts() {
       }
       return updated;
     } catch (error) {
-      console.error('Error updating account:', error);
-      throw error;
+      console.error('Error updating account after retries:', error);
+      throw new Error(`Failed to update account: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setUpdatingAccount(null);
     }
   }, [notifyAccountChange]);
 
-  const deleteAccount = useCallback((id: string) => {
+  const deleteAccount = useCallback(async (id: string) => {
+    setDeletingAccount(id);
     try {
       const accountToDelete = accounts.find(a => a.id === id);
-      const success = db.deleteAccount(id);
+      const success = await withRetry(() => db.deleteAccount(id));
       if (success) {
         setAccounts(prev => prev.filter(a => a.id !== id));
         
@@ -107,10 +147,12 @@ export function useAccounts() {
       }
       return success;
     } catch (error) {
-      console.error('Error deleting account:', error);
-      throw error;
+      console.error('Error deleting account after retries:', error);
+      throw new Error(`Failed to delete account: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setDeletingAccount(null);
     }
-  }, [notifyAccountChange]);
+  }, [notifyAccountChange, accounts]);
 
   const getAccountById = useCallback((id: string) => {
     return accounts.find(a => a.id === id);
@@ -134,6 +176,9 @@ export function useAccounts() {
   return {
     accounts,
     loading,
+    addingAccount,
+    updatingAccount,
+    deletingAccount,
     addAccount,
     updateAccount,
     deleteAccount,

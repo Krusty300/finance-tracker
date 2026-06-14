@@ -60,8 +60,12 @@ export function AccountDashboard({
     }
 
     const filteredTransactions = transactions.filter(t => {
+      if (!t || !t.date) return false;
       const transactionDate = new Date(t.date);
-      return transactionDate >= startDate && transactionDate <= now;
+      if (isNaN(transactionDate.getTime())) return false;
+      // Use UTC timestamp comparison for consistency
+      return transactionDate.getTime() >= startDate.getTime() && 
+             transactionDate.getTime() <= now.getTime();
     });
 
     const totalBalance = accounts.reduce((sum, account) => sum + account.balance, 0);
@@ -162,7 +166,7 @@ export function AccountDashboard({
   return (
     <div className="space-y-6">
       {/* Banking Integration Status */}
-      <Card className="rounded-none">
+      <Card className="rounded-xl">
         <CardContent className="pt-6">
           <div className="flex items-center justify-between">
             <div>
@@ -192,7 +196,7 @@ export function AccountDashboard({
 
       {/* Quick Stats Overview */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card className="rounded-none">
+        <Card className="rounded-xl">
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
@@ -204,7 +208,7 @@ export function AccountDashboard({
           </CardContent>
         </Card>
 
-        <Card className="rounded-none">
+        <Card className="rounded-xl">
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
@@ -216,7 +220,7 @@ export function AccountDashboard({
           </CardContent>
         </Card>
 
-        <Card className="rounded-none">
+        <Card className="rounded-xl">
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
@@ -228,7 +232,7 @@ export function AccountDashboard({
           </CardContent>
         </Card>
 
-        <Card className="rounded-none">
+        <Card className="rounded-xl">
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
@@ -245,7 +249,7 @@ export function AccountDashboard({
           </CardContent>
         </Card>
 
-        <Card className="rounded-none">
+        <Card className="rounded-xl">
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
@@ -277,7 +281,7 @@ export function AccountDashboard({
 
       <div className="grid gap-6 lg:grid-cols-2">
         {/* Top Performers */}
-        <Card className="rounded-none">
+        <Card className="rounded-xl">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <TrendingUp className="h-5 w-5 text-green-600" />
@@ -318,7 +322,7 @@ export function AccountDashboard({
         </Card>
 
         {/* Needs Attention */}
-        <Card className="rounded-none">
+        <Card className="rounded-xl">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <AlertCircle className="h-5 w-5 text-red-600" />
@@ -361,7 +365,7 @@ export function AccountDashboard({
       </div>
 
       {/* Account Health Overview */}
-      <Card className="rounded-none">
+      <Card className="rounded-xl">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Activity className="h-5 w-5" />

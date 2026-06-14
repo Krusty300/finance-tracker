@@ -5,9 +5,14 @@ import {
   BankSync, 
   ImportRule, 
   ReconciliationReport,
-  BankFeed 
+  BankFeed,
+  BankAggregation,
+  TransactionCategorization
 } from '@/lib/types';
 import { bankIntegrationService } from '@/services/bankIntegration';
+import { bankAggregationService } from '@/services/bankAggregation';
+import { transactionCategorizationService } from '@/services/transactionCategorization';
+import { financialInstitutionsService } from '@/services/financialInstitutions';
 
 export function useBankIntegration() {
   const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([]);
@@ -15,6 +20,7 @@ export function useBankIntegration() {
   const [syncs, setSyncs] = useState<BankSync[]>([]);
   const [importRules, setImportRules] = useState<ImportRule[]>([]);
   const [reconciliationReports, setReconciliationReports] = useState<ReconciliationReport[]>([]);
+  const [aggregations, setAggregations] = useState<BankAggregation[]>([]);
   const [loading, setLoading] = useState(true);
 
   const loadData = useCallback(() => {
@@ -25,6 +31,7 @@ export function useBankIntegration() {
       setSyncs(bankIntegrationService.getBankSyncs());
       setImportRules(bankIntegrationService.getImportRules());
       setReconciliationReports(bankIntegrationService.getReconciliationReports());
+      setAggregations(bankAggregationService.getAggregations());
     } catch (error) {
       console.error('Error loading bank integration data:', error);
     } finally {
@@ -183,6 +190,17 @@ export function useBankIntegration() {
 
     const nextSync = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
 
+    // Per-account status
+    const perAccountStatus: BankFeed['perAccountStatus'] = {};
+    bankAccounts.forEach(account => {
+      perAccountStatus[account.id] = {
+        status: account.feedStatus?.status || (account.isActive ? 'active' : 'inactive'),
+        lastSync: account.lastSync,
+        nextSync: account.autoSync ? nextSync : '',
+        errorMessage: account.feedStatus?.errorMessage
+      };
+    });
+
     return {
       id: 'main-feed',
       provider: 'plaid',
@@ -196,9 +214,72 @@ export function useBankIntegration() {
         autoCategorization: true,
         duplicateDetection: true,
         reconciliationEnabled: true
-      }
+      },
+      perAccountStatus
     };
   }, [bankAccounts, bankTransactions]);
+
+  // Bank Aggregation
+  const createAggregation = useCallback((name: string, accountIds: string[], currency: string, autoSync?: boolean) => {
+    const aggregation = bankAggregationService.createAggregation(name, accountIds, currency, autoSync);
+    setAggregations(prev => [...prev, aggregation]);
+    return aggregation;
+  }, []);
+
+  const updateAggregation = useCallback((id: string, updates: Partial<BankAggregation>) => {
+    const updated = bankAggregationService.updateAggregation(id, updates);
+    if (updated) {
+      setAggregations(prev => prev.map(agg => agg.id === id ? updated : agg));
+    }
+    return updated;
+  }, []);
+
+  const deleteAggregation = useCallback((id: string) => {
+    const success = bankAggregationService.deleteAggregation(id);
+    if (success) {
+      setAggregations(prev => prev.filter(agg => agg.id !== id));
+    }
+    return success;
+  }, []);
+
+  const syncAggregations = useCallback(() => {
+    bankAggregationService.syncAllAggregations(bankAccounts);
+    setAggregations(bankAggregationService.getAggregations());
+  }, [bankAccounts]);
+
+  const getAggregationStats = useCallback((aggregationId: string) => {
+    return bankAggregationService.getAggregationStats(aggregationId, bankAccounts, bankTransactions);
+  }, [bankAccounts, bankTransactions]);
+
+  // Transaction Categorization
+  const categorizeTransaction = useCallback((transaction: BankTransaction): TransactionCategorization => {
+    return transactionCategorizationService.categorizeTransaction(transaction);
+  }, []);
+
+  const categorizeTransactions = useCallback((transactions: BankTransaction[]): TransactionCategorization[] => {
+    return transactionCategorizationService.categorizeTransactions(transactions);
+  }, []);
+
+  const learnFromCorrection = useCallback((transactionId: string, correctCategory: string) => {
+    transactionCategorizationService.learnFromCorrection(transactionId, correctCategory);
+  }, []);
+
+  const getCategorySuggestions = useCallback((text: string) => {
+    return transactionCategorizationService.getCategorySuggestions(text);
+  }, []);
+
+  // Financial Institutions
+  const getFinancialInstitutions = useCallback(() => {
+    return financialInstitutionsService.getAllInstitutions();
+  }, []);
+
+  const getInstitutionsByCountry = useCallback((country: string) => {
+    return financialInstitutionsService.getInstitutionsByCountry(country);
+  }, []);
+
+  const searchInstitutions = useCallback((query: string) => {
+    return financialInstitutionsService.searchInstitutions(query);
+  }, []);
 
   return {
     // Data
@@ -207,6 +288,7 @@ export function useBankIntegration() {
     syncs,
     importRules,
     reconciliationReports,
+    aggregations,
     loading,
     bankFeedStatus: getBankFeedStatus(),
 
@@ -231,6 +313,24 @@ export function useBankIntegration() {
     getBankTransactions,
     getSyncs,
     getReconciliationReports,
+
+    // Bank Aggregation
+    createAggregation,
+    updateAggregation,
+    deleteAggregation,
+    syncAggregations,
+    getAggregationStats,
+
+    // Transaction Categorization
+    categorizeTransaction,
+    categorizeTransactions,
+    learnFromCorrection,
+    getCategorySuggestions,
+
+    // Financial Institutions
+    getFinancialInstitutions,
+    getInstitutionsByCountry,
+    searchInstitutions,
 
     // Refresh
     refresh: loadData

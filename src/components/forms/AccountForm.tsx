@@ -36,6 +36,8 @@ interface AccountFormProps {
   account?: Account;
   onSubmit: (data: AccountFormData) => void;
   onCancel: () => void;
+  existingAccounts?: Account[];
+  isSubmitting?: boolean;
 }
 
 const accountTypes: SelectorOption<'cash' | 'bank' | 'credit' | 'mobile'>[] = [
@@ -54,7 +56,7 @@ const currencies = [
   { value: 'AUD', label: 'AUD - Australian Dollar' },
 ];
 
-export function AccountForm({ account, onSubmit, onCancel }: AccountFormProps) {
+export function AccountForm({ account, onSubmit, onCancel, existingAccounts = [], isSubmitting: externalIsSubmitting = false }: AccountFormProps) {
   const { formatCurrency, currency, getCurrencySymbol } = useCurrency();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -68,9 +70,40 @@ export function AccountForm({ account, onSubmit, onCancel }: AccountFormProps) {
     },
   });
 
+  // Use external isSubmitting if provided, otherwise use local state
+  const submitting = externalIsSubmitting || isSubmitting;
+
+  // Custom validation for account name uniqueness
+  const validateAccountName = (name: string) => {
+    if (!name) return true;
+    
+    const isDuplicate = existingAccounts.some(existingAccount => {
+      // Skip the current account when editing
+      if (account && existingAccount.id === account.id) {
+        return false;
+      }
+      // Case-insensitive comparison
+      return existingAccount.name.toLowerCase() === name.toLowerCase();
+    });
+
+    if (isDuplicate) {
+      return 'An account with this name already exists';
+    }
+    
+    return true;
+  };
+
   const handleSubmit = async (data: AccountFormData) => {
     setIsSubmitting(true);
     try {
+      // Validate account name uniqueness
+      const nameValidation = validateAccountName(data.name);
+      if (nameValidation !== true) {
+        form.setError('name', { type: 'manual', message: nameValidation as string });
+        setIsSubmitting(false);
+        return;
+      }
+      
       await onSubmit(data);
       form.reset();
     } catch (error) {
@@ -192,9 +225,9 @@ export function AccountForm({ account, onSubmit, onCancel }: AccountFormProps) {
               <Button
                 type="submit"
                 className="flex-1"
-                disabled={isSubmitting}
+                disabled={submitting}
               >
-                {isSubmitting ? (
+                {submitting ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     Saving...
@@ -209,7 +242,7 @@ export function AccountForm({ account, onSubmit, onCancel }: AccountFormProps) {
                 type="button"
                 variant="outline"
                 onClick={onCancel}
-                disabled={isSubmitting}
+                disabled={submitting}
               >
                 Cancel
               </Button>

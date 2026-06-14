@@ -81,7 +81,7 @@ export function AccountBalanceTrend({ account, transactions }: { account: Accoun
   };
 
   return (
-    <Card>
+    <Card className="rounded-xl">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           Balance Trend - {account.name}

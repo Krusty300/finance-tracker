@@ -6,15 +6,21 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { 
   Monitor, 
   Sun, 
   Moon, 
   Palette,
   Check,
-  Settings as SettingsIcon
+  Settings as SettingsIcon,
+  AlertTriangle,
+  Info
 } from 'lucide-react';
 import { useTheme } from '@/contexts/ThemeContext';
+import { settingsErrorValidator, ValidationError } from '@/utils/settingsErrorValidation';
+import { toast } from 'sonner';
+import { useRealtimeSync, syncTheme } from '@/utils/realtimeSync';
 
 interface ThemeOption {
   value: string;
@@ -44,6 +50,19 @@ export function ThemeSettings() {
   const { theme, setTheme } = useTheme();
   const [selectedAccent, setSelectedAccent] = useState('blue');
   const [systemPreference, setSystemPreference] = useState<'light' | 'dark' | 'unknown'>('unknown');
+  const [validationErrors, setValidationErrors] = useState<ValidationError[]>([]);
+  const [validationWarnings, setValidationWarnings] = useState<ValidationError[]>([]);
+  const [validationInfo, setValidationInfo] = useState<ValidationError[]>([]);
+  const [isValidating, setIsValidating] = useState(false);
+
+  // Listen for real-time theme changes from other tabs
+  useRealtimeSync('theme-changed', (event) => {
+    const { theme: newTheme } = event.data;
+    if (newTheme && newTheme !== theme) {
+      setTheme(newTheme as any);
+      toast.info('Theme updated from another tab');
+    }
+  });
 
   // Detect system preference
   useEffect(() => {
@@ -118,13 +137,79 @@ export function ThemeSettings() {
     }
   ];
 
-  const handleThemeChange = (newTheme: string) => {
-    if (!['light', 'dark', 'system'].includes(newTheme)) {
-      console.warn('Invalid theme value:', newTheme);
-      return;
+  const handleThemeChange = async (newTheme: string) => {
+    setIsValidating(true);
+    
+    try {
+      // Validate theme change
+      const validation = settingsErrorValidator.validateThemeChange(newTheme);
+      
+      setValidationErrors(validation.errors);
+      setValidationWarnings(validation.warnings);
+      setValidationInfo(validation.info);
+
+      if (!validation.isValid) {
+        // Log errors
+        validation.errors.forEach(error => {
+          settingsErrorValidator.logError('theme', error, { attemptedTheme: newTheme });
+        });
+        
+        // Show error toast
+        toast.error('Theme validation failed', {
+          description: validation.errors[0]?.message || 'Invalid theme selection'
+        });
+        return;
+      }
+
+      // Show warnings if any
+      if (validation.warnings.length > 0) {
+        validation.warnings.forEach(warning => {
+          toast.warning(warning.message);
+          settingsErrorValidator.logError('theme', warning, { attemptedTheme: newTheme });
+        });
+      }
+
+      // Show info if any
+      if (validation.info.length > 0) {
+        validation.info.forEach(info => {
+          toast.info(info.message);
+        });
+      }
+
+      // Proceed with theme change if valid
+      if (!['light', 'dark', 'system'].includes(newTheme)) {
+        const error: ValidationError = {
+          field: 'theme',
+          message: `Invalid theme value: ${newTheme}`,
+          severity: 'error',
+          code: 'INVALID_THEME_VALUE'
+        };
+        settingsErrorValidator.logError('theme', error, { attemptedTheme: newTheme });
+        return;
+      }
+      
+      const themeValue = newTheme as 'light' | 'dark' | 'system';
+      setTheme(themeValue);
+      
+      // Broadcast theme change to other tabs
+      syncTheme(themeValue);
+      
+      toast.success('Theme updated successfully');
+      
+    } catch (error) {
+      const errorObj: ValidationError = {
+        field: 'theme',
+        message: `Unexpected error changing theme: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        severity: 'error',
+        code: 'THEME_CHANGE_ERROR'
+      };
+      
+      settingsErrorValidator.logError('theme', errorObj, { attemptedTheme: newTheme });
+      toast.error('Failed to change theme');
+      
+    } finally {
+      setIsValidating(false);
     }
-    const themeValue = newTheme as 'light' | 'dark' | 'system';
-    setTheme(themeValue);
   };
 
   const getSystemPreferenceBadge = () => {
@@ -147,10 +232,43 @@ export function ThemeSettings() {
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
+        {/* Validation Alerts */}
+        {validationErrors.length > 0 && (
+          <Alert variant="destructive">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertDescription>
+              {validationErrors.map((error, index) => (
+                <div key={index}>{error.message}</div>
+              ))}
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {validationWarnings.length > 0 && (
+          <Alert>
+            <AlertTriangle className="h-4 w-4" />
+            <AlertDescription>
+              {validationWarnings.map((warning, index) => (
+                <div key={index}>{warning.message}</div>
+              ))}
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {validationInfo.length > 0 && (
+          <Alert variant="default">
+            <Info className="h-4 w-4" />
+            <AlertDescription>
+              {validationInfo.map((info, index) => (
+                <div key={index}>{info.message}</div>
+              ))}
+            </AlertDescription>
+          </Alert>
+        )}
         {/* Simple Theme Selection */}
         <div className="space-y-2">
           <Label htmlFor="theme">Theme</Label>
-          <Select value={theme} onValueChange={handleThemeChange}>
+          <Select value={theme} onValueChange={handleThemeChange} disabled={isValidating}>
             <SelectTrigger>
               <SelectValue placeholder="Select theme" />
             </SelectTrigger>
@@ -199,6 +317,7 @@ export function ThemeSettings() {
             size="sm"
             onClick={() => handleThemeChange('light')}
             className="flex-1"
+            disabled={isValidating}
           >
             <Sun className="h-4 w-4 mr-1" />
             Light
@@ -208,6 +327,7 @@ export function ThemeSettings() {
             size="sm"
             onClick={() => handleThemeChange('dark')}
             className="flex-1"
+            disabled={isValidating}
           >
             <Moon className="h-4 w-4 mr-1" />
             Dark
@@ -217,6 +337,7 @@ export function ThemeSettings() {
             size="sm"
             onClick={() => handleThemeChange('system')}
             className="flex-1"
+            disabled={isValidating}
           >
             <Monitor className="h-4 w-4 mr-1" />
             System

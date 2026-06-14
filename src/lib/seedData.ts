@@ -61,7 +61,7 @@ export function seedSampleData() {
       {
         amount: 350,
         type: 'income',
-        category: getCategoryId('Investment', 'income'),
+        category: getCategoryId('Investments', 'income'),
         date: getRandomDate(60),
         description: 'Dividend Payment - Tech Stocks',
         account: existingAccounts[2]?.id,
@@ -69,7 +69,7 @@ export function seedSampleData() {
       {
         amount: 800,
         type: 'income',
-        category: getCategoryId('Bonus', 'income'),
+        category: getCategoryId('Other Income', 'income'),
         date: getRandomDate(90),
         description: 'Quarterly Performance Bonus',
         account: existingAccounts[0]?.id,
@@ -79,7 +79,7 @@ export function seedSampleData() {
       {
         amount: 1200,
         type: 'expense',
-        category: getCategoryId('Rent', 'expense'),
+        category: getCategoryId('Bills', 'expense'),
         date: getRandomDate(5),
         description: 'Monthly Rent Payment',
         account: existingAccounts[0]?.id,
@@ -87,7 +87,7 @@ export function seedSampleData() {
       {
         amount: 150,
         type: 'expense',
-        category: getCategoryId('Utilities', 'expense'),
+        category: getCategoryId('Bills', 'expense'),
         date: getRandomDate(10),
         description: 'Electricity and Water Bill',
         account: existingAccounts[0]?.id,
@@ -95,7 +95,7 @@ export function seedSampleData() {
       {
         amount: 80,
         type: 'expense',
-        category: getCategoryId('Internet', 'expense'),
+        category: getCategoryId('Bills', 'expense'),
         date: getRandomDate(15),
         description: 'Monthly Internet Service',
         account: existingAccounts[0]?.id,
@@ -105,7 +105,7 @@ export function seedSampleData() {
       {
         amount: 245,
         type: 'expense',
-        category: getCategoryId('Groceries', 'expense'),
+        category: getCategoryId('Food', 'expense'),
         date: getRandomDate(7),
         description: 'Weekly Grocery Shopping',
         account: existingAccounts[0]?.id,
@@ -113,7 +113,7 @@ export function seedSampleData() {
       {
         amount: 85,
         type: 'expense',
-        category: getCategoryId('Restaurants', 'expense'),
+        category: getCategoryId('Food', 'expense'),
         date: getRandomDate(12),
         description: 'Dinner at Italian Restaurant',
         account: existingAccounts[0]?.id,
@@ -121,7 +121,7 @@ export function seedSampleData() {
       {
         amount: 45,
         type: 'expense',
-        category: getCategoryId('Coffee', 'expense'),
+        category: getCategoryId('Food', 'expense'),
         date: getRandomDate(3),
         description: 'Coffee Shop - Morning Latte',
         account: existingAccounts[0]?.id,
@@ -131,7 +131,7 @@ export function seedSampleData() {
       {
         amount: 65,
         type: 'expense',
-        category: getCategoryId('Gas', 'expense'),
+        category: getCategoryId('Transport', 'expense'),
         date: getRandomDate(8),
         description: 'Gas Station Fill-up',
         account: existingAccounts[0]?.id,
@@ -139,7 +139,7 @@ export function seedSampleData() {
       {
         amount: 120,
         type: 'expense',
-        category: getCategoryId('Public Transport', 'expense'),
+        category: getCategoryId('Transport', 'expense'),
         date: getRandomDate(20),
         description: 'Monthly Transit Pass',
         account: existingAccounts[0]?.id,
@@ -147,7 +147,7 @@ export function seedSampleData() {
       {
         amount: 35,
         type: 'expense',
-        category: getCategoryId('Parking', 'expense'),
+        category: getCategoryId('Transport', 'expense'),
         date: getRandomDate(14),
         description: 'Downtown Parking',
         account: existingAccounts[0]?.id,
@@ -157,7 +157,7 @@ export function seedSampleData() {
       {
         amount: 120,
         type: 'expense',
-        category: getCategoryId('Movies', 'expense'),
+        category: getCategoryId('Entertainment', 'expense'),
         date: getRandomDate(25),
         description: 'Movie Tickets and Popcorn',
         account: existingAccounts[0]?.id,
@@ -165,7 +165,7 @@ export function seedSampleData() {
       {
         amount: 65,
         type: 'expense',
-        category: getCategoryId('Gaming', 'expense'),
+        category: getCategoryId('Entertainment', 'expense'),
         date: getRandomDate(30),
         description: 'Video Game Purchase',
         account: existingAccounts[0]?.id,
@@ -173,7 +173,7 @@ export function seedSampleData() {
       {
         amount: 180,
         type: 'expense',
-        category: getCategoryId('Concerts', 'expense'),
+        category: getCategoryId('Entertainment', 'expense'),
         date: getRandomDate(40),
         description: 'Concert Tickets - Jazz Festival',
         account: existingAccounts[1]?.id,
@@ -183,7 +183,7 @@ export function seedSampleData() {
       {
         amount: 320,
         type: 'expense',
-        category: getCategoryId('Clothing', 'expense'),
+        category: getCategoryId('Shopping', 'expense'),
         date: getRandomDate(35),
         description: 'New Work Outfit',
         account: existingAccounts[0]?.id,
@@ -191,7 +191,7 @@ export function seedSampleData() {
       {
         amount: 85,
         type: 'expense',
-        category: getCategoryId('Personal Care', 'expense'),
+        category: getCategoryId('Shopping', 'expense'),
         date: getRandomDate(18),
         description: 'Haircut and Grooming',
         account: existingAccounts[0]?.id,
@@ -199,7 +199,7 @@ export function seedSampleData() {
       {
         amount: 150,
         type: 'expense',
-        category: getCategoryId('Electronics', 'expense'),
+        category: getCategoryId('Shopping', 'expense'),
         date: getRandomDate(50),
         description: 'Phone Case and Accessories',
         account: existingAccounts[0]?.id,
@@ -209,7 +209,7 @@ export function seedSampleData() {
       {
         amount: 45,
         type: 'expense',
-        category: getCategoryId('Gym', 'expense'),
+        category: getCategoryId('Healthcare', 'expense'),
         date: getRandomDate(22),
         description: 'Monthly Gym Membership',
         account: existingAccounts[0]?.id,
@@ -225,7 +225,7 @@ export function seedSampleData() {
       {
         amount: 65,
         type: 'expense',
-        category: getCategoryId('Pharmacy', 'expense'),
+        category: getCategoryId('Healthcare', 'expense'),
         date: getRandomDate(33),
         description: 'Prescription Medication',
         account: existingAccounts[0]?.id,
@@ -243,7 +243,7 @@ export function seedSampleData() {
       {
         amount: 45,
         type: 'expense',
-        category: getCategoryId('Books', 'expense'),
+        category: getCategoryId('Education', 'expense'),
         date: getRandomDate(42),
         description: 'Technical Books Purchase',
         account: existingAccounts[0]?.id,
@@ -253,7 +253,7 @@ export function seedSampleData() {
       {
         amount: 450,
         type: 'expense',
-        category: getCategoryId('Travel', 'expense'),
+        category: getCategoryId('Other', 'expense'),
         date: getRandomDate(70),
         description: 'Weekend Trip - Hotel Booking',
         account: existingAccounts[1]?.id,
@@ -261,7 +261,7 @@ export function seedSampleData() {
       {
         amount: 180,
         type: 'expense',
-        category: getCategoryId('Travel', 'expense'),
+        category: getCategoryId('Other', 'expense'),
         date: getRandomDate(68),
         description: 'Flight Tickets',
         account: existingAccounts[1]?.id,
@@ -271,7 +271,7 @@ export function seedSampleData() {
       {
         amount: 95,
         type: 'expense',
-        category: getCategoryId('Gifts', 'expense'),
+        category: getCategoryId('Other', 'expense'),
         date: getRandomDate(38),
         description: 'Birthday Gift for Friend',
         account: existingAccounts[0]?.id,
@@ -279,7 +279,7 @@ export function seedSampleData() {
       {
         amount: 25,
         type: 'expense',
-        category: getCategoryId('Donations', 'expense'),
+        category: getCategoryId('Other', 'expense'),
         date: getRandomDate(48),
         description: 'Charity Donation',
         account: existingAccounts[0]?.id,
@@ -303,7 +303,7 @@ export function seedSampleData() {
     if (!existingBudgets || existingBudgets.length === 0) {
       const sampleBudgets = [
         {
-          category: getCategoryId('Groceries', 'expense'),
+          category: getCategoryId('Food', 'expense'),
           amount: 400,
           period: 'monthly' as const,
           startDate: new Date().toISOString().split('T')[0],

@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { QuickAddModal } from '@/components/forms/QuickAddModal';
+import { useQuickAdd } from '@/contexts/QuickAddContext';
 import { Plus, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -12,7 +13,7 @@ interface FloatingActionButtonProps {
 }
 
 export function FloatingActionButton({ className }: FloatingActionButtonProps) {
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const { isOpen: isModalOpen, openQuickAdd, closeQuickAdd } = useQuickAdd();
   const { resolvedTheme } = useTheme();
 
   // Haptic feedback for mobile devices
@@ -25,7 +26,7 @@ export function FloatingActionButton({ className }: FloatingActionButtonProps) {
 
   const handleClick = () => {
     handleHapticFeedback();
-    setIsModalOpen(true);
+    openQuickAdd();
   };
 
   // Theme-aware styles
@@ -138,7 +139,7 @@ export function FloatingActionButton({ className }: FloatingActionButtonProps) {
       {/* Quick Add Modal */}
       <QuickAddModal 
         open={isModalOpen} 
-        onOpenChange={setIsModalOpen} 
+        onOpenChange={(open) => open ? openQuickAdd() : closeQuickAdd()} 
       />
     </>
   );

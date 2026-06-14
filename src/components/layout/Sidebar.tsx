@@ -19,6 +19,7 @@ import { VirtualNavigation } from '@/components/performance/VirtualList';
 import { NavigationItem } from '@/components/performance/OptimizedComponents';
 import { FavoritesSection } from '@/components/layout/FavoritesSection';
 import { RecentlyViewedSection } from '@/components/layout/RecentlyViewedSection';
+import { QuickActions } from '@/components/layout/QuickActions';
 import { ThemeToggle } from '@/components/theme/ThemeToggle';
 import { getIcon } from '@/lib/iconMapping';
 import { 
@@ -31,7 +32,6 @@ import {
   Layout, 
   Settings,
   Trash2,
-  Plus,
   Menu,
   X,
   Moon,
@@ -52,6 +52,204 @@ import {
 } from 'lucide-react';
 
 // Icons for sidebar navigation
+
+// Custom debounce function
+function debounce<T extends (...args: any[]) => any>(
+  func: T,
+  wait: number
+): (...args: Parameters<T>) => void {
+  let timeout: NodeJS.Timeout | null = null;
+  return (...args: Parameters<T>) => {
+    if (timeout) clearTimeout(timeout);
+    timeout = setTimeout(() => func(...args), wait);
+  };
+}
+
+// Lazy-loaded Financial Overview component
+const FinancialOverview = memo(function FinancialOverview({
+  stats,
+  loading,
+  showIcons = true
+}: {
+  stats: any;
+  loading: boolean;
+  showIcons?: boolean;
+}) {
+  const { formatCurrency } = useCurrency();
+  const { resolvedTheme } = useTheme();
+
+  // Debug logging to verify data
+  useEffect(() => {
+    if (stats) {
+      console.log('Financial Overview: Stats received', {
+        totalBalance: stats.totalBalance,
+        monthlyIncome: stats.monthlyIncome,
+        monthlyExpenses: stats.monthlyExpenses,
+        budgetBreakdown: stats.budgetBreakdown?.length || 0,
+      });
+    }
+  }, [stats]);
+
+  // Calculate spending velocity (daily spending rate)
+  const spendingVelocity = useMemo(() => {
+    if (!stats?.monthlyExpenses || stats.monthlyExpenses === 0) return 0;
+    const now = new Date();
+    const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+    const currentDay = now.getDate();
+    const daysPassed = Math.max(1, currentDay); // At least 1 day to avoid division by zero
+    const dailyRate = stats.monthlyExpenses / daysPassed;
+    return dailyRate;
+  }, [stats?.monthlyExpenses]);
+
+  // Calculate savings rate
+  const savingsRate = useMemo(() => {
+    if (!stats?.monthlyIncome || stats.monthlyIncome === 0) return 0;
+    const income = stats.monthlyIncome || 0;
+    const expenses = stats.monthlyExpenses || 0;
+    const savings = income - expenses;
+    return (savings / income) * 100;
+  }, [stats?.monthlyIncome, stats?.monthlyExpenses]);
+
+  // Calculate budget progress
+  const budgetProgress = useMemo(() => {
+    if (!stats?.budgetBreakdown || stats.budgetBreakdown.length === 0) return [];
+    return stats.budgetBreakdown.map((budget: any) => {
+      // Use the percentageUsed from the hook, or calculate if not available
+      const percentage = budget.percentageUsed !== undefined ? budget.percentageUsed :
+                       (budget.budget > 0 ? (budget.spent / budget.budget) * 100 : 0);
+      return {
+        ...budget,
+        percentage,
+        isOverBudget: percentage > 100,
+        isNearLimit: percentage > 80 && percentage <= 100,
+      };
+    });
+  }, [stats?.budgetBreakdown]);
+
+  if (loading) {
+    return (
+      <div className="px-3 py-2">
+        <h2 className="mb-2 px-4 text-lg font-semibold tracking-tight">
+          Financial Overview
+        </h2>
+        <div className="space-y-2">
+          <Skeleton className="h-12 w-full" />
+          <Skeleton className="h-12 w-full" />
+          <Skeleton className="h-12 w-full" />
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="px-3 py-2">
+      <h2 className={cn(
+        "mb-2 px-4 text-lg font-semibold tracking-tight",
+        resolvedTheme === 'dark' ? 'text-gray-50' : 'text-gray-900'
+      )}>
+        Financial Overview
+      </h2>
+      <div className="space-y-2">
+        {/* Account Balance */}
+        <div className="rounded-lg bg-muted/50 p-3">
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-xs text-muted-foreground">Total Balance</span>
+            {showIcons && <Wallet className="h-3 w-3 text-muted-foreground" />}
+          </div>
+          <div className={cn(
+            "text-lg font-bold tabular-nums",
+            (stats?.totalBalance ?? 0) >= 0 ? 'text-green-600' : 'text-red-600'
+          )}>
+            {formatCurrency(stats?.totalBalance ?? 0)}
+          </div>
+        </div>
+
+        {/* Savings Rate */}
+        <div className="rounded-lg bg-muted/50 p-3">
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-xs text-muted-foreground">Savings Rate</span>
+            {showIcons && <PiggyBank className="h-3 w-3 text-muted-foreground" />}
+          </div>
+          <div className="flex items-center gap-2">
+            <div className={cn(
+              "text-lg font-bold tabular-nums",
+              savingsRate >= 20 ? 'text-green-600' : savingsRate >= 0 ? 'text-yellow-600' : 'text-red-600'
+            )}>
+              {savingsRate.toFixed(1)}%
+            </div>
+            <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
+              <div 
+                className={cn(
+                  "h-full transition-all duration-300",
+                  savingsRate >= 20 ? 'bg-green-600' : savingsRate >= 0 ? 'bg-yellow-600' : 'bg-red-600'
+                )}
+                style={{ width: `${Math.min(Math.abs(savingsRate), 100)}%` }}
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Spending Velocity */}
+        <div className="rounded-lg bg-muted/50 p-3">
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-xs text-muted-foreground">Daily Spending</span>
+            {showIcons && <TrendingUp className="h-3 w-3 text-muted-foreground" />}
+          </div>
+          <div className="text-lg font-bold tabular-nums">
+            {formatCurrency(spendingVelocity)}
+          </div>
+          <div className="text-xs text-muted-foreground mt-1">
+            {spendingVelocity > 0 ? 'per day this month' : 'No spending this month'}
+          </div>
+        </div>
+
+        {/* Budget Progress (top 3) */}
+        {budgetProgress.length > 0 ? (
+          <div className="rounded-lg bg-muted/50 p-3">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs text-muted-foreground">Budget Progress</span>
+              {showIcons && <Target className="h-3 w-3 text-muted-foreground" />}
+            </div>
+            <div className="space-y-2">
+              {budgetProgress.slice(0, 3).map((budget: any, index: number) => (
+                <div key={index} className="space-y-1">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="truncate max-w-[120px]">{budget.category}</span>
+                    <span className={cn(
+                      "font-medium tabular-nums",
+                      budget.isOverBudget ? 'text-red-600' : budget.isNearLimit ? 'text-yellow-600' : 'text-muted-foreground'
+                    )}>
+                      {budget.percentage.toFixed(0)}%
+                    </span>
+                  </div>
+                  <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                    <div 
+                      className={cn(
+                        "h-full transition-all duration-300",
+                        budget.isOverBudget ? 'bg-red-600' : budget.isNearLimit ? 'bg-yellow-600' : 'bg-primary'
+                      )}
+                      style={{ width: `${Math.min(budget.percentage, 100)}%` }}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <div className="rounded-lg bg-muted/50 p-3">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs text-muted-foreground">Budget Progress</span>
+              {showIcons && <Target className="h-3 w-3 text-muted-foreground" />}
+            </div>
+            <div className="text-xs text-muted-foreground text-center py-2">
+              No budgets set up yet
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+});
 
 interface SidebarProps {
   className?: string;
@@ -76,7 +274,7 @@ export function Sidebar({
   const { formatCurrency } = useCurrency();
   const { resolvedTheme } = useTheme();
   const { stats, loading: statsLoading } = useDashboardStats();
-  const { sortedItems, favoriteItems, recentlyViewedItems, toggleFavorite } = useNavigationCache();
+  const { sortedItems, favoriteItems, recentlyViewedItems, toggleFavorite, clearRecentlyViewed } = useNavigationCache();
   const { unreadCount } = useNotifications();
   const recycleBinCount = useRecycleBinCount();
   
@@ -156,7 +354,7 @@ export function Sidebar({
     }
 
     // Add resize listener to update sidebar width on window resize
-    const handleResize = () => {
+    const handleResize = debounce(() => {
       const newWidth = getResponsiveWidth();
       setSidebarState(prev => ({ ...prev, sidebarWidth: newWidth }));
       
@@ -164,7 +362,7 @@ export function Sidebar({
       if (window.innerWidth < 640 && !isCollapsed) {
         onToggle();
       }
-    };
+    }, 300);
 
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
@@ -223,10 +421,8 @@ export function Sidebar({
       data-onboarding="sidebar" 
       className={cn(
         'pb-12 z-40',
-        // Optimized transitions for mobile
-        isMobile 
-          ? 'transition-transform duration-300 ease-out' // Faster on mobile
-          : 'transition-all duration-500 ease-in-out',
+        // Enhanced collapse/expand transitions
+        'transition-all duration-500 ease-in-out',
         'will-change-transform',
         isMounted ? sidebarWidth : 'w-64',
         // Mobile overlay behavior
@@ -239,21 +435,23 @@ export function Sidebar({
           'backdrop-blur-sm',
           'will-change-transform'
         ),
-        !isMobile && isCollapsed && 'opacity-95',
+        // Collapse state transitions
+        !isMobile && isCollapsed && cn(
+          'opacity-95',
+          'scale-95'
+        ),
         className
       )}
       onTouchStart={onTouchStart}
       onTouchMove={onTouchMove}
       onTouchEnd={onTouchEnd}
     >
-      <div className="space-y-4 py-4">
+      <div id="sidebar-content" className="space-y-4 py-4">
         {/* Header with toggle button */}
         <div className={cn(
           'py-2 flex items-center justify-between',
-          // Optimized transitions for mobile
-          isMobile 
-            ? 'transition-colors duration-200 ease-out'
-            : 'transition-all duration-300 ease-out',
+          // Enhanced transitions
+          'transition-all duration-300 ease-out',
           isCollapsed ? 'px-2 sm:px-3' : 'px-3'
         )}>
           {!isCollapsed && (
@@ -261,8 +459,13 @@ export function Sidebar({
               'mb-2 px-4 flex items-center gap-3',
               'transition-all duration-500 ease-in-out',
               'transform',
-              isMounted ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-4'
+              isMounted ? 'opacity-100 translate-x-0 scale-100' : 'opacity-0 -translate-x-4 scale-95'
             )}>
+              <img 
+                src="/favicon.png" 
+                alt="Sprint Financial" 
+                className="h-6 w-6 rounded-sm transition-transform duration-300 hover:scale-110"
+              />
               <h2 className={cn(
                 'text-lg font-semibold tracking-tight',
                 // Enhanced white theme-supportive text styling
@@ -272,11 +475,6 @@ export function Sidebar({
               )}>
                 Sprint Financial
               </h2>
-              <img 
-                src="/favicon.png" 
-                alt="Sprint Financial" 
-                className="h-6 w-6 rounded-sm"
-              />
             </div>
           )}
           {/* Mobile close button */}
@@ -300,8 +498,8 @@ export function Sidebar({
               )} />
             </Button>
           )}
-          {/* Desktop collapse button */}
-          {!isMobile && !isCollapsed && (
+          {/* Desktop collapse/expand button */}
+          {!isMobile && (
             <Button
               variant="ghost"
               size="sm"
@@ -309,27 +507,37 @@ export function Sidebar({
               className={cn(
                 "h-8 w-8 p-0 transition-all duration-300 ease-out",
                 "hover:scale-110 active:scale-95 hover:bg-primary/10",
-                "group"
+                "group",
+                "focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2",
+                "focus-visible:outline-none"
               )}
-              title="Collapse sidebar"
+              title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+              aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+              aria-expanded={!isCollapsed}
+              aria-controls="sidebar-content"
             >
-              <ChevronLeft className={cn(
-                "h-4 w-4 transition-transform duration-300",
-                "group-hover:-translate-x-1 group-hover:scale-110"
-              )} />
+              {isCollapsed ? (
+                <ChevronRight className={cn(
+                  "h-4 w-4 transition-transform duration-300",
+                  "group-hover:translate-x-1 group-hover:scale-110"
+                )} />
+              ) : (
+                <ChevronLeft className={cn(
+                  "h-4 w-4 transition-transform duration-300",
+                  "group-hover:-translate-x-1 group-hover:scale-110"
+                )} />
+              )}
             </Button>
           )}
         </div>
         
         {/* Navigation - Virtual Scrolling for performance */}
-        <div className={cn(
+        <nav className={cn(
           'py-2',
-          // Optimized transitions for mobile
-          isMobile 
-            ? 'transition-colors duration-200 ease-out'
-            : 'transition-all duration-300 ease-out',
+          // Enhanced transitions for collapse/expand
+          'transition-all duration-300 ease-out',
           isCollapsed ? 'px-2 sm:px-3' : 'px-3'
-        )}>
+        )} aria-label="Main navigation">
           {navigation.length > 10 ? (
             <VirtualNavigation
               items={navigation}
@@ -380,11 +588,16 @@ export function Sidebar({
               ))}
             </div>
           )}
-        </div>
+        </nav>
 
         {/* Section Divider */}
         {!isCollapsed && (
-          <div className="px-3 py-2">
+          <div className={cn(
+            'px-3 py-2',
+            'transition-all duration-300 ease-out',
+            'opacity-100',
+            isCollapsed && 'opacity-0'
+          )}>
             <div className="h-px bg-gradient-to-r from-transparent via-border to-transparent" />
           </div>
         )}
@@ -420,7 +633,24 @@ export function Sidebar({
               'transition-all duration-300 ease-out delay-200',
               isMounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'
             )}>
-              <RecentlyViewedSection items={recentlyViewedItems} pathname={pathname} showIcons={showIcons} />
+              <RecentlyViewedSection 
+                items={recentlyViewedItems} 
+                pathname={pathname} 
+                showIcons={showIcons} 
+                onClearRecentlyViewed={clearRecentlyViewed}
+              />
+            </div>
+          </LazySection>
+        )}
+
+        {/* Financial Overview - Lazy loaded */}
+        {!isCollapsed && (
+          <LazySection delay={400} threshold={0.1}>
+            <div className={cn(
+              'transition-all duration-300 ease-out delay-300',
+              isMounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'
+            )}>
+              <FinancialOverview stats={stats} loading={statsLoading} showIcons={showIcons} />
             </div>
           </LazySection>
         )}
@@ -429,7 +659,9 @@ export function Sidebar({
         <div className={cn(
           'py-2',
           'transition-all duration-300 ease-out',
-          isCollapsed ? 'px-2 sm:px-3' : 'px-3'
+          isCollapsed ? 'px-2 sm:px-3' : 'px-3',
+          !isCollapsed && 'opacity-100',
+          isCollapsed && 'opacity-0'
         )}>
           <div className="h-px bg-gradient-to-r from-transparent via-border to-transparent" />
         </div>
@@ -438,9 +670,11 @@ export function Sidebar({
         <div className={cn(
           'py-3 mt-auto',
           'transition-all duration-300 ease-out',
-          isCollapsed ? 'px-2 sm:px-3' : 'px-3'
+          isCollapsed ? 'px-2 sm:px-3' : 'px-3',
+          !isCollapsed && 'opacity-100',
+          isCollapsed && 'opacity-0'
         )}>
-          <div className="flex items-center justify-center">
+          <div className="flex items-center justify-center group">
             <ThemeToggle variant="sidebar" />
           </div>
         </div>
@@ -448,63 +682,6 @@ export function Sidebar({
     </div>
   );
 }
-
-// Lazy-loaded Quick Actions component
-const QuickActions = memo(function QuickActions({ pathname, showIcons = true }: { pathname: string; showIcons?: boolean }) {
-  const { resolvedTheme } = useTheme();
-  
-  return (
-    <div className="px-3 py-2">
-      <h2 className={cn(
-        "mb-2 px-4 text-lg font-semibold tracking-tight",
-        // Enhanced white theme-supportive text styling
-        resolvedTheme === 'dark'
-          ? 'text-gray-50'
-          : 'text-gray-900'
-      )}>
-        Quick Actions
-      </h2>
-      <div className="space-y-1">
-        <Button className="w-full justify-start transition-all duration-200 hover:scale-[1.02] hover:shadow-sm hover:bg-primary/10 active:scale-[0.98]" asChild>
-          <Link href="/transactions">
-            {showIcons && <Plus className="mr-2 h-4 w-4 transition-transform duration-200 group-hover:rotate-90" />}
-            Add Transaction
-          </Link>
-        </Button>
-        <Button className="w-full justify-start transition-all duration-200 hover:scale-[1.02] hover:shadow-sm hover:bg-primary/10 active:scale-[0.98]" variant="outline" asChild>
-          <Link href="/transactions?filter=recent">
-            {showIcons && <Calendar className="mr-2 h-4 w-4 transition-transform duration-200 group-hover:scale-110" />}
-            Recent Transactions
-          </Link>
-        </Button>
-        <Button className="w-full justify-start transition-all duration-200 hover:scale-[1.02] hover:shadow-sm hover:bg-primary/10 active:scale-[0.98]" variant="outline" asChild>
-          <Link href="/budgets">
-            {showIcons && <PiggyBank className="mr-2 h-4 w-4 transition-transform duration-200 group-hover:scale-110" />}
-            Create Budget
-          </Link>
-        </Button>
-        <Button className="w-full justify-start transition-all duration-200 hover:scale-[1.02] hover:shadow-sm hover:bg-primary/10 active:scale-[0.98]" variant="outline" asChild>
-          <Link href="/reports">
-            {showIcons && <Calculator className="mr-2 h-4 w-4 transition-transform duration-200 group-hover:scale-110" />}
-            Generate Report
-          </Link>
-        </Button>
-        <Button className="w-full justify-start transition-all duration-200 hover:scale-[1.02] hover:shadow-sm hover:bg-primary/10 active:scale-[0.98]" variant="outline" asChild>
-          <Link href="/accounts">
-            {showIcons && <Wallet className="mr-2 h-4 w-4 transition-transform duration-200 group-hover:scale-110" />}
-            Manage Accounts
-          </Link>
-        </Button>
-        <Button className="w-full justify-start transition-all duration-200 hover:scale-[1.02] hover:shadow-sm hover:bg-primary/10 active:scale-[0.98]" variant="outline" asChild>
-          <Link href="/transactions?export=true">
-            {showIcons && <FileDown className="mr-2 h-4 w-4 transition-transform duration-200 group-hover:scale-110" />}
-            Export Data
-          </Link>
-        </Button>
-      </div>
-    </div>
-  );
-});
 
 // Lazy-loaded Page Actions component
 const PageActions = memo(function PageActions({ pathname }: { pathname: string }) {
