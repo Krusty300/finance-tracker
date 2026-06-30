@@ -38,13 +38,13 @@ export function DeleteBudgetDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[425px] mx-4">
+      <DialogContent className="sm:max-w-[425px] mx-4" aria-describedby="delete-budget-dialog-description">
         <DialogHeader>
           <div className="flex items-center gap-2">
             <AlertTriangle className="h-5 w-5 text-destructive" />
             <DialogTitle>Delete Budget</DialogTitle>
           </div>
-          <DialogDescription>
+          <DialogDescription id="delete-budget-dialog-description">
             Are you sure you want to delete the budget for "{categoryName}"? 
             This action cannot be undone.
           </DialogDescription>

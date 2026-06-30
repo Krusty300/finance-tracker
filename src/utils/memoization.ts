@@ -2,7 +2,7 @@
  * Advanced memoization utilities for expensive calculations
  */
 
-import { useCallback, useMemo, useRef, useEffect } from 'react';
+import { useCallback, useMemo, useRef, useEffect, useState } from 'react';
 
 // LRU Cache implementation
 class LRUCache<K, V> {
@@ -66,10 +66,10 @@ class LRUCache<K, V> {
 }
 
 // Global memoization cache
-const globalCache = new LRUCache<string, any>(1000, 10 * 60 * 1000); // 10 minutes
+const globalCache = new LRUCache<string, unknown>(1000, 10 * 60 * 1000); // 10 minutes
 
 // Memoize expensive functions
-export function memoize<T extends (...args: any[]) => any>(
+export function memoize<T extends (...args: unknown[]) => unknown>(
   fn: T,
   getKey?: (...args: Parameters<T>) => string
 ): T {
@@ -88,9 +88,9 @@ export function memoize<T extends (...args: any[]) => any>(
 }
 
 // React hook for memoized calculations
-export function useMemoized<T extends (...args: any[]) => any>(
+export function useMemoized<T extends (...args: unknown[]) => unknown>(
   fn: T,
-  deps: any[],
+  deps: unknown[],
   getKey?: (...args: Parameters<T>) => string
 ): T {
   const memoizedFn = useMemo(() => memoize(fn, getKey), [fn, getKey]);
@@ -99,11 +99,11 @@ export function useMemoized<T extends (...args: any[]) => any>(
 }
 
 // Memoize async functions
-export function memoizeAsync<T extends (...args: any[]) => Promise<any>>(
+export function memoizeAsync<T extends (...args: unknown[]) => Promise<unknown>>(
   fn: T,
   getKey?: (...args: Parameters<T>) => string
 ): T {
-  const pendingPromises = new Map<string, Promise<any>>();
+  const pendingPromises = new Map<string, Promise<unknown>>();
 
   return (async (...args: Parameters<T>) => {
     const key = getKey ? getKey(...args) : JSON.stringify(args);
@@ -135,28 +135,54 @@ export function memoizeAsync<T extends (...args: any[]) => Promise<any>>(
 }
 
 // Specialized memoization for financial calculations
+
+interface Transaction {
+  category?: string;
+  date: string | Date;
+  amount: number;
+  [key: string]: unknown;
+}
+
+interface TransactionFilters {
+  category?: string;
+  dateRange?: { start: Date; end: Date };
+  minAmount?: number;
+  maxAmount?: number;
+  [key: string]: unknown;
+}
+
+interface TransactionStats {
+  totalIncome: number;
+  totalExpenses: number;
+  netIncome: number;
+  transactionCount: number;
+  averageTransaction: number;
+}
+
 export class FinancialCalculator {
-  private static cache = new LRUCache<string, number>(500, 15 * 60 * 1000); // 15 minutes
+  private static numberCache = new LRUCache<string, number>(500, 15 * 60 * 1000); // 15 minutes
+  private static arrayCache = new LRUCache<string, Transaction[]>(500, 15 * 60 * 1000); // 15 minutes
+  private static statsCache = new LRUCache<string, TransactionStats>(500, 15 * 60 * 1000); // 15 minutes
 
   // Memoized currency conversion
   static convertCurrency(amount: number, fromCurrency: string, toCurrency: string, rate: number): number {
     const key = `convert_${amount}_${fromCurrency}_${toCurrency}_${rate}`;
     
-    const cached = this.cache.get(key);
+    const cached = this.numberCache.get(key);
     if (cached !== undefined) {
       return cached;
     }
     
     const result = amount * rate;
-    this.cache.set(key, result);
+    this.numberCache.set(key, result);
     return result;
   }
 
   // Memoized transaction filtering
-  static filterTransactions(transactions: any[], filters: any): any[] {
+  static filterTransactions(transactions: Transaction[], filters: TransactionFilters): Transaction[] {
     const key = `filter_${JSON.stringify(filters)}_${transactions.length}`;
     
-    const cached = this.cache.get(key);
+    const cached = this.arrayCache.get(key);
     if (cached !== undefined) {
       return cached;
     }
@@ -176,15 +202,15 @@ export class FinancialCalculator {
       return true;
     });
     
-    this.cache.set(key, result);
+    this.arrayCache.set(key, result);
     return result;
   }
 
   // Memoized budget calculations
-  static calculateBudgetSpent(transactions: any[], budgetCategory: string, startDate: Date, endDate: Date): number {
+  static calculateBudgetSpent(transactions: Transaction[], budgetCategory: string, startDate: Date, endDate: Date): number {
     const key = `budget_${budgetCategory}_${startDate.getTime()}_${endDate.getTime()}`;
     
-    const cached = this.cache.get(key);
+    const cached = this.numberCache.get(key);
     if (cached !== undefined) {
       return cached;
     }
@@ -198,21 +224,15 @@ export class FinancialCalculator {
       )
       .reduce((sum, t) => sum + Math.abs(t.amount), 0);
     
-    this.cache.set(key, result);
+    this.numberCache.set(key, result);
     return result;
   }
 
   // Memoized statistics calculations
-  static calculateStats(transactions: any[]): {
-    totalIncome: number;
-    totalExpenses: number;
-    netIncome: number;
-    transactionCount: number;
-    averageTransaction: number;
-  } {
+  static calculateStats(transactions: Transaction[]): TransactionStats {
     const key = `stats_${transactions.length}_${transactions.map(t => t.amount).join('_')}`;
     
-    const cached = this.cache.get(key);
+    const cached = this.statsCache.get(key);
     if (cached !== undefined) {
       return cached;
     }
@@ -222,7 +242,7 @@ export class FinancialCalculator {
     let transactionCount = transactions.length;
     
     transactions.forEach(transaction => {
-      const amount = parseFloat(transaction.amount) || 0;
+      const amount = transaction.amount || 0;
       if (amount > 0) {
         totalIncome += amount;
       } else {
@@ -230,7 +250,7 @@ export class FinancialCalculator {
       }
     });
     
-    const result = {
+    const result: TransactionStats = {
       totalIncome,
       totalExpenses,
       netIncome: totalIncome - totalExpenses,
@@ -238,27 +258,29 @@ export class FinancialCalculator {
       averageTransaction: transactionCount > 0 ? (totalIncome + totalExpenses) / transactionCount : 0
     };
     
-    this.cache.set(key, result);
+    this.statsCache.set(key, result);
     return result;
   }
 
   static clearCache(): void {
-    this.cache.clear();
+    this.numberCache.clear();
+    this.arrayCache.clear();
+    this.statsCache.clear();
   }
 }
 
 // React hook for financial calculations
 export function useFinancialCalculator() {
-  const calculateStats = useCallback((transactions: any[]) => {
+  const calculateStats = useCallback((transactions: Transaction[]) => {
     return FinancialCalculator.calculateStats(transactions);
   }, []);
 
-  const filterTransactions = useCallback((transactions: any[], filters: any) => {
+  const filterTransactions = useCallback((transactions: Transaction[], filters: TransactionFilters) => {
     return FinancialCalculator.filterTransactions(transactions, filters);
   }, []);
 
   const calculateBudgetSpent = useCallback((
-    transactions: any[], 
+    transactions: Transaction[], 
     budgetCategory: string, 
     startDate: Date, 
     endDate: Date
@@ -275,7 +297,7 @@ export function useFinancialCalculator() {
 }
 
 // Deep comparison utility for memoization
-export function deepEqual(a: any, b: any): boolean {
+export function deepEqual(a: unknown, b: unknown): boolean {
   if (a === b) return true;
   
   if (a == null || b == null) return false;
@@ -283,13 +305,13 @@ export function deepEqual(a: any, b: any): boolean {
   if (typeof a !== typeof b) return false;
   
   if (typeof a === 'object') {
-    const keysA = Object.keys(a);
-    const keysB = Object.keys(b);
+    const keysA = Object.keys(a as Record<string, unknown>);
+    const keysB = Object.keys(b as Record<string, unknown>);
     
     if (keysA.length !== keysB.length) return false;
     
     for (const key of keysA) {
-      if (!keysB.includes(key) || !deepEqual(a[key], b[key])) {
+      if (!keysB.includes(key) || !deepEqual((a as Record<string, unknown>)[key], (b as Record<string, unknown>)[key])) {
         return false;
       }
     }
@@ -316,14 +338,14 @@ export function createSelector<T, R>(
       cachedResult = selector(currentState);
     }
     
-    return cachedResult!;
+    return cachedResult as R;
   };
 }
 
 // React hook for memoized selectors
 export function useMemoSelector<T, R>(
   selector: (state: T) => R,
-  dependencies: any[]
+  dependencies: [T]
 ): R {
   return useMemo(() => selector(dependencies[0]), dependencies);
 }
@@ -382,7 +404,7 @@ export class MemoizationMonitor {
 }
 
 // Enhanced memoization with monitoring
-export function memoizeWithTracking<T extends (...args: any[]) => any>(
+export function memoizeWithTracking<T extends (...args: unknown[]) => unknown>(
   fn: T,
   options: {
     getKey?: (...args: Parameters<T>) => string;
@@ -391,7 +413,7 @@ export function memoizeWithTracking<T extends (...args: any[]) => any>(
     enableTracking?: boolean;
   } = {}
 ): T {
-  const cache = new LRUCache<string, any>(options.maxSize || 100, options.ttl || 5 * 60 * 1000);
+  const cache = new LRUCache<string, unknown>(options.maxSize || 100, options.ttl || 5 * 60 * 1000);
   const keyPrefix = fn.name || 'anonymous';
   
   return ((...args: Parameters<T>) => {

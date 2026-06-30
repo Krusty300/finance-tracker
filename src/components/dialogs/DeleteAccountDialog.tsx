@@ -44,13 +44,13 @@ export function DeleteAccountDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="sm:max-w-[425px]" aria-describedby="delete-account-dialog-description">
         <DialogHeader>
           <div className="flex items-center gap-2">
             <AlertTriangle className="h-5 w-5 text-destructive" />
             <DialogTitle>Delete Account</DialogTitle>
           </div>
-          <DialogDescription>
+          <DialogDescription id="delete-account-dialog-description">
             Are you sure you want to delete "{account.name}"? 
             This action cannot be undone.
           </DialogDescription>

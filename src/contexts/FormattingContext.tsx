@@ -2,8 +2,8 @@
 
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 
-type DateFormat = 'MM/DD/YYYY' | 'DD/MM/YYYY' | 'YYYY-MM-DD' | 'DD-MM-YYYY';
-type NumberFormat = '1,234.56' | '1.234,56' | '1 234.56' | '1234.56';
+export type DateFormat = 'MM/DD/YYYY' | 'DD/MM/YYYY' | 'YYYY-MM-DD' | 'DD-MM-YYYY' | 'MM-DD-YYYY';
+export type NumberFormat = '1,234.56' | '1.234,56' | '1 234.56' | '1234.56' | '1,234';
 
 interface FormattingContextType {
   dateFormat: DateFormat;
@@ -18,8 +18,8 @@ interface FormattingContextType {
 
 const FormattingContext = createContext<FormattingContextType | undefined>(undefined);
 
-const DATE_FORMATS: DateFormat[] = ['MM/DD/YYYY', 'DD/MM/YYYY', 'YYYY-MM-DD', 'DD-MM-YYYY'];
-const NUMBER_FORMATS: NumberFormat[] = ['1,234.56', '1.234,56', '1 234.56', '1234.56'];
+const DATE_FORMATS: DateFormat[] = ['MM/DD/YYYY', 'DD/MM/YYYY', 'YYYY-MM-DD', 'DD-MM-YYYY', 'MM-DD-YYYY'];
+const NUMBER_FORMATS: NumberFormat[] = ['1,234.56', '1.234,56', '1 234.56', '1234.56', '1,234'];
 
 export function FormattingProvider({ children }: { children: ReactNode }) {
   const [isLoaded, setIsLoaded] = useState(false);

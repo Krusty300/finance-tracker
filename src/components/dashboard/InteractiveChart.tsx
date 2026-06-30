@@ -148,7 +148,7 @@ export function InteractiveChart({
 
   // Render bar chart
   const renderBarChart = () => (
-    <ResponsiveContainer width="100%" height={height} minHeight={undefined}>
+    <ResponsiveContainer width="100%" height={height} minWidth={300} minHeight={320}>
       <BarChart data={data} onClick={handleChartClick}>
         <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
         <XAxis 
@@ -179,7 +179,7 @@ export function InteractiveChart({
 
   // Render pie chart
   const renderPieChart = () => (
-    <ResponsiveContainer width="100%" height={height} minHeight={undefined}>
+    <ResponsiveContainer width="100%" height={height} minWidth={300} minHeight={320}>
       <PieChart>
         <Pie
           data={data}
@@ -206,7 +206,7 @@ export function InteractiveChart({
 
   // Render line chart
   const renderLineChart = () => (
-    <ResponsiveContainer width="100%" height={height} minHeight={undefined}>
+    <ResponsiveContainer width="100%" height={height} minWidth={300} minHeight={320}>
       <LineChart data={data} onClick={handleChartClick}>
         <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
         <XAxis 

@@ -88,10 +88,10 @@ export function BulkDateEditDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="sm:max-w-[425px]" aria-describedby="bulk-date-dialog-description">
         <DialogHeader>
           <DialogTitle>Bulk Date Editing</DialogTitle>
-          <DialogDescription>
+          <DialogDescription id="bulk-date-dialog-description">
             Modify dates for {selectedIds.length} selected transaction{selectedIds.length > 1 ? 's' : ''}
           </DialogDescription>
         </DialogHeader>

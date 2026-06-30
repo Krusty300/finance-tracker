@@ -147,14 +147,47 @@ class RealtimeEventManager {
       const key = `realtime-event-${event.id}`;
       localStorage.setItem(key, JSON.stringify(event));
       
-      // Clean up old events
-      Object.keys(localStorage)
+      // Clean up old events - sort by timestamp and keep only last 20
+      const eventKeys = Object.keys(localStorage)
         .filter(k => k.startsWith('realtime-event-'))
-        .slice(50) // Keep only last 50 events
-        .forEach(k => localStorage.removeItem(k));
+        .map(k => ({
+          key: k,
+          timestamp: parseInt(k.split('-').pop() || '0')
+        }))
+        .sort((a, b) => b.timestamp - a.timestamp); // Sort by timestamp descending
+      
+      // Remove events beyond the last 20
+      eventKeys.slice(20).forEach(({ key }) => {
+        try {
+          localStorage.removeItem(key);
+        } catch (error) {
+          // Ignore cleanup errors
+        }
+      });
     } catch (error) {
       console.error('Failed to store event in localStorage:', error);
+      // If quota exceeded, try to clean up more aggressively
+      try {
+        this.aggressiveCleanup();
+      } catch (cleanupError) {
+        console.error('Failed to cleanup localStorage:', cleanupError);
+      }
     }
+  }
+
+  // Aggressive cleanup when quota is exceeded
+  private aggressiveCleanup(): void {
+    const eventKeys = Object.keys(localStorage)
+      .filter(k => k.startsWith('realtime-event-'));
+    
+    // Remove all but the 5 most recent events
+    eventKeys.slice(5).forEach(key => {
+      try {
+        localStorage.removeItem(key);
+      } catch (error) {
+        // Ignore cleanup errors
+      }
+    });
   }
 
   // Listen for storage events from other tabs

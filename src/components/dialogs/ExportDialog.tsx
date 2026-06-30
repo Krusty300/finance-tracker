@@ -464,7 +464,7 @@ export function ExportDialog({ open, onOpenChange, transactions, selectedIds = [
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className="sm:max-w-[500px]" aria-describedby="export-dialog-description">
         <DialogHeader>
           <div className="flex items-center gap-2">
             <div className="flex h-10 w-10 items-center justify-center rounded-full bg-green-100">
@@ -472,7 +472,7 @@ export function ExportDialog({ open, onOpenChange, transactions, selectedIds = [
             </div>
             <DialogTitle>Export Transactions</DialogTitle>
           </div>
-          <DialogDescription>
+          <DialogDescription id="export-dialog-description">
             Export {selectedIds.length > 0 ? selectedIds.length : transactionsToExport.length} transactions in your preferred format.
           </DialogDescription>
         </DialogHeader>

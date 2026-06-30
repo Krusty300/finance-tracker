@@ -290,13 +290,13 @@ export function BulkEditDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[600px] max-h-[80vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-[600px] max-h-[80vh] overflow-y-auto" aria-describedby="bulk-edit-dialog-description">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Edit2 className="h-5 w-5" />
             Bulk Edit Transactions
           </DialogTitle>
-          <DialogDescription>
+          <DialogDescription id="bulk-edit-dialog-description">
             Edit {selectedIds.length} selected transaction{selectedIds.length > 1 ? 's' : ''}
           </DialogDescription>
         </DialogHeader>

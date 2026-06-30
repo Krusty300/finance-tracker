@@ -89,7 +89,7 @@ export function DuplicateTransactionDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="sm:max-w-[425px]" aria-describedby="duplicate-transaction-dialog-description">
         <DialogHeader>
           <div className="flex items-center gap-2">
             <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100">
@@ -97,7 +97,7 @@ export function DuplicateTransactionDialog({
             </div>
             <DialogTitle>Duplicate Transaction</DialogTitle>
           </div>
-          <DialogDescription>
+          <DialogDescription id="duplicate-transaction-dialog-description">
             Create a copy of "{transaction.description}". You can modify any details before saving.
           </DialogDescription>
         </DialogHeader>

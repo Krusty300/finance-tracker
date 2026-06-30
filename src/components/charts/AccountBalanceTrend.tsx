@@ -89,8 +89,8 @@ export function AccountBalanceTrend({ account, transactions }: { account: Accoun
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="h-[320px] w-full">
-          <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={undefined}>
+        <div className="h-[320px] w-full min-h-[320px] min-w-[300px]">
+          <ResponsiveContainer width="100%" height="100%" minWidth={300} minHeight={320}>
             <LineChart data={trendData}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="date" />

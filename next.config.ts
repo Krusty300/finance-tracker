@@ -7,8 +7,10 @@ const nextConfig: NextConfig = {
     optimizeCss: true,
   },
   
-  // Turbopack configuration (empty to use defaults)
-  turbopack: {},
+  // Turbopack configuration
+  turbopack: {
+    root: __dirname,
+  },
   
   // Bundle optimization (for webpack fallback)
   ...(process.env.USE_WEBPACK === 'true' ? {

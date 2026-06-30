@@ -3,7 +3,7 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { exchangeRateService } from '@/services/currencyConversion';
 
-type Currency = 'USD' | 'EUR' | 'GBP' | 'JPY' | 'CAD' | 'AUD' | 
+export type Currency = 'USD' | 'EUR' | 'GBP' | 'JPY' | 'CAD' | 'AUD' | 
   'KES' | 'UGX' | 'TZS' | 'ETB' | // East Africa
   'ZAR' | 'NAD' | 'BWP' | // South Africa
   'NGN' | 'GHS' | 'XOF' | 'XAF'; // West Africa

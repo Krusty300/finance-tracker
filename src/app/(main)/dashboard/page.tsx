@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState } from 'react';
 import { useDashboardStats } from '@/hooks/useDashboardStats';
 import { DashboardCards } from '@/components/dashboard/DashboardCards';
 import { SpendingChart } from '@/components/dashboard/SpendingChart';
@@ -19,7 +19,7 @@ import { verifyDataPersistence, verifyLocalStorage } from '@/lib/dataVerificatio
 import { DashboardErrorBoundary, DashboardErrorFallback } from '@/components/error/DashboardErrorBoundary';
 import { DashboardLayoutManager } from '@/components/dashboard/DashboardLayoutManager';
 import { Button } from '@/components/ui/button';
-import { Settings, LayoutGrid, Activity, Filter, Download, Eye, EyeOff } from 'lucide-react';
+import { Settings, LayoutGrid, Activity, Filter, Download, Eye } from 'lucide-react';
 import { useRealtimeDashboard, useMockRealtimeDashboard } from '@/hooks/useRealtimeDashboard';
 import { useAdvancedFilters } from '@/hooks/useAdvancedFilters';
 import { InteractiveChart } from '@/components/dashboard/InteractiveChart';
@@ -31,15 +31,18 @@ import { WidgetSkeleton } from '@/components/dashboard/WidgetSkeleton';
 import { LoadingProgress } from '@/components/dashboard/LoadingProgress';
 import { DashboardNotes } from '@/components/dashboard/DashboardNotes';
 import { FavoriteButton } from '@/components/layout/FavoriteButton';
+import { FinancialHealthScoreCard } from '@/components/dashboard/FinancialHealthScore';
+import { QuickActions } from '@/components/dashboard/QuickActions';
+import { RefreshControls } from '@/components/dashboard/RefreshControls';
+import { widgetPersistenceService } from '@/services/widgetPersistence';
 
 export default function DashboardPage() {
-  const { stats, loading } = useDashboardStats();
+  const { stats, loading, refreshStats } = useDashboardStats();
   const [useInteractiveLayout, setUseInteractiveLayout] = useState(false);
   const [useAdvancedGrid, setUseAdvancedGrid] = useState(false);
   const [showAllFilters, setShowAllFilters] = useState(false);
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [loadingProgress, setLoadingProgress] = useState(0);
-  const [widgetsLoaded, setWidgetsLoaded] = useState<Set<string>>(new Set());
   const [isFirstVisit, setIsFirstVisit] = useState(false);
   const [visibleWidgets, setVisibleWidgets] = useState({
     financialOverview: true,
@@ -51,37 +54,91 @@ export default function DashboardPage() {
     spendingHeatmap: true,
     budgetProgress: true,
     dashboardNotes: true,
+    financialHealthScore: true,
+    quickActions: true,
   });
   
   // Load layout preference from localStorage
   useEffect(() => {
-    const savedLayout = localStorage.getItem('dashboard-layout-preference');
-    if (savedLayout === 'interactive') {
-      setUseInteractiveLayout(true);
-    } else if (savedLayout === 'advanced') {
-      setUseAdvancedGrid(true);
-    }
-    
-    const savedWidgets = localStorage.getItem('dashboard-visible-widgets');
-    if (savedWidgets) {
-      try {
-        const parsed = JSON.parse(savedWidgets);
-        setVisibleWidgets(prev => ({
-          ...prev,
-          ...parsed
-        }));
-      } catch (error) {
-        console.warn('Failed to load widget visibility:', error);
+    try {
+      const savedLayout = localStorage.getItem('dashboard-layout-preference');
+      if (savedLayout === 'interactive') {
+        setUseInteractiveLayout(true);
+      } else if (savedLayout === 'advanced') {
+        setUseAdvancedGrid(true);
       }
-    }
+      
+      const savedWidgets = localStorage.getItem('dashboard-visible-widgets');
+      if (savedWidgets) {
+        try {
+          const parsed = JSON.parse(savedWidgets);
+          setVisibleWidgets(prev => ({
+            ...prev,
+            ...parsed,
+            // Ensure new properties have default values
+            financialHealthScore: parsed.financialHealthScore ?? true,
+            quickActions: parsed.quickActions ?? true
+          }));
+        } catch (error) {
+          console.warn('Failed to load widget visibility:', error);
+        }
+      }
 
-    // Check if first visit
-    const hasVisited = localStorage.getItem('dashboard-has-visited');
-    if (!hasVisited) {
-      setIsFirstVisit(true);
-      localStorage.setItem('dashboard-has-visited', 'true');
+      // Load widget layout from persistence service
+      try {
+        const savedLayoutData = widgetPersistenceService.loadLayout();
+        if (savedLayoutData) {
+          setUseInteractiveLayout(savedLayoutData.layoutMode === 'interactive');
+          setUseAdvancedGrid(savedLayoutData.layoutMode === 'advanced');
+        }
+      } catch (error) {
+        console.warn('Failed to load widget layout from persistence service:', error);
+      }
+
+      // Check if first visit
+      const hasVisited = localStorage.getItem('dashboard-has-visited');
+      if (!hasVisited) {
+        setIsFirstVisit(true);
+        localStorage.setItem('dashboard-has-visited', 'true');
+      }
+    } catch (error) {
+      console.error('Failed to load dashboard preferences:', error);
     }
   }, []);
+
+  // Save widget visibility changes to localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem('dashboard-visible-widgets', JSON.stringify(visibleWidgets));
+      
+      // Also save to widget persistence service
+      const currentLayout = widgetPersistenceService.loadLayout();
+      if (currentLayout) {
+        widgetPersistenceService.saveLayout({
+          ...currentLayout,
+          widgets: currentLayout.widgets.map(widget => ({
+            ...widget,
+            visible: visibleWidgets[widget.id as keyof typeof visibleWidgets] ?? true
+          }))
+        });
+      }
+    } catch (error) {
+      console.error('Failed to save widget visibility:', error);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visibleWidgets]);
+
+  // Save layout mode changes
+  useEffect(() => {
+    try {
+      const layoutMode = useAdvancedGrid ? 'advanced' : useInteractiveLayout ? 'interactive' : 'default';
+      localStorage.setItem('dashboard-layout-preference', layoutMode);
+      widgetPersistenceService.saveLayoutMode(layoutMode);
+    } catch (error) {
+      console.error('Failed to save layout mode:', error);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [useInteractiveLayout, useAdvancedGrid]);
   
   // Simulate loading progress
   useEffect(() => {
@@ -102,50 +159,33 @@ export default function DashboardPage() {
     }
   }, [loading]);
 
-  // Mark widget as loaded with staggered animation
-  const markWidgetLoaded = useCallback((widgetId: string) => {
-    setWidgetsLoaded(prev => new Set([...prev, widgetId]));
-  }, []);
-
-  // Reset widgets loaded when layout changes
-  useEffect(() => {
-    setWidgetsLoaded(new Set());
-  }, [useInteractiveLayout, useAdvancedGrid]);
-  
-  // Save layout preference to localStorage
-  useEffect(() => {
-    const layoutMode = useAdvancedGrid ? 'advanced' : useInteractiveLayout ? 'interactive' : 'classic';
-    localStorage.setItem('dashboard-layout-preference', layoutMode);
-  }, [useInteractiveLayout, useAdvancedGrid]);
-  
-  // Save widget visibility to localStorage
-  useEffect(() => {
-    localStorage.setItem('dashboard-visible-widgets', JSON.stringify(visibleWidgets));
-  }, [visibleWidgets]);
-
   const handleExportData = () => {
     if (!stats) return;
     
-    const exportData = {
-      exportDate: new Date().toISOString(),
-      totalBalance: stats.totalBalance,
-      monthlyIncome: stats.monthlyIncome,
-      monthlyExpenses: stats.monthlyExpenses,
-      netWorth: stats.netWorth,
-      categoryBreakdown: stats.categoryBreakdown,
-      monthlyTrend: stats.monthlyTrend,
-      budgetBreakdown: stats.budgetBreakdown,
-    };
-    
-    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `dashboard-export-${new Date().toISOString().split('T')[0]}.json`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    try {
+      const exportData = {
+        exportDate: new Date().toISOString(),
+        totalBalance: stats.totalBalance,
+        monthlyIncome: stats.monthlyIncome,
+        monthlyExpenses: stats.monthlyExpenses,
+        netWorth: stats.netWorth,
+        categoryBreakdown: stats.categoryBreakdown,
+        monthlyTrend: stats.monthlyTrend,
+        budgetBreakdown: stats.budgetBreakdown,
+      };
+      
+      const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `dashboard-export-${new Date().toISOString().split('T')[0]}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Failed to export dashboard data:', error);
+    }
   };
   
   // Handle layout toggle with visual feedback
@@ -304,6 +344,32 @@ export default function DashboardPage() {
       defaultSize: { width: 380, height: 200 },
       minSize: { width: 300, height: 150 },
       maxSize: { width: 600, height: 300 }
+    },
+    {
+      id: 'financial-health-score',
+      title: 'Financial Health Score',
+      component: (
+        <DashboardErrorBoundary fallback={DashboardErrorFallback}>
+          <FinancialHealthScoreCard stats={displayStats} />
+        </DashboardErrorBoundary>
+      ),
+      defaultPosition: { x: 0, y: 750 },
+      defaultSize: { width: 400, height: 350 },
+      minSize: { width: 300, height: 300 },
+      maxSize: { width: 600, height: 450 }
+    },
+    {
+      id: 'quick-actions',
+      title: 'Quick Actions',
+      component: (
+        <DashboardErrorBoundary fallback={DashboardErrorFallback}>
+          <QuickActions />
+        </DashboardErrorBoundary>
+      ),
+      defaultPosition: { x: 420, y: 750 },
+      defaultSize: { width: 380, height: 300 },
+      minSize: { width: 300, height: 250 },
+      maxSize: { width: 600, height: 400 }
     }
   ];
 
@@ -384,15 +450,15 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-6 w-full">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 data-onboarding="dashboard-title" className="text-2xl sm:text-3xl font-bold">Sprint Dashboard</h1>
-          <p className="text-sm sm:text-base text-muted-foreground">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
+        <div className="w-full sm:w-auto">
+          <h1 data-onboarding="dashboard-title" className="text-xl sm:text-2xl md:text-3xl font-bold">Sprint Dashboard</h1>
+          <p className="text-xs sm:text-sm md:text-base text-muted-foreground">
             Overview of your financial health
           </p>
         </div>
         
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-1 sm:gap-2 w-full sm:w-auto justify-end">
           {/* Real-time Status */}
           <div className="flex items-center gap-2">
             <Activity className="h-4 w-4" />
@@ -421,11 +487,15 @@ export default function DashboardPage() {
             variant="outline"
             size="sm"
             onClick={handleExportData}
-            className="flex items-center gap-2 hover:bg-primary/10 hover:border-primary/30 active:scale-95 transition-all duration-200"
+            className="flex items-center gap-1 sm:gap-2 hover:bg-primary/10 hover:border-primary/30 active:scale-95 transition-all duration-200 text-xs sm:text-sm"
           >
-            <Download className="h-4 w-4" />
-            Export
+            <Download className="h-3 w-3 sm:h-4 sm:w-4" />
+            <span className="hidden sm:inline">Export</span>
+            <span className="sm:hidden">Exp</span>
           </Button>
+
+          {/* Refresh Controls */}
+          <RefreshControls onRefresh={refreshStats} />
 
           {/* Widget Visibility Toggle */}
           <Button
@@ -442,12 +512,15 @@ export default function DashboardPage() {
                 spendingHeatmap: !prev.spendingHeatmap,
                 budgetProgress: !prev.budgetProgress,
                 dashboardNotes: !prev.dashboardNotes,
+                financialHealthScore: !prev.financialHealthScore,
+                quickActions: !prev.quickActions,
               }));
             }}
-            className="flex items-center gap-2 hover:bg-primary/10 hover:border-primary/30 active:scale-95 transition-all duration-200"
+            className="flex items-center gap-1 sm:gap-2 hover:bg-primary/10 hover:border-primary/30 active:scale-95 transition-all duration-200 text-xs sm:text-sm"
           >
-            <Eye className="h-4 w-4" />
-            Toggle Widgets
+            <Eye className="h-3 w-3 sm:h-4 sm:w-4" />
+            <span className="hidden sm:inline">Toggle Widgets</span>
+            <span className="sm:hidden">Widgets</span>
           </Button>
 
           {/* Favorite Button */}
@@ -459,23 +532,24 @@ export default function DashboardPage() {
             onClick={handleLayoutToggle}
             disabled={isTransitioning}
             className={cn(
-              "flex items-center gap-2 transition-all duration-300 active:scale-95",
+              "flex items-center gap-1 sm:gap-2 transition-all duration-300 active:scale-95 text-xs sm:text-sm",
               isTransitioning && "opacity-50 cursor-not-allowed",
               !isTransitioning && "hover:shadow-md"
             )}
           >
-            {useAdvancedGrid ? <LayoutGrid className="h-4 w-4" /> : useInteractiveLayout ? <Settings className="h-4 w-4" /> : <LayoutGrid className="h-4 w-4" />}
-            {useAdvancedGrid ? "Switch to Classic" : useInteractiveLayout ? "Switch to Advanced Grid" : "Switch to Interactive Layout"}
+            {useAdvancedGrid ? <LayoutGrid className="h-3 w-3 sm:h-4 sm:w-4" /> : useInteractiveLayout ? <Settings className="h-3 w-3 sm:h-4 sm:w-4" /> : <LayoutGrid className="h-3 w-3 sm:h-4 sm:w-4" />}
+            <span className="hidden sm:inline">{useAdvancedGrid ? "Switch to Classic" : useInteractiveLayout ? "Switch to Advanced Grid" : "Switch to Interactive Layout"}</span>
+            <span className="sm:hidden">{useAdvancedGrid ? "Classic" : useInteractiveLayout ? "Advanced" : "Interactive"}</span>
           </Button>
         </div>
       </div>
 
       {/* Quick Filters */}
       {!useInteractiveLayout && !useAdvancedGrid && (
-        <div className="flex flex-wrap items-center gap-3">
-          <span className="text-sm text-muted-foreground">Quick Filters:</span>
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+          <span className="text-xs sm:text-sm text-muted-foreground">Quick Filters:</span>
           <div className={cn(
-            "flex flex-wrap items-center gap-2 transition-all duration-300",
+            "flex flex-wrap items-center gap-1 sm:gap-2 transition-all duration-300",
             showAllFilters ? "" : "max-h-10 overflow-hidden"
           )}>
             {quickFilters.slice(0, showAllFilters ? quickFilters.length : 4).map(filter => (
@@ -557,7 +631,7 @@ export default function DashboardPage() {
 
               {/* Charts Row */}
               {(visibleWidgets.spendingChart || visibleWidgets.monthlyTrends) && (
-                <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-2 gap-4 sm:gap-6">
                   {visibleWidgets.spendingChart && (
                     <DashboardErrorBoundary fallback={DashboardErrorFallback}>
                       <SpendingChart data={displayStats.categoryBreakdown || []} />
@@ -614,10 +688,10 @@ export default function DashboardPage() {
                 <DashboardErrorBoundary fallback={DashboardErrorFallback}>
                   <Card className="rounded-lg">
                     <CardHeader>
-                      <CardTitle>Budget Progress</CardTitle>
+                      <CardTitle className="text-base sm:text-lg">Budget Progress</CardTitle>
                     </CardHeader>
                     <CardContent>
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-6">
                         {displayStats.budgetBreakdown.slice(0, 6).map((budget) => (
                           <BudgetProgressIndicator
                             key={budget.category}
@@ -648,6 +722,20 @@ export default function DashboardPage() {
                   />
                 </DashboardErrorBoundary>
               )}
+
+              {/* New widgets row for better mobile layout */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
+                {visibleWidgets.financialHealthScore && (
+                  <DashboardErrorBoundary fallback={DashboardErrorFallback}>
+                    <FinancialHealthScoreCard stats={displayStats} />
+                  </DashboardErrorBoundary>
+                )}
+                {visibleWidgets.quickActions && (
+                  <DashboardErrorBoundary fallback={DashboardErrorFallback}>
+                    <QuickActions />
+                  </DashboardErrorBoundary>
+                )}
+              </div>
             </div>
           </>
         )}

@@ -70,7 +70,7 @@ export function AccountDetailsDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[900px] max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-[900px] max-h-[90vh] overflow-y-auto" aria-describedby="account-details-dialog-description">
         <DialogHeader>
           <div className="flex items-center gap-3">
             <div className={`p-2 rounded-lg ${isCredit ? 'bg-purple-100 dark:bg-purple-900/20' : 'bg-blue-100 dark:bg-blue-900/20'}`}>
@@ -78,7 +78,7 @@ export function AccountDetailsDialog({
             </div>
             <div>
               <DialogTitle className="text-xl">{account.name}</DialogTitle>
-              <DialogDescription className="flex items-center gap-2">
+              <DialogDescription id="account-details-dialog-description" className="flex items-center gap-2">
                 <span className="capitalize">{accountTypeLabels[account.type]}</span>
                 <span>•</span>
                 <span>{account.currency}</span>

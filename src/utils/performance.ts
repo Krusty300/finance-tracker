@@ -79,14 +79,17 @@ export class PerformanceMonitor {
 }
 
 // Web Worker utilities
+
+interface WorkerTask<T = unknown> {
+  id: string;
+  task: T;
+  resolve: (value: T | PromiseLike<T>) => void;
+  reject: (error: ErrorEvent) => void;
+}
+
 export class WorkerPool {
   private workers: Worker[] = [];
-  private taskQueue: Array<{ 
-    id: string; 
-    task: any; 
-    resolve: (result: any) => void; 
-    reject: (error: any) => void;
-  }> = [];
+  private taskQueue: Array<WorkerTask<unknown>> = [];
   private busyWorkers: Set<Worker> = new Set();
 
   constructor(private workerScript: string, private poolSize: number = navigator.hardwareConcurrency || 4) {
@@ -104,14 +107,14 @@ export class WorkerPool {
     }
   }
 
-  async execute<T>(task: any): Promise<T> {
-    return new Promise((resolve, reject) => {
+  async execute<T>(task: T): Promise<T> {
+    return new Promise<T>((resolve, reject) => {
       const taskId = Math.random().toString(36).substr(2, 9);
       
       this.taskQueue.push({
         id: taskId,
         task,
-        resolve,
+        resolve: resolve as (value: unknown) => void,
         reject
       });
       
@@ -161,8 +164,8 @@ export class WorkerPool {
 }
 
 // Memoization helpers
-export function useDeepMemo<T>(factory: () => T, deps: any[]): T {
-  const ref = useRef<{ deps: any[]; value: T } | undefined>(undefined);
+export function useDeepMemo<T>(factory: () => T, deps: unknown[]): T {
+  const ref = useRef<{ deps: unknown[]; value: T } | undefined>(undefined);
   
   if (!ref.current || !depsEqual(deps, ref.current.deps)) {
     ref.current = { deps: [...deps], value: factory() };
@@ -171,7 +174,7 @@ export function useDeepMemo<T>(factory: () => T, deps: any[]): T {
   return ref.current.value;
 }
 
-function depsEqual(a: any[], b: any[]): boolean {
+function depsEqual(a: unknown[], b: unknown[]): boolean {
   if (a.length !== b.length) return false;
   
   for (let i = 0; i < a.length; i++) {
@@ -182,11 +185,11 @@ function depsEqual(a: any[], b: any[]): boolean {
 }
 
 // Debounce utility
-export function useDebounce<T extends (...args: any[]) => any>(
+export function useDebounce<T extends (...args: unknown[]) => unknown>(
   callback: T,
   delay: number
 ): T {
-  const ref = useRef<NodeJS.Timeout>();
+  const ref = useRef<ReturnType<typeof setTimeout> | null>(null);
   
   return useCallback((...args: Parameters<T>) => {
     if (ref.current) {
@@ -200,7 +203,7 @@ export function useDebounce<T extends (...args: any[]) => any>(
 }
 
 // Throttle utility
-export function useThrottle<T extends (...args: any[]) => any>(
+export function useThrottle<T extends (...args: unknown[]) => unknown>(
   callback: T,
   delay: number
 ): T {
@@ -215,14 +218,14 @@ export function useThrottle<T extends (...args: any[]) => any>(
 }
 
 // Virtual scrolling utilities
-export interface VirtualScrollProps {
-  items: any[];
+export interface VirtualScrollProps<T = unknown> {
+  items: T[];
   itemHeight: number;
   containerHeight: number;
   overscan?: number;
 }
 
-export function useVirtualScroll({ items, itemHeight, containerHeight, overscan = 5 }: VirtualScrollProps) {
+export function useVirtualScroll<T>({ items, itemHeight, containerHeight, overscan = 5 }: VirtualScrollProps<T>) {
   return useMemo(() => {
     const visibleCount = Math.ceil(containerHeight / itemHeight);
     const startIndex = Math.max(0, 0 - overscan);
@@ -244,7 +247,7 @@ export function useVirtualScroll({ items, itemHeight, containerHeight, overscan 
 // Lazy loading utilities
 export function useLazyLoad<T>(
   loader: () => Promise<T>,
-  deps: any[] = []
+  deps: unknown[] = []
 ): { data: T | null; loading: boolean; error: Error | null; reload: () => void } {
   const [data, setData] = useState<T | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
@@ -307,17 +310,35 @@ export function measureBundleSize() {
 }
 
 // Memory monitoring
-export function useMemoryMonitor() {
-  const [memoryInfo, setMemoryInfo] = useState<any>(null);
+
+interface MemoryInfo {
+  used: number;
+  total: number;
+  limit: number;
+}
+
+interface PerformanceWithMemory extends Performance {
+  memory?: {
+    usedJSHeapSize: number;
+    totalJSHeapSize: number;
+    jsHeapSizeLimit: number;
+  };
+}
+
+export function useMemoryMonitor(): MemoryInfo | null {
+  const [memoryInfo, setMemoryInfo] = useState<MemoryInfo | null>(null);
   
   useEffect(() => {
     if ('memory' in performance) {
       const updateMemory = () => {
-        setMemoryInfo({
-          used: (performance as any).memory.usedJSHeapSize,
-          total: (performance as any).memory.totalJSHeapSize,
-          limit: (performance as any).memory.jsHeapSizeLimit
-        });
+        const perf = performance as PerformanceWithMemory;
+        if (perf.memory) {
+          setMemoryInfo({
+            used: perf.memory.usedJSHeapSize,
+            total: perf.memory.totalJSHeapSize,
+            limit: perf.memory.jsHeapSizeLimit
+          });
+        }
       };
       
       updateMemory();
@@ -354,7 +375,7 @@ export function useIntersectionObserver(
 }
 
 // RequestIdleCallback utility
-export function useIdleCallback(callback: () => void, deps: any[] = []): void {
+export function useIdleCallback(callback: () => void, deps: unknown[] = []): void {
   useEffect(() => {
     const handleIdle = () => {
       if ('requestIdleCallback' in window) {
@@ -369,7 +390,7 @@ export function useIdleCallback(callback: () => void, deps: any[] = []): void {
 }
 
 // Performance decorator for functions
-export function measurePerformance<T extends (...args: any[]) => any>(
+export function measurePerformance<T extends (...args: unknown[]) => unknown>(
   name: string,
   fn: T
 ): T {

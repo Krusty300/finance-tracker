@@ -99,12 +99,12 @@ export function GoalDialog({ open, onOpenChange, goal, onSave }: GoalDialogProps
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="sm:max-w-[425px]" aria-describedby="goal-dialog-description">
         <DialogHeader>
           <DialogTitle>
             {goal ? 'Edit Financial Goal' : 'Add Financial Goal'}
           </DialogTitle>
-          <DialogDescription>
+          <DialogDescription id="goal-dialog-description">
             Set a financial goal to track your progress towards saving for specific targets.
           </DialogDescription>
         </DialogHeader>

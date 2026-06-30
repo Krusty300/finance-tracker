@@ -245,12 +245,12 @@ export function QuickAddModal({ open, onOpenChange }: QuickAddModalProps) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className="sm:max-w-[500px]" aria-describedby="quick-add-description">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             Quick Add Transaction
           </DialogTitle>
-          <DialogDescription>
+          <DialogDescription id="quick-add-description">
             Quickly add a new transaction to your records
           </DialogDescription>
         </DialogHeader>

@@ -38,8 +38,8 @@ import { seedSampleData } from '@/lib/seedData';
 import { db } from '@/lib/db';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useOnboarding } from '@/contexts/OnboardingContext';
-import { useCurrency } from '@/contexts/CurrencyContext';
-import { useFormatting } from '@/contexts/FormattingContext';
+import { useCurrency, type Currency } from '@/contexts/CurrencyContext';
+import { useFormatting, type DateFormat, type NumberFormat } from '@/contexts/FormattingContext';
 import { OnboardingProgress } from '@/components/onboarding/OnboardingProgress';
 import { FinancialCalculator } from '@/components/settings/FinancialCalculator';
 import { ThemeSettings } from '@/components/settings/ThemeSettings';
@@ -51,6 +51,23 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { FavoriteButton } from '@/components/layout/FavoriteButton';
 import { Info } from 'lucide-react';
 import { useRealtimeSync, syncCurrency, syncData, syncImportExport } from '@/utils/realtimeSync';
+
+// Status type enum
+type AppStatus = 'checking' | 'available' | 'connected' | 'loaded' | 'active' | 'limited' | 'unavailable' | 'error';
+
+// Transaction type for import
+type ImportTransaction = {
+  date: string;
+  description: string;
+  category: string;
+  amount: number;
+  type: 'income' | 'expense';
+  account?: string;
+  tags?: string[];
+  createdAt: string;
+  updatedAt: string;
+  deletedAt?: string;
+};
 
 export default function SettingsPage() {
   const { resetOnboarding, progress } = useOnboarding();
@@ -73,8 +90,6 @@ export default function SettingsPage() {
   const [customStartDate, setCustomStartDate] = useState('');
   const [customEndDate, setCustomEndDate] = useState('');
   
-  // Status type enum
-  type AppStatus = 'checking' | 'available' | 'connected' | 'loaded' | 'active' | 'limited' | 'unavailable' | 'error';
 
   // Application Status
   const [appStatus, setAppStatus] = useState<Record<string, AppStatus>>({
@@ -119,15 +134,15 @@ export default function SettingsPage() {
   useRealtimeSync('currency-changed', (event) => {
     const { currency: newCurrency, dateFormat: newDateFormat, numberFormat: newNumberFormat } = event.data;
     if (newCurrency && newCurrency !== currency) {
-      setCurrency(newCurrency as any);
+      setCurrency(newCurrency as Currency);
       toast.info('Currency updated from another tab');
     }
     if (newDateFormat && newDateFormat !== dateFormat) {
-      setDateFormat(newDateFormat as any);
+      setDateFormat(newDateFormat as DateFormat);
       toast.info('Date format updated from another tab');
     }
     if (newNumberFormat && newNumberFormat !== numberFormat) {
-      setNumberFormat(newNumberFormat as any);
+      setNumberFormat(newNumberFormat as NumberFormat);
       toast.info('Number format updated from another tab');
     }
   });
@@ -483,10 +498,12 @@ export default function SettingsPage() {
                 description: values[1],
                 category: values[2] || 'Uncategorized',
                 amount: amount,
-                type: (type as 'income' | 'expense') || 'expense',
+                type: (type as 'income' | 'expense') || 'expense' as 'income' | 'expense',
                 account: values[5] || undefined,
-                tags: values[6] ? values[6].split(';').filter(Boolean) : []
-              };
+                tags: values[6] ? values[6].split(';').filter(Boolean) : [],
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString()
+              } as ImportTransaction;
             })
           };
         } else {
@@ -515,7 +532,7 @@ export default function SettingsPage() {
 
         // Import data with validation
         if (data.transactions && Array.isArray(data.transactions)) {
-          data.transactions.forEach((transaction: any, index: number) => {
+          data.transactions.forEach((transaction: ImportTransaction, index: number) => {
             try {
               // Validate transaction structure
               if (!transaction.date || !transaction.description || typeof transaction.amount !== 'number') {
@@ -618,9 +635,9 @@ export default function SettingsPage() {
   }, []);
 
   const confirmResetDefaults = useCallback(() => {
-    setCurrency('USD' as any);
-    setDateFormat('MM/DD/YYYY' as any);
-    setNumberFormat('1,234.56' as any);
+    setCurrency('USD' as Currency);
+    setDateFormat('MM/DD/YYYY' as DateFormat);
+    setNumberFormat('1,234.56' as NumberFormat);
     toast.success('Settings reset to defaults');
     setShowResetDefaultsDialog(false);
   }, []);
@@ -653,9 +670,9 @@ export default function SettingsPage() {
     reader.onload = (e) => {
       try {
         const settings = JSON.parse(e.target?.result as string);
-        if (settings.currency) setCurrency(settings.currency as any);
-        if (settings.dateFormat) setDateFormat(settings.dateFormat as any);
-        if (settings.numberFormat) setNumberFormat(settings.numberFormat as any);
+        if (settings.currency) setCurrency(settings.currency as Currency);
+        if (settings.dateFormat) setDateFormat(settings.dateFormat as DateFormat);
+        if (settings.numberFormat) setNumberFormat(settings.numberFormat as NumberFormat);
         toast.success('Settings imported successfully');
       } catch (error) {
         toast.error('Failed to import settings: Invalid file format');
@@ -717,7 +734,7 @@ export default function SettingsPage() {
       }
 
       // Proceed with currency change if valid
-      setCurrency(newCurrency as any);
+      setCurrency(newCurrency as Currency);
       
       // Broadcast currency change to other tabs
       syncCurrency(newCurrency, dateFormat, numberFormat);
@@ -769,7 +786,7 @@ export default function SettingsPage() {
         return;
       }
 
-      setDateFormat(newDateFormat as any);
+      setDateFormat(newDateFormat as DateFormat);
       
       // Broadcast date format change to other tabs
       syncCurrency(currency, newDateFormat, numberFormat);
@@ -821,7 +838,7 @@ export default function SettingsPage() {
         return;
       }
 
-      setNumberFormat(newNumberFormat as any);
+      setNumberFormat(newNumberFormat as NumberFormat);
       
       // Broadcast number format change to other tabs
       syncCurrency(currency, dateFormat, newNumberFormat);

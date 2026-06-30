@@ -70,10 +70,10 @@ export function BulkCategoryChangeDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="sm:max-w-[425px]" aria-describedby="bulk-category-dialog-description">
         <DialogHeader>
           <DialogTitle>Bulk Category Change</DialogTitle>
-          <DialogDescription>
+          <DialogDescription id="bulk-category-dialog-description">
             Change category for {selectedIds.length} selected transaction{selectedIds.length > 1 ? 's' : ''}
           </DialogDescription>
         </DialogHeader>

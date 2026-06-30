@@ -57,8 +57,8 @@ export function MonthlyTrendChart({ data }: MonthlyTrendChartProps) {
         <CardTitle>Monthly Trend</CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="h-80 w-full min-w-0 min-h-0">
-          <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={undefined}>
+        <div className="h-80 w-full min-h-[320px] min-w-[300px]">
+          <ResponsiveContainer width="100%" height="100%" minWidth={300} minHeight={320}>
             <LineChart data={data}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis 

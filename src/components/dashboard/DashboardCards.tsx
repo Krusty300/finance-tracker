@@ -27,8 +27,8 @@ function Sparkline({ data, dataKey, color }: { data: any[], dataKey: string, col
   const isPositive = trend >= 0;
   
   return (
-    <div className="h-12 w-full">
-      <ResponsiveContainer width="100%" height="100%">
+    <div className="h-12 w-full min-h-[48px] min-w-[200px]">
+      <ResponsiveContainer width="100%" height="100%" minWidth={200} minHeight={48}>
         <LineChart data={data}>
           <Line 
             type="monotone" 
